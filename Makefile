@@ -1,0 +1,44 @@
+.DEFAULT_GOAL := help
+
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect
+
+export PR OUTPUT
+
+help:
+	@printf '%s\n' \
+		'make install       Install dependencies from the lockfile' \
+		'make build         Compile all workspaces' \
+		'make check         Run formatting, lint, typechecks and existing tests' \
+		'make lint          Run ESLint' \
+		'make format        Format repository files' \
+		'make format-check  Check formatting without changing files' \
+		'make typecheck     Build and check TypeScript types' \
+		'make test          Build and run Vitest' \
+		'make test-watch    Build and start Vitest in watch mode' \
+		'make clean         Remove TypeScript build outputs' \
+		'make cli           Build and run the CLI without arguments' \
+		'make inspect PR=https://github.com/OWNER/REPO/pull/123 OUTPUT=./inspection-123' \
+		'                   Build and inspect a PR into a new output directory'
+
+install:
+	bun install --frozen-lockfile
+
+build check lint format typecheck test clean:
+	bun run $@
+
+format-check:
+	bun run format:check
+
+test-watch:
+	bun run test:watch
+
+cli: build
+	bun run cli
+
+inspect:
+	@test -n "$$PR" && test -n "$$OUTPUT" || { \
+		printf '%s\n' 'Usage: make inspect PR=https://github.com/OWNER/REPO/pull/123 OUTPUT=NEW_DIRECTORY' >&2; \
+		exit 1; \
+	}
+	bun run build
+	bun run cli -- context inspect --pr "$$PR" --output "$$OUTPUT"
