@@ -23,6 +23,17 @@
         "vitest": "5.0.5",
       },
     },
+    "packages/context-engine": {
+      "name": "@daphne/context-engine",
+      "version": "0.0.0",
+      "dependencies": {
+        "@daphne/review-evidence": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "24.19.2",
+        "typescript": "6.0.3",
+      },
+    },
     "packages/git-source": {
       "name": "@daphne/git-source",
       "version": "0.0.0",
@@ -57,6 +68,8 @@
     "@cacheable/utils": ["@cacheable/utils@2.5.0", "", { "dependencies": { "hashery": "^1.5.1", "keyv": "^5.6.0" } }, "sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA=="],
 
     "@daphne/cli": ["@daphne/cli@workspace:apps/cli"],
+
+    "@daphne/context-engine": ["@daphne/context-engine@workspace:packages/context-engine"],
 
     "@daphne/git-source": ["@daphne/git-source@workspace:packages/git-source"],
 

@@ -190,27 +190,11 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/context-engine/src/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            ...libraryImportRestrictions,
-            prReviewImportRestriction,
-            gitSourceImportRestriction,
-          ],
-        },
-      ],
-    },
-  },
-  {
     files: [
       'packages/git-source/src/contracts.ts',
       'packages/git-source/src/limits.ts',
       'packages/pr-review/src/limits.ts',
       'packages/review-evidence/src/limits.ts',
-      'packages/context-engine/src/**/*.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -255,6 +239,37 @@ export default defineConfig(
           message: 'Return results and notices; let the caller present them.',
         },
       ],
+    },
+  },
+  {
+    files: ['packages/context-engine/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              regex: '^@daphne/(?!review-evidence/contracts$)',
+              message:
+                'Context may import only evidence data contracts from other workspaces.',
+            },
+            {
+              group: ['@daphne/review-evidence/contracts'],
+              allowTypeImports: true,
+              message:
+                'Evidence contracts are a type-only dependency; context must not load retrieval.',
+            },
+            {
+              regex:
+                '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
+              message:
+                'Context retains supplied data and assembles it without repository or network I/O.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
     },
   },
 );

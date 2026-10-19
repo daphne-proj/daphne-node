@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-`apps/cli` is the only executable workspace. Its entry point reports that setup is ready. The compiled-process test exercises ESM output on Node from outside the repository directory. `packages/pr-review` now provides public GitHub PR URL parsing and bounded metadata resolution. `packages/git-source` provides immutable Git snapshots, deterministic change inventories and exact blob reads. `packages/review-evidence` now materializes validated source excerpts and exposes bounded repository tools through a borrowing session. The CLI does not consume these libraries yet. Other package names below reserve ownership, not working APIs.
+`apps/cli` is the only executable workspace. Its entry point reports that setup is ready. The compiled-process test exercises ESM output on Node from outside the repository directory. `packages/pr-review` now provides public GitHub PR URL parsing and bounded metadata resolution. `packages/git-source` provides immutable Git snapshots, deterministic change inventories and exact blob reads. `packages/review-evidence` now materializes validated source excerpts and exposes bounded repository tools through a borrowing session. `packages/context-engine` retains supplied evidence and assembles bounded packets without loading retrieval or Git code. The CLI does not consume these libraries yet. Other package names below reserve ownership, not working APIs.
 
 Bun handles installation and scripts. Node 24 is the production runtime. TypeScript compiles with NodeNext modules; `tsc -b` manages dependency order. Tests use Vitest on Node. Libraries export compiled JavaScript and declarations, with no package-private source imports.
 
@@ -12,7 +12,7 @@ Bun handles installation and scripts. Node 24 is the production runtime. TypeScr
 | -------------------------------- | --------------------------------------------------------------- |
 | `apps/cli`                       | User command composition and process exit behavior              |
 | `apps/eval`                      | Evaluation suites, trials, grading, and reports                 |
-| `packages/context-engine`        | Planned supplied-evidence retention and packet assembly         |
+| `packages/context-engine`        | Supplied-evidence retention and bounded packet assembly         |
 | `packages/domain`                | Shared domain values, identities, serialized contracts          |
 | `packages/git-source`            | Git snapshots, revision comparison and exact blob access        |
 | `packages/review-evidence`       | Exact evidence, bounded repository tools and borrowing sessions |
@@ -43,7 +43,7 @@ Use the `codebase-design` skill when defining or changing a module contract. A c
 - Apps consume public package exports. Libraries never import apps. Internal files use direct relative imports rather than their own public barrel. Keep the dependency graph acyclic and avoid cross-package relative imports.
 - Record significant decisions with the problem, alternatives, choice, consequences, and a condition for revisiting the choice. Reuse `docs/adr/`; do not create an ADR for every helper.
 
-ESLint rejects static imports into workspace `src`/`dist` internals and app imports from libraries. PR acquisition and git-source cannot import each other or downstream review-evidence/context-engine, including type-only imports and package subpaths. Review-evidence contracts reject all imports, and retrieval code routes repository I/O through git-source. Git data contracts and limits reject filesystem/process/network imports and direct `fetch`, `process` or `console` usage. Context-engine is reserved for I/O-free behavior; Task 5 will permit only type imports from the dedicated evidence contracts export when it exists. These rules supplement review: dynamic/global access, aliases and dependency cycles still need inspection.
+ESLint rejects static imports into workspace `src`/`dist` internals and app imports from libraries. PR acquisition and git-source cannot import each other or downstream review-evidence/context-engine, including type-only imports and package subpaths. Review-evidence contracts reject all imports, and retrieval code routes repository I/O through git-source. Git data contracts and limits reject filesystem/process/network imports and direct `fetch`, `process` or `console` usage. Context-engine permits only type imports from the dedicated evidence contracts export; runtime retrieval, Git and filesystem/process/network imports are rejected. These rules supplement review: dynamic/global access, aliases and dependency cycles still need inspection.
 
 ## PR acquisition, Git source and reusable context
 
@@ -52,12 +52,12 @@ The [context-engine design](superpowers/specs/2026-10-19-context-engine-design.m
 - `@daphne/pr-review` owns PR URL parsing, GitHub HTTP/authentication, metadata validation and HTTP limits/errors. Task 1 is implemented.
 - `@daphne/git-source` owns repository/revision inputs, immutable snapshots, subprocess controls, Git limits/errors and change inventory. Tasks 2–4 provide this behavior, exact source reads and bounded matching-file search.
 - `@daphne/review-evidence` now owns source materialization through a borrowing Git session. Bounded tools and pagination are implemented; qualified RCI/PCG navigation remains later work. Its dedicated contracts export contains only I/O-free data types, without Git imports. Session options contain cancellation, Git limits and separate evidence response/page limits. Retryable authenticated cursors keep bounded continuation state outside context-engine.
-- `@daphne/context-engine` will retain supplied evidence and assemble packets. It receives evidence identity/data, never a Git snapshot, acquisition inputs or retrieval callback. It imports only evidence-contract types and performs no source retrieval or repository cleanup.
+- `@daphne/context-engine` retains supplied evidence and assembles packets. It receives evidence identity/data, never a Git snapshot, acquisition inputs or retrieval callback. It imports only evidence-contract types and performs no source retrieval or repository cleanup.
 - The CLI/future agent host composes these packages, explicitly maps PR metadata to Git input, decides retrieval/selection policy and owns deadlines and snapshot cleanup in `finally`.
 
-Each library owns its configuration. Git-source has acquisition/operation/output/blob limits; evidence retrieval has page/response limits; future context assembly has packet limits. No shared options base class or provider framework.
+Each library owns its configuration. Git-source has acquisition/operation/output/blob limits; evidence retrieval has page/response limits; context has separate retained-data and packet limits (4 MiB and 64 KiB by default). No shared options base class or provider framework.
 
-The current Git adapter supports complete SHA-1 repositories on macOS/Linux, public canonical HTTPS GitHub origins. It rejects unsupported input explicitly. Those restrictions apply to Git access, not to packet assembly. Review-evidence is a working package; context-engine remains deferred without a placeholder workspace.
+The current Git adapter supports complete SHA-1 repositories on macOS/Linux, public canonical HTTPS GitHub origins. It rejects unsupported input explicitly. Those restrictions apply to Git access, not to packet assembly. Both review-evidence and context-engine are working packages. The latter retains plain provenance data without depending on Git resource lifetime.
 
 RCI/PCG retain indexing and qualified navigation ownership. Model requests and review/grouping policy remain outside these packages. Source identity is preserved through data contracts, not resource ownership. See the [walkthrough](context-engine-walkthrough.md) for reading order and observed checks.
 
@@ -68,6 +68,6 @@ Architecture review asks:
 3. Does packet rendering leave Git access unchanged?
 4. Does future RCI/PCG navigation belong to review-evidence without moving index construction into context-engine?
 
-The second scenario will be demonstrated when context-engine exists in Task 5; it is not an implemented capability yet.
+The second scenario was demonstrated in Task 5: retained source and recorded pages assembled after Git cleanup, including standalone assembly from a JSON-roundtripped snapshot.
 
 References: [ports and adapters](https://alistair.cockburn.us/hexagonal-architecture/), [Node package exports](https://nodejs.org/api/packages.html#package-entry-points), [ESLint import restrictions](https://eslint.org/docs/latest/rules/no-restricted-imports).

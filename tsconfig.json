@@ -12,6 +12,9 @@
     },
     {
       "path": "./packages/review-evidence/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/context-engine/tsconfig.build.json"
     }
   ]
 }

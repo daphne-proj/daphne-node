@@ -4,9 +4,9 @@ The foundation is separate from application migration. `reference.json` records 
 
 ## Current foundation slice
 
-The [context-engine plan](../superpowers/plans/2026-10-19-context-engine.md) takes precedence over the broad migration order below for the current work. Task 1 introduces `@daphne/pr-review` for PR URL and public GitHub metadata resolution. Task 2 introduces `@daphne/git-source` for immutable snapshots and change inventory. Task 3 introduces review-evidence source materialization and Git blob reads; Task 4 adds bounded repository tools and pagination; context-engine will retain supplied evidence and assemble packets. The CLI later composes these packages and owns Git cleanup. RCI/PCG retain indexing and semantic navigation ownership.
+The [context-engine plan](../superpowers/plans/2026-10-19-context-engine.md) takes precedence over the broad migration order below for the current work. Task 1 introduces `@daphne/pr-review` for PR URL and public GitHub metadata resolution. Task 2 introduces `@daphne/git-source` for immutable snapshots and change inventory. Task 3 introduces review-evidence source materialization and Git blob reads; Task 4 adds bounded repository tools and pagination; Task 5 implements context-engine retention of supplied evidence and bounded packet assembly. The CLI later composes these packages and owns Git cleanup. RCI/PCG retain indexing and semantic navigation ownership.
 
-This is a new TypeScript foundation, not a Rust behavior port. Git acquisition/comparison and exact source evidence reads are implemented. Bounded retrieval tools and pagination are implemented. Model integration, context assembly and CLI integration remain deferred. No new automated tests were added at the user's request; the walkthrough records manual demonstrations and existing checks.
+This is a new TypeScript foundation, not a Rust behavior port. Git acquisition/comparison and exact source evidence reads are implemented. Bounded retrieval tools and pagination are implemented. Evidence retention and context assembly are implemented. Model integration and CLI composition remain deferred. No new automated tests were added at the user's request; the walkthrough records manual demonstrations and existing checks.
 
 ## Later Rust migration sequence
 

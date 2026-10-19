@@ -78,7 +78,7 @@ The host owns the snapshot and must close it when finished. Closing the snapshot
 1. The host acquires a snapshot of the exact commits to compare.
 2. Git-source finds the requested path in the selected commit and reads its blob bytes.
 3. Review-evidence validates the range and UTF-8 text, then returns the excerpt with provenance.
-4. The host decides what to do with that evidence. A future context engine can retain and assemble supplied evidence without opening Git.
+4. The host decides what to do with that evidence. The context engine can retain and assemble supplied evidence without opening Git.
 
 The direct `readSource` method accepts byte ranges and retains the Git blob cap. Use `execute` when the response must obey the separate tool byte/page limits.
 

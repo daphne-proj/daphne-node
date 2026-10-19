@@ -1,6 +1,6 @@
 # ADR 0002: Separate PR acquisition, Git access, evidence retrieval and context assembly
 
-- Status: accepted; Git snapshots, source evidence and bounded tools implemented through Step 4
+- Status: accepted; acquisition, retrieval and independent context implemented through Step 5
 - Date: 2026-10-19
 - Revision: replaces this ADR's earlier decision to keep Git inside context-engine
 
@@ -24,7 +24,7 @@ PR and Git packages do not import one another or downstream packages. Review-evi
 
 Evidence retains commit/blob/path/range metadata. Provenance is data, not a backend dependency. Review-evidence establishes correspondence with actual committed bytes; context-engine checks evidence/session consistency and selects already supplied data. No missing source is fetched during assembly.
 
-Each owner has separate configuration: HTTP limits in pr-review; Git acquisition/operation/output/blob limits in git-source; tool byte/page limits in review-evidence; packet byte limits in context-engine. The host owns the total deadline and passes cancellation into I/O operations. No common options superclass or provider framework is introduced.
+Each owner has separate configuration: HTTP limits in pr-review; Git acquisition/operation/output/blob limits in git-source; tool byte/page limits in review-evidence; retained-data and packet byte limits in context-engine. The host owns the total deadline and passes cancellation into I/O operations. No common options superclass or provider framework is introduced.
 
 ## Rust evidence and deliberate differences
 
@@ -53,9 +53,11 @@ Preserve immutable revision identity, exact bytes, cancellation, bounded outputs
 
 ## Transition and status
 
-The user approved corrected Task 2 after reviewing the revised plan. Its Git implementation now lives in git-source; the superseded context-engine draft/build registration is removed. Workspace architecture, migration/package docs and lint restrictions now follow this decision. Task 1 PR behavior is unchanged. Step 3 now implements review-evidence source materialization with a direct I/O-free contracts export. Context-engine remains deferred with no placeholder. Step 4 adds hunk windows, bounded tools and retryable authenticated cursors in review-evidence; Git-native candidate search stays in git-source.
+The user approved corrected Task 2 after reviewing the revised plan. Its Git implementation now lives in git-source; the superseded context-engine draft/build registration is removed. Workspace architecture, migration/package docs and lint restrictions now follow this decision. Task 1 PR behavior is unchanged. Step 3 now implements review-evidence source materialization with a direct I/O-free contracts export. Step 4 adds hunk windows, bounded tools and retryable authenticated cursors in review-evidence; Git-native candidate search stays in git-source.
 
-The walkthrough records post-migration public-API demonstrations and final verification. Later steps remain separate learning checkpoints; context retention/assembly and CLI composition remain later work.
+Step 5 introduces the working context-engine package. Its 4 MiB serialized ledger retains source once, references source IDs from page history and commits whole pages atomically. Incompatible retries, broken continuation chains and conflicting source fail without changing state. Its assembler captures immutable supplied data and selects whole source entries before navigation under a separate 64 KiB rendered-byte cap; optional named token counting remains host-supplied. It preserves omission and incomplete-query metadata without fetching anything.
+
+The walkthrough records post-migration public-API demonstrations, including assembly after Git cleanup and from a serialized snapshot. CLI composition remains a separate learning checkpoint. This implementation retains comparison-shaped provenance types; a broader identity model should follow an actual second use case.
 
 ## Revisit when
 

@@ -1,6 +1,6 @@
 # Context Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for the user's native, one-task-at-a-time execution. The user approved corrected Task 2; Step 4 is now approved on main, with no new tests and no commit.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for the user's native, one-task-at-a-time execution. The user approved corrected Task 2; Step 5 is now approved on main, with no new tests and no commit.
 
 **Goal:** Build acquisition-independent evidence retention and context assembly, demonstrated through separately owned PR resolution, Git access and bounded repository operations.
 
@@ -21,7 +21,7 @@
 - The host owns retrieval/selection policy, overall deadlines and Git cleanup. No generic acquisition package, engine superclass or dependency container.
 - No model calls, reviewed-repository code execution/dependency installation, GitHub writes, automatic pushes or Rust artifact compatibility claims.
 - Preserve no-argument CLI behavior. Introduce packages only with working behavior.
-- Execute one task at a time with explanation and a manual demonstration. The user approved Step 4 after reviewing the boundary and requires leaving its changes uncommitted. Task 4 is authorized for implementation without committing; Tasks 5–6 remain later learning checkpoints.
+- Execute one task at a time with explanation and a manual demonstration. Step 4 was subsequently committed by the user as `7c216e1`. Task 5 is authorized for implementation without committing; Task 6 remains a later learning checkpoint.
 - Use the spec's exact initial limits and artifact contracts.
 
 ## Review Focus
@@ -81,7 +81,7 @@ Define each contract only when first consumed; readonly records and arrays are r
 - Review-evidence `SourceRef: { sessionId: string; side: Side; commit: string; path: string; blobId: string; range: ByteRange }`; `SourceEvidence: { ref: SourceRef; text: string }`. Admit text only after byte/range/encoding validation.
 - Review-evidence `ContextNotice: { code: string; message: string; path: string | null }`; centralize concrete notice codes and redact I/O details before presentation.
 - In Task 4, review-evidence adds `EvidenceLimits: { maxToolBytes: 16_384; maxPageEntries: 100 }` gives defaults, with numeric fields in the type; export `defaultEvidenceLimits` and `resolveEvidenceLimits`. `EvidenceOperationOptions` lives in the runtime session API: Task 3 defines only `{ signal: AbortSignal; gitLimits: GitLimits }`; Task 4 adds `limits: EvidenceLimits`. Neither form belongs in the data-only contracts subpath.
-- Context-engine `ContextLimits` contains only numeric `maxContextBytes`, default `65_536`; export `defaultContextLimits` and `resolveContextLimits`. No acquisition or Git limits/signals.
+- Context-engine `ContextLimits` contains numeric `maxContextBytes` (default `65_536`) and `maxRetainedBytes` (default `4_194_304`); export `defaultContextLimits` and `resolveContextLimits`. No acquisition or Git limits/signals.
 - All limit resolvers accept partial overrides, require positive safe integers, and may only lower defaults. The CLI owns one 300,000 ms acquisition deadline spanning HTTP and Git, without restarting it between stages.
 - Context-engine `TokenBudget: { counterId: string; maxTokens: number; countTokens: (renderedContext: string) => Promise<number> }`. Counts concern the exact rendering, not a complete provider request.
 - Invalid input produces an owner-specific typed error; expected unavailable evidence produces explicit notices/results. Never turn unavailable content into empty success.
@@ -198,7 +198,7 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 
 ## Task 5: Retain supplied evidence and assemble context
 
-**Files:** Create the functional context-engine workspace and `src/{limits,evidence,assembly,engine,index}.ts`. Declare the review-evidence workspace type dependency/build reference; import types solely from `@daphne/review-evidence/contracts`. Update root references, lock, import restrictions, ownership docs and walkthrough.
+**Files:** Create the functional context-engine workspace and `src/{contracts,validation,limits,errors,evidence,assembly,engine,index}.ts`. Declare the review-evidence workspace type dependency/build reference; import types solely from `@daphne/review-evidence/contracts`. Update root references, lock, import restrictions, ownership docs and walkthrough.
 
 **Interfaces:**
 
@@ -210,12 +210,25 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 - `createContextEngine(identity: ReviewIdentity, limits: ContextLimits): ContextEngine`.
 - `ContextEngine` exposes `identity`, `retain(source: SourceEvidence): string`, `record(result: ToolResult): void`, `evidence(): EvidenceSnapshot`, and `assemble(input: AssembleInput): Promise<ContextPacket>`. Its assembly method enforces the configured cap as well as the requested cap. No execute, fetch, snapshot handle, repository path input, retrieval callback or close method.
 
-- [ ] **Step 1: Register the package and implement retention.** Validate identity/source range consistency, deduplicate identical references, reject conflicting bytes/wrong sessions, and retain original text. Validate result identity even for empty/navigation-only pages. Record supplied results and notices, but advance pagination progress only for successfully completed pages along the correct cursor chain; unavailable/failed/cancelled operations never establish exhaustion. Search previews never enter source storage.
-- [ ] **Step 2: Implement selection and rendering.** Preserve host evidence-ID priority, deduplicate IDs, reject unknown IDs and render source/reference/navigation/limitations deterministically. Missing evidence is an error, never a retrieval request.
-- [ ] **Step 3: Implement whole-entry admission.** Count the final UTF-8 rendering including omission metadata. Remove lower-priority entries until it fits; never clip source. If tokens are supplied, validate/await the named counter on each final candidate. An envelope that cannot fit is a typed error. Without a counter, token count is null.
-- [ ] **Step 4: Implement immutable results and the in-memory facade.** Hash final rendering plus identity/format and counter configuration with SHA-256 for packet identity. The same inputs may reproduce the same ID; packet construction is not model delivery. Freeze/copy outputs and leave retained evidence unchanged. The engine delegates only to ledger and assembler.
-- [ ] **Step 5: Demonstrate independence and budgets.** Retrieve evidence through review-evidence, retain it, then close Git. Assemble twice with different budgets afterward and verify byte counts, omissions and unchanged retention. Inspect emitted context JavaScript for zero retrieval/Git imports. Exercise duplicates/conflicts, wrong sessions, an unknown ID, tiny envelope and out-of-order/failed-page progress. Review token-callback logic without inventing a tokenizer.
-- [ ] **Step 6: Verify and commit.** Independently review the public boundary, format and run the existing full gate/diff check. Commit as `feat(context): retain evidence and assemble bounded packets`.
+**Approved Step 5 clarifications and implementation choices:**
+
+- Retain supplied data only. Git and retrieval runtime imports are forbidden; `@daphne/review-evidence/contracts` is a type-only dependency. Identity fields and cursor strings are opaque data, not resource handles or instructions to retrieve.
+- Record a whole tool page atomically, using the same source validation/deduplication as `retain`. Identical page retries are no-ops. Reject conflicting repeats, foreign identities and out-of-order continuations without modifying state or consuming evidence IDs.
+- One pagination chain per normalized query in this engine. Query identity excludes the input cursor but includes effective request parameters. Compare cursor strings without decoding/authenticating them. A restarted incompatible chain is an explicit conflict. Only contiguous, limitation-free completion establishes exhaustion.
+- Identical source references/text reuse IDs. Reject a different blob for the same side/commit/path, different text for the same reference, or disagreement in overlapping byte ranges. Keep consistent overlapping excerpts separate; do not merge/rewrite their identity.
+- `maxRetainedBytes` defaults to 4,194,304 bytes (4 MiB), independent of `maxContextBytes` at 65,536 bytes (64 KiB). Count the complete deterministic JSON encoding of retained identity, source records, query/page bookkeeping, navigation and notices. Source entries in page history reference retained IDs instead of duplicating source text. A transaction that exceeds the cap fails without eviction or partial writes. This bounds retained data, not exact JS heap or transient staging memory.
+- Capture immutable state and assembly arguments before awaiting an optional token counter. Standalone assembly validates supplied snapshots without repository access. Count actual final JSON rendering, including provenance, omissions and navigation bookkeeping; the packet metadata wrapper is outside that rendering budget.
+- Preserve host source priority; admit whole excerpts and remove lower-priority entries when necessary. Then admit whole navigation observations/notices in stable recorded order without displacing admitted source. Render explicit source and observation omission metadata and query completion summaries. Omission of a notice cannot hide that retrieval was partial. Retention remains unchanged.
+- If mandatory identity/progress/omission bookkeeping cannot fit even with no selected source/navigation, fail explicitly. Unknown evidence IDs are input errors, never retrieval requests.
+- Named token counting is a host-supplied optional function, not a retrieval callback. Validate nonnegative safe counts and count the exact candidate rendering; without it tokenCount is null. Packet hashing includes rendering, identity/format and counter configuration/count; construction is not model delivery.
+- No new tests, fixtures, dependency framework, RCI/PCG work, model/CLI integration or commits in this step.
+
+- [x] **Step 1: Register the package and implement retention.** Validate identity/source range consistency, deduplicate identical references, reject conflicting bytes/wrong sessions, and retain original text. Validate result identity even for empty/navigation-only pages. Record supplied results and notices, but advance pagination progress only for successfully completed pages along the correct cursor chain; unavailable/failed/cancelled operations never establish exhaustion. Search previews never enter source storage.
+- [x] **Step 2: Implement selection and rendering.** Preserve host evidence-ID priority, deduplicate IDs, reject unknown IDs and render source/reference/navigation/limitations deterministically. Missing evidence is an error, never a retrieval request.
+- [x] **Step 3: Implement whole-entry admission.** Count the final UTF-8 rendering including omission metadata. Remove lower-priority entries until it fits; never clip source. If tokens are supplied, validate/await the named counter on each final candidate. An envelope that cannot fit is a typed error. Without a counter, token count is null.
+- [x] **Step 4: Implement immutable results and the in-memory facade.** Hash final rendering plus identity/format and counter configuration with SHA-256 for packet identity. The same inputs may reproduce the same ID; packet construction is not model delivery. Freeze/copy outputs and leave retained evidence unchanged. The engine delegates only to ledger and assembler.
+- [x] **Step 5: Demonstrate independence and budgets.** Retrieve evidence through review-evidence, retain it, then close Git. Assemble twice with different budgets afterward and verify byte counts, omissions and unchanged retention. Inspect emitted context JavaScript for zero retrieval/Git imports. Exercise duplicates/conflicts, wrong sessions, an unknown ID, tiny envelope and out-of-order/failed-page progress. Review token-callback logic without inventing a tokenizer.
+- [x] **Step 6: Verify without committing.** Independently review the public boundary, format and run frozen install, the existing full gate and diff check. Leave all Step 5 changes uncommitted on main.
 
 **Discuss:** Evidence retention, packet selection, source lifetime and model delivery are separate concerns. The initial comparison-shaped identity preserves provenance without requiring a live Git repository.
 
@@ -242,8 +255,8 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 
 ## Completion and planning self-review
 
-- Task 1 remains complete. Corrected Task 2 is complete in git-source, with the verification recorded in the walkthrough. Step 3 source reads and materialization are complete; frozen install, the full existing check gate, manual demonstrations and independent review passed. Task 4 is implemented and verified, deliberately uncommitted at the user's request. Tasks 5–6 remain pending and context-engine has no placeholder.
-- Next learning checkpoint is Task 5, supplied-evidence retention and context assembly. Native execution on main and no new tests remain selected; do not ask for a new execution mode or implement subsequent tasks automatically.
+- Task 1 remains complete. Corrected Task 2 is complete in git-source, with the verification recorded in the walkthrough. Step 3 source reads and materialization are complete; frozen install, the full existing check gate, manual demonstrations and independent review passed. Task 4 was subsequently committed as `7c216e1`. Task 5 is implemented and verified, deliberately uncommitted on main. Frozen install, the full existing gate, public-API demonstrations and independent source review passed. Task 6 remains pending.
+- Next learning checkpoint is Task 6, explicit CLI composition. Native execution on main and no new tests remain selected; do not ask for a new execution mode or implement subsequent tasks automatically.
 - Spec coverage: HTTP → Task 1; immutable Git/lifecycle → Task 2; exact evidence → Task 3; tools/cursors → Task 4; retention/context budgets → Task 5; composition/artifacts → Task 6.
 - Dependency consistency: Task 2 exports Git contracts only; Task 3 introduces an I/O-free evidence data export; Task 5 consumes only those types and supplied data; Task 6 owns all resource orchestration.
 - The key architecture demonstration is assembly from already supplied evidence after Git closes. Type checking and prior draft demonstrations alone do not establish this property.

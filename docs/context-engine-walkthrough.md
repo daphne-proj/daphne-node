@@ -358,3 +358,52 @@ Using the existing public demonstration comparison and compiled public exports:
 No new tests, fixtures, harnesses, packages or runtime dependencies were added. CLI/PR implementation, tool/runtime pins and lockfile remain unchanged. The work remains uncommitted on main, as requested.
 
 The selected example did not exercise every BOM/CRLF, emoji, empty-file, deletion, symlink/submodule or invalid-text case. Large/minified-file replay was inspected and corrected but not stress-benchmarked. New behavior has manual verification and source review, not automated regression coverage. RCI/PCG indexing, context assembly and CLI/model integration remain future work.
+
+## Step 5: Retain supplied evidence and assemble context
+
+Step 4 was subsequently committed by the user as `7c216e1`. Step 5 adds the context-engine workspace on main, with no new tests and no commit. No Git-source, PR or retrieval implementation changes are needed.
+
+### Read the code in this order
+
+1. [Public facade](../packages/context-engine/src/engine.ts) takes an identity and context limits. Its methods are retain, record, evidence and assemble. There is no execute or close method because the host owns retrieval and resources.
+2. [Data contracts](../packages/context-engine/src/contracts.ts) distinguish retained source, recorded page/query progress, immutable snapshots, assembly selection and packets. Page history references evidence IDs rather than storing source text twice.
+3. [Validation](../packages/context-engine/src/validation.ts) captures plain supplied data and checks session/side/commit identity, UTF-8 byte ranges, tool-result structure and local consistency. Types do not make deserialized input trustworthy. Repository correspondence remains the evidence producer's responsibility.
+4. [Evidence ledger](../packages/context-engine/src/evidence.ts) stages each retain/record transaction, checks conflicts and the complete serialized budget, then replaces immutable state. Failed transactions do not consume IDs or advance page progress. Snapshot reconstruction reuses these invariants.
+5. [Limits](../packages/context-engine/src/limits.ts) separate 4 MiB retained data from 64 KiB rendered packets. Both can be lowered. There is no eviction: the host receives an explicit limit error and chooses what to do next.
+6. [Assembly](../packages/context-engine/src/assembly.ts) captures a snapshot and the selection before any asynchronous token count. It admits whole source entries by host priority, then navigation in recorded order, while preserving query completion summaries and omission metadata.
+
+### Why retain more than one packet?
+
+A review may retrieve several excerpts while investigating a change, then assemble different selections for different questions. Dropping an excerpt from one model-facing packet must not erase it from the evidence ledger.
+
+Four MiB is a conservative initial policy with room for many bounded tool responses and multiple 64 KiB projections. The complete serialized size includes provenance, pagination and escaping, so it is not simply a source-text allowance. Source references in history avoid a second copy of the same excerpt. Exact heap usage, transient candidate allocations and throughput require measurement later.
+
+### Follow one result through the system
+
+The host executes `inspect_change` in review-evidence. It receives change navigation plus exact BASE/HEAD source windows and explicitly calls `context.record(page)`. The ledger validates the whole page, assigns/reuses source IDs, stores navigation and records its cursor/completeness. Only then does it publish new state.
+
+The host can close Git now. It chooses evidence IDs for assembly. The assembler renders that source with provenance, recorded navigation, query summaries and limitations, measures the actual JSON string, and removes lower-priority whole entries if needed. It returns a packet without changing the ledger.
+
+A search preview stays navigation until the host explicitly retrieves exact source and records or retains it. An open/partial/unavailable query remains visible even when its detailed notice cannot fit. A null cursor alone does not prove completeness.
+
+See the [package example](../packages/context-engine/README.md#host-example) for the public calls. For standalone assembly, pass `JSON.parse(JSON.stringify(context.evidence()))` to `assembleContext` with the same selection; no live engine or repository is required.
+
+### Observed manual demonstrations
+
+Compiled public exports were exercised inline against the existing public comparison used in Steps 2–4. All acquired snapshots were closed in `finally`; no demonstration file or replacement test harness was added.
+
+- Two list pages, one full README read and one inspection retained four distinct source excerpts across three queries. Identical page retries did not alter state.
+- After Git cleanup, assembly produced a 5,213-byte packet with all four sources and a 4,042-byte packet omitting the last selected source. Counts matched UTF-8 rendering exactly; neither assembly changed retention.
+- JSON-roundtripped snapshots reproduced the packet ID. Unknown evidence IDs and a one-byte packet allowance failed explicitly.
+- Duplicate source references reused IDs; consistent overlapping source stayed separate. Conflicting text/blob identity, a foreign session, incorrect byte length and out-of-order/conflicting pages failed without changing state.
+- A conflicting second source in a page rolled back the first source and all page progress. Exact serialized retention capacity accepted the source; one byte less rejected it without consuming the next ID. A page exceeding its cap also left both sources and queries unchanged.
+- A named demonstration callback counted UTF-8 bytes to exercise the optional counter API; it was explicitly not a tokenizer. Its reported count matched the rendering, and a negative count failed.
+- Mutating a caller snapshot and selected-ID array while a counter awaited did not change the captured packet.
+
+### Review and final verification
+
+Independent source review found no actionable issue in retention atomicity, query-chain handling, immutable capture, snapshot reconstruction, budget admission or runtime separation. Emitted JavaScript imports only local modules and Node crypto.
+
+Additional demonstrations confirmed search previews remain navigation, cursor cycles fail, unavailable results never establish completion, mutable supplied source is copied, altered snapshot fingerprints fail, configured engine and token caps are enforced, and a concurrent retain does not change an assembly already waiting on its counter.
+
+Frozen install and the full existing check gate passed: formatting, lint, builds, all five workspace typechecks and the one existing CLI smoke test. Inline ESLint checks allowed evidence-contract type imports and rejected runtime evidence imports, Git types and filesystem imports. Diff whitespace and local documentation links passed. No application, Git-source, PR or retrieval source was changed. HEAD remains 7c216e1 on main; nothing is staged or committed. No new automated regression coverage is authorized. Model delivery, actual provider tokenization and worst-case performance near the retention cap are outside this step. CLI composition remains Step 6.

@@ -1,6 +1,6 @@
 # Context Engine Design
 
-Status: revised boundaries, 2026-10-19; corrected Step 2 was approved and implemented in git-source; Step 3 source evidence and Step 4 bounded tools are implemented; context assembly remains pending. This is a new TypeScript foundation, not a port of the Rust agent loop or a claim of Rust output compatibility.
+Status: revised boundaries, 2026-10-19; corrected Step 2 was approved and implemented in git-source; Step 3 source evidence, Step 4 bounded tools and Step 5 independent retention/assembly are implemented; CLI composition remains pending. This is a new TypeScript foundation, not a port of the Rust agent loop or a claim of Rust output compatibility.
 
 ## Intent and learning goal
 
@@ -60,7 +60,7 @@ Contract ownership follows the receiving responsibility. `git-source/contracts.t
 
 This preserves the Rust responsibility split: `git-source` reads repository facts, `review-evidence` exposes pinned repository operations, and `review-agent/src/context.rs` retains evidence and query progress. Rust currently has transitive package dependencies through review-evidence; the TypeScript contracts subpath deliberately avoids a runtime retrieval dependency in context-engine. This is an architectural adaptation, not a claim of exact crate or output parity.
 
-These documents and ADR 0002 supersede the earlier instruction to keep Git inside context-engine. Corrected Task 2 synchronizes broader workspace ownership docs and lint rules, rehomes the Git draft into git-source, and removes the old context-engine registration. Step 3 adds a working review-evidence source session; context-engine remains deferred.
+These documents and ADR 0002 supersede the earlier instruction to keep Git inside context-engine. Corrected Task 2 synchronizes broader workspace ownership docs and lint rules, rehomes the Git draft into git-source, and removes the old context-engine registration. Step 3 adds a working review-evidence source session, Step 4 adds bounded tools and Step 5 introduces independent context retention and assembly.
 
 Information flow:
 
@@ -130,6 +130,12 @@ Keep three concepts distinct: discoverable locations, exact source read, and sou
 
 The host passes completed tool results and exact source evidence into context-engine. The ledger assigns session-local evidence IDs, deduplicates identical references, rejects conflicting bytes, and keeps pagination progress even when an older observation is omitted from the packet. No summaries, long-term model memory, or learned ranking in this slice.
 
+Whole-page recording is atomic. Identical retries are no-ops; conflicting repeats, foreign identities and out-of-order pages fail without changing state. Each normalized query has one chain; cursors remain opaque data. Same-source overlap must agree byte-for-byte, and one side/commit/path cannot name inconsistent blobs. Consistent overlapping excerpts remain separate.
+
+Retention defaults to 4 MiB of deterministic serialized ledger data: identity, unique sources, query/page bookkeeping, navigation and notices. Page source entries use retained IDs. Reject over-budget transactions atomically without eviction; this is not a claim about exact JavaScript heap or transient memory. Callers may lower this independent cap.
+
+Assembly captures immutable state before any asynchronous token counting. Admit host-selected source in priority order, then whole navigation observations/notices in recorded order without displacing admitted source. Mandatory query completion summaries and explicit omissions preserve limitations even when detailed observations are omitted. Standalone assembly validates supplied snapshots without Git or retrieval.
+
 The host provides an ordered list of evidence IDs to the assembler. Keep that priority order; deduplicate identical IDs; reject unknown IDs. Include whole evidence entries while they fit, record omitted IDs, and never clip source silently. Omission bookkeeping and serialization overhead count toward the byte limit. If the required envelope cannot fit, fail explicitly.
 
 `ContextPacket` contains the frozen identity, selected/omitted evidence IDs, structured limitations and rendering metadata. Selected exact sources and bounded navigation observations are encoded inside `renderedContext`, the exact model-neutral string whose size was admitted; do not duplicate source text in the envelope. It does not contain trusted system instructions.
@@ -145,7 +151,7 @@ These are initial implementation decisions, not performance claims. Each library
 - `pr-review/src/limits.ts` owns `PullRequestLimits`, with `httpTimeoutMs: 30_000` and `maxHttpBytes: 2_097_152`, plus `defaultPullRequestLimits` and `resolvePullRequestLimits`. Its `ResolvePullRequestOptions` contains `signal`, these `limits` and an optional `token`. HTTP work obeys both the caller signal and the request timeout through body consumption.
 - `git-source/src/limits.ts` owns `GitLimits`: `acquisitionTimeoutMs: 300_000`, `gitTimeoutMs: 30_000`, `maxGitOutputBytes: 16_777_216` and `maxBlobBytes: 2_097_152`. It exports `defaultGitLimits`, `resolveGitLimits` and `GitOperationOptions` containing `signal` and these `limits`.
 - Starting in Task 4, `review-evidence/src/limits.ts` owns `EvidenceLimits`: `maxToolBytes: 16_384` and `maxPageEntries: 100`, with `defaultEvidenceLimits` and `resolveEvidenceLimits`. `EvidenceOperationOptions` in Task 3 contains only `signal` and explicitly named `gitLimits`; Task 4 adds these tool `limits`; forwarding Git limits to its concrete Git dependency does not expose them to context-engine.
-- `context-engine/src/limits.ts` owns only `ContextLimits: { maxContextBytes: number }`, defaulting to `65_536`, with `defaultContextLimits` and `resolveContextLimits`. Token counting remains an optional per-assembly input. Context construction needs neither an acquisition signal nor Git options.
+- `context-engine/src/limits.ts` owns `ContextLimits: { maxContextBytes: number; maxRetainedBytes: number }`, defaulting to `65_536` rendered bytes and `4_194_304` retained bytes, with `defaultContextLimits` and `resolveContextLimits`. Token counting remains an optional per-assembly input. Context construction needs neither an acquisition signal nor Git options.
 - The CLI owns the deadline spanning PR resolution and snapshot acquisition. It starts one 300,000 ms deadline before metadata resolution and passes the combined deadline/user-cancellation signal to both I/O libraries. Git-source additionally bounds standalone acquisition by its own limit. Subsequent inspection uses user cancellation and operation limits, not the completed acquisition phase's deadline.
 
 | Limit                                          | Value                        |
@@ -156,6 +162,7 @@ These are initial implementation decisions, not performance claims. Each library
 | One readable blob                              | 2,097,152 bytes              |
 | One tool response, including metadata          | 16,384 UTF-8 bytes           |
 | List/search page maximum                       | 100 entries                  |
+| Retained evidence ledger, serialized JSON      | 4,194,304 bytes              |
 | One assembled context string                   | 65,536 UTF-8 bytes           |
 
 Fetch processes use the acquisition deadline, not the local-operation deadline. All I/O operations also accept an `AbortSignal`; context retention and byte assembly perform no I/O. When a cap prevents completeness, return a declared partial result or an explicit limit error; never report complete review coverage. Network transfer/disk use remain a single-run resource concern; a shared/multi-tenant service needs separate quotas before deployment.
