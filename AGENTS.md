@@ -8,11 +8,12 @@ This is the TypeScript migration workspace for Daphne. Read `docs/architecture.m
 - For Rust-to-TypeScript migration, use `.agents/skills/daphne-migration-parity/SKILL.md` and `docs/migration/parity.md`.
 - For tests, use `.agents/skills/vitest/SKILL.md` and `docs/agents/testing.md`. Repository conventions override generic skill examples.
 - The five reasoning workflows in `.agents/skills/README.md` remain explicit-only. Do not load the whole skill collection for every task.
-- Make the smallest complete change. Independently review nontrivial behavior or architecture changes before completion.
+- Make the smallest complete change. Minimize unnecessary complexity, not line count. Prefer readable, explicit code over compressed expressions. Independently review nontrivial behavior or architecture changes before completion.
+- Before completing TypeScript implementation or refactoring, apply `.agents/skills/daphne-code-readability/SKILL.md` to the changed code. Keep this pass within the task scope.
 
 ## Commands
 
-Use Node from `.node-version` and Bun from `.bun-version`. Bun is the package manager, Node is the runtime. Run `bun install --frozen-lockfile`, then `bun run check`. Use `bun run test` for Vitest; `bun test` is a different runner. Run compiled CLI code with `bun run build && bun run cli`.
+Use Node from `.node-version` and Bun from `.bun-version`. Bun is the package manager, Node is the runtime. Run `bun install --frozen-lockfile`, then `bun run check`. Use `bun run test` for Vitest; `bun test` is a different runner. Before completing code changes, format the changed files with the repository Prettier configuration and run `bun run check`. Run compiled CLI code with `bun run build && bun run cli`.
 
 ## Boundaries
 

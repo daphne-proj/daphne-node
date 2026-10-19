@@ -9,6 +9,13 @@ export default defineConfig(
     '**/fixtures/**',
     '.agents/**',
   ]),
+  {
+    files: ['**/*.{ts,mjs}'],
+    rules: {
+      curly: ['error', 'all'],
+      'no-nested-ternary': 'error',
+    },
+  },
   { files: ['**/*.mjs'], extends: [js.configs.recommended] },
   {
     files: ['**/*.ts'],

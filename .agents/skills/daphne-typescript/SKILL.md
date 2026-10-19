@@ -14,3 +14,5 @@ Read [TypeScript quality](../../../docs/agents/typescript-quality.md) for the re
 | Rust behavior or serialized contracts     | Load `daphne-migration-parity`                               |
 
 Resolve these paths from the repository root. Use the commands defined in `package.json`; `bun run check` is the full local gate. Repo policy is maintained in these linked documents, not duplicated in this skill.
+
+Before completing TypeScript implementation or refactoring, use [Daphne code readability](../daphne-code-readability/SKILL.md) for a focused pass over the changed code.
