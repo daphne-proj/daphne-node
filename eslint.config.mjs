@@ -31,19 +31,33 @@ const prReviewImportRestriction = {
     '**/pr-review',
     '**/pr-review/**',
   ],
-  message:
-    'The context engine consumes repository/revision inputs, not PR acquisition.',
+  message: 'PR metadata is resolved by the host before Git acquisition.',
 };
 
-const contextEngineImportRestriction = {
+const gitSourceImportRestriction = {
+  group: [
+    '@daphne/git-source',
+    '@daphne/git-source/**',
+    '**/git-source',
+    '**/git-source/**',
+  ],
+  message:
+    'Git access belongs to git-source; the host composes acquisition and context.',
+};
+
+const downstreamImportRestriction = {
   group: [
     '@daphne/context-engine',
     '@daphne/context-engine/**',
     '**/context-engine',
     '**/context-engine/**',
+    '@daphne/review-evidence',
+    '@daphne/review-evidence/**',
+    '**/review-evidence',
+    '**/review-evidence/**',
   ],
   message:
-    'PR acquisition owns its contracts; the host composes it with context-engine.',
+    'Acquisition packages must not depend on evidence retrieval or context assembly.',
 };
 
 export default defineConfig(
@@ -106,7 +120,23 @@ export default defineConfig(
         {
           patterns: [
             ...libraryImportRestrictions,
-            contextEngineImportRestriction,
+            gitSourceImportRestriction,
+            downstreamImportRestriction,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/git-source/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            prReviewImportRestriction,
+            downstreamImportRestriction,
           ],
         },
       ],
@@ -117,17 +147,22 @@ export default defineConfig(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [...libraryImportRestrictions, prReviewImportRestriction] },
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            prReviewImportRestriction,
+            gitSourceImportRestriction,
+          ],
+        },
       ],
     },
   },
   {
     files: [
-      'packages/context-engine/src/contracts.ts',
-      'packages/context-engine/src/limits.ts',
-      'packages/context-engine/src/tools/contracts.ts',
-      'packages/context-engine/src/evidence.ts',
-      'packages/context-engine/src/assembly.ts',
+      'packages/git-source/src/contracts.ts',
+      'packages/git-source/src/limits.ts',
+      'packages/pr-review/src/limits.ts',
+      'packages/context-engine/src/**/*.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -146,7 +181,7 @@ export default defineConfig(
                 '@daphne/**',
               ],
               message:
-                'Keep context contracts, evidence, and assembly independent of adapters and composition.',
+                'Keep data contracts, limits and context assembly independent of I/O and runtime composition.',
             },
             {
               regex:

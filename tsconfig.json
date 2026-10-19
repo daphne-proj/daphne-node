@@ -6,6 +6,9 @@
     },
     {
       "path": "./packages/pr-review/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/git-source/tsconfig.build.json"
     }
   ]
 }

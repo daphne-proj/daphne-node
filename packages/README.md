@@ -1,7 +1,9 @@
 # Libraries
 
-`@daphne/pr-review` provides PR URL parsing and bounded public GitHub metadata resolution. Import its compiled public exports; its library code does not read environment variables or depend on context-engine.
+`@daphne/pr-review` provides PR URL parsing and bounded public GitHub metadata resolution. It reads no environment variables and imports no Git or context package.
 
-The planned `@daphne/context-engine` package starts with repository/revision acquisition in Task 2. The CLI will compose both packages, while RCI/PCG retain indexing ownership. See [the architecture map](../docs/architecture.md) and [the walkthrough](../docs/context-engine-walkthrough.md).
+`@daphne/git-source` provides remote/local immutable Git snapshots and deterministic change inventories. It owns subprocess controls and cleanup mechanics; the caller must close acquired snapshots. Its public API contains no PR resolver, retrieval tool or context builder.
 
-Add each package with useful behavior and appropriate verification using [CONTRIBUTING.md](../CONTRIBUTING.md). Do not create empty package placeholders.
+Review-evidence will materialize exact evidence and expose bounded retrieval. Context-engine will retain supplied evidence and assemble packets without Git handles or retrieval callbacks. The host will compose these APIs; RCI/PCG retain indexing ownership. Neither deferred package has an empty workspace.
+
+Import compiled public exports. See [the architecture map](../docs/architecture.md), [the walkthrough](../docs/context-engine-walkthrough.md) and [CONTRIBUTING.md](../CONTRIBUTING.md) for ownership and package conventions.
