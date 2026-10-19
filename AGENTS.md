@@ -10,7 +10,7 @@ This is the TypeScript migration workspace for Daphne. Read `docs/architecture.m
 - When designing or changing module contracts, use `.agents/skills/codebase-design/SKILL.md` with `docs/architecture.md`. Daphne domain names, ownership, and explicit task constraints take precedence over upstream terminology and workflow advice. Do not add interfaces, adapters, or remove tests solely to satisfy a skill heuristic.
 - The five reasoning workflows in `.agents/skills/README.md` remain explicit-only. Do not load the whole skill collection for every task.
 - Make the smallest complete change. Minimize unnecessary complexity, not line count. Prefer readable, explicit code over compressed expressions. Independently review nontrivial behavior or architecture changes before completion.
-- Before completing TypeScript implementation or refactoring, apply `.agents/skills/daphne-code-readability/SKILL.md` to the changed code. Keep this pass within the task scope.
+- When writing, editing, reviewing or presenting any code, use `.agents/skills/daphne-code-readability/SKILL.md`. Apply logical spacing to source, scripts, tests, configuration, documentation examples and chat snippets in every language, respecting its syntax and formatter. Check grouping before presenting snippets and before completing edits; keep changes within the task scope.
 
 ## Commands
 
