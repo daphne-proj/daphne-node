@@ -143,6 +143,21 @@
       "sha256": {
         ".agents/skills/typescript-types/SKILL.md": "cc3b62b958188e6be9c682a1468e3599bcc437e5fbe29ab63ebafbf3207655e9"
       }
+    },
+    {
+      "path": ".agents/skills/codebase-design",
+      "source": "https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills/engineering/codebase-design",
+      "revision": "49dd158d1076134a641b33efb035946536778336",
+      "installation": "skill-installer; pinned download, copied unchanged into project-local skills",
+      "license": "MIT",
+      "licensePath": ".agents/licenses/mattpocock-skills.txt",
+      "sha256": {
+        ".agents/skills/codebase-design/DEEPENING.md": "f3dd099ce99289bd213914d8ee3e2429b78309c3957ca4583f7659551b1d53c1",
+        ".agents/skills/codebase-design/DESIGN-IT-TWICE.md": "52b52e75655a27aea59c6966b410bac82448968ad46ef1ebb9f07c274e3ae010",
+        ".agents/skills/codebase-design/SKILL.md": "2c20617f87ec8af6a434859f381b2f061a69b530444e74eb39e78bb016a6d1e2",
+        ".agents/skills/codebase-design/agents/openai.yaml": "edebc9e4fcfe102114012575eaa9600b9b5fd08c311664f389c36e7bc717740f",
+        ".agents/licenses/mattpocock-skills.txt": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5"
+      }
     }
   ]
 }
