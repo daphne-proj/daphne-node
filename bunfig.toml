@@ -1,0 +1,8 @@
+# Bun manages dependencies and scripts; production code runs on Node.
+[install]
+exact = true
+linker = "isolated"
+minimumReleaseAge = 86400
+
+[run]
+bun = false

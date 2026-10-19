@@ -1,0 +1,6 @@
+interface:
+  display_name: "Decisions to Spec"
+  short_description: "Translate settled decisions into specifications"
+  default_prompt: "Use $decisions-to-spec to turn these accepted decisions into a technical specification."
+policy:
+  allow_implicit_invocation: false

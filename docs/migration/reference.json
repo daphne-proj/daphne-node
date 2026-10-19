@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/daphne-proj/daphne",
+  "commit": "997f4f36bace2e94613b9e20649c548146498631",
+  "recordedAt": "2026-10-19",
+  "baselineStatus": "Source reference recorded; Rust test results, outputs, and performance baseline have not been captured.",
+  "migratedBusinessLogic": []
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Disposable Prototype"
+  short_description: "Small measured experiments for decisions"
+  default_prompt: "Use $disposable-prototype to test this hypothesis with the smallest useful experiment."
+policy:
+  allow_implicit_invocation: false

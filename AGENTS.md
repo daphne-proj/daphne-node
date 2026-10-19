@@ -1,0 +1,26 @@
+# Working in Daphne Node
+
+This is the TypeScript migration workspace for Daphne. Read `docs/architecture.md` and `docs/migration/README.md` before changing module boundaries. The Rust repository remains the behavioral reference; migrate business logic only when requested.
+
+## Skills and policies
+
+- For TypeScript implementation, refactoring, or review, use `.agents/skills/daphne-typescript/SKILL.md` and `docs/agents/typescript-quality.md`.
+- For Rust-to-TypeScript migration, use `.agents/skills/daphne-migration-parity/SKILL.md` and `docs/migration/parity.md`.
+- For tests, use `.agents/skills/vitest/SKILL.md` and `docs/agents/testing.md`. Repository conventions override generic skill examples.
+- The five reasoning workflows in `.agents/skills/README.md` remain explicit-only. Do not load the whole skill collection for every task.
+- Make the smallest complete change. Independently review nontrivial behavior or architecture changes before completion.
+
+## Commands
+
+Use Node from `.node-version` and Bun from `.bun-version`. Bun is the package manager, Node is the runtime. Run `bun install --frozen-lockfile`, then `bun run check`. Use `bun run test` for Vitest; `bun test` is a different runner. Run compiled CLI code with `bun run build && bun run cli`.
+
+## Boundaries
+
+- Keep tests under the owning workspace's `tests/`, outside `src/`.
+- Import packages through their public exports; use `workspace:*` for internal dependencies. Keep relative ESM imports suffixed `.js`.
+- Do not introduce Bun-specific APIs into production code without a runtime ADR.
+- Do not change fixture bytes, identifiers, hashing, ordering, JSON contracts, or unknown/absent semantics to make parity tests pass.
+- Add packages only with their first real implementation. No catch-all `utils` package or speculative adapters.
+- Keep `bun.lock` and all runtime/tool version pins consistent. Never weaken strictness to make a port compile.
+
+Issues and specs remain in `daphne-proj/daphne` during migration; always select that repository explicitly. See `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. Follow `docs/agents/domain.md` for domain vocabulary and ADRs. Report checks actually run and any remaining limitations; do not claim application parity from setup checks.

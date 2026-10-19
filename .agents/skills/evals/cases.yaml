@@ -1,0 +1,82 @@
+version: 2
+common_rubric: rubric.yaml
+cases:
+  - id: deterministic-grouping
+    skill: shape
+    prompt: Can review groups be deterministic?
+    provided_context:
+      facts:
+        - The underlying extracted changes are reproducible for fixed inputs.
+      resolved_decisions:
+        - Every changed unit must have exactly one visible owner.
+        - Conceptual grouping quality is evaluated against reviewer judgments, including explicitly ambiguous cases.
+    expected_signals:
+      - Distinguishes deterministic execution from objective grouping truth.
+      - Compares rules, model-assisted grouping, and a validated hybrid.
+      - Preserves deterministic ownership while keeping composition uncertainty explicit.
+
+  - id: evidence-for-storage-choice
+    skill: shape
+    prompt: Should this graph-shaped aggregate be stored in a relational database or a graph database?
+    provided_context:
+      facts:
+        - The current system persists immutable versioned artifacts.
+      resolved_decisions:
+        - One lifecycle boundary owns persistence.
+        - Database-backed persistence is undecided.
+    expected_signals:
+      - Challenges the assumption that graph-shaped data requires a graph database.
+      - Separates logical model, access patterns, lifecycle semantics, and storage engine.
+      - Includes the current artifact approach as an alternative.
+
+  - id: external-algorithm-research
+    skill: external-research
+    prompt: Research whether published change-grouping algorithms establish a reliable grouping method for our review workflow.
+    provided_context:
+      resolved_decisions:
+        - The target is reviewer comprehension, not reconstruction of original commits.
+        - Scores measured on a different task are not accepted product-quality estimates.
+    expected_signals:
+      - Uses original papers, author artifacts, and pinned implementation or license evidence.
+      - Separates observed results, project interpretation, and applicability unknowns.
+      - Leaves the recommendation provisional or experiment-bound when evidence does not match the target task.
+
+  - id: bridge-overmerge-experiment
+    skill: disposable-prototype
+    prompt: Test whether transitive closure over dependency links over-merges groups when one bridge item connects otherwise separate concerns.
+    provided_context:
+      resolved_decisions:
+        - Input items are indivisible evaluation units.
+        - False merged pairs and missed grouping opportunities are measured separately.
+        - Experiment code cannot become production code without a separate decision.
+    expected_signals:
+      - States a falsifiable hypothesis, control, fixture, metric, and decision threshold.
+      - Uses a small isolated experiment with fixed inputs and repeatable output.
+      - Reports an implication and threats to validity without proposing production implementation.
+
+  - id: bounded-model-adjudication-spec
+    skill: decisions-to-spec
+    prompt: Write a specification for bounded model adjudication of otherwise ambiguous group membership.
+    provided_context:
+      resolved_decisions:
+        - Deterministic processing produces complete, exclusively owned units first.
+        - The model may regroup whole units only when evidence admits multiple plausible compositions.
+        - Deterministic validation owns coverage and ownership.
+        - Accepted judgments are cached with complete input and model and prompt versions.
+    expected_signals:
+      - Preserves every decision and marks missing thresholds or schemas TBD.
+      - Covers goals, non-goals, invariants, I/O, data ownership, algorithm, authority, failures, observability, and evaluation.
+      - Defines fallback behavior for timeout, invalid output, low confidence, stale cache, and partial inputs.
+
+  - id: unsupported-absence-audit
+    skill: proposal-audit
+    prompt: Audit a proposal that labels a changed component safe when the selected context contains no incoming consumers.
+    provided_context:
+      resolved_decisions:
+        - Absence is authoritative only inside a declared complete comparison scope.
+        - Ambiguous or unresolved references do not justify speculative traversal.
+        - Final safety judgment remains human-authoritative.
+    expected_signals:
+      - Identifies the unsupported absence claim as a high-impact authority error.
+      - Examines scope, selection limits, confidence gates, exclusions, unsupported inputs, and truncation.
+      - Recommends scoped wording and visible diagnostics rather than converting no observed consumers into safety.

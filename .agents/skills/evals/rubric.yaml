@@ -1,0 +1,18 @@
+version: 1
+scoring:
+  0: criterion is absent, contradicted, or only asserted without evidence
+  1: criterion is materially satisfied
+pass_condition: every criterion must score 1
+criteria:
+  - id: context-first
+    check: The run reads the supplied project context before proposing an answer; the response cites or accurately uses its governing sources.
+  - id: decision-before-code
+    check: The response stays at reasoning, research, experiment, audit, or specification level requested and does not jump to production code or a patch.
+  - id: epistemic-separation
+    check: Repository facts, resolved decisions, assumptions, heuristics, research interpretations, and LLM inferences remain distinguishable.
+  - id: assumption-pressure
+    check: The response identifies and challenges the premise or material hidden assumptions, including a plausible alternative or falsifier.
+  - id: explicit-uncertainty
+    check: Unknowns, ambiguity, incomplete extraction, or insufficient evidence remain explicit and scoped; unsupported absence claims are absent.
+  - id: decision-preservation
+    check: Every resolved decision supplied by the case is preserved without being silently weakened, strengthened, renamed, or reopened.

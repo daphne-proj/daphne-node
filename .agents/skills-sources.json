@@ -1,0 +1,101 @@
+{
+  "updated": "2026-10-19",
+  "sources": [
+    {
+      "path": ".agents/skills/shape",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/shape",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/shape/SKILL.md": "6e05fac2dd9af5ac26597f4e889e318ca3f86a0eadfbede54a65a0b2017151fd",
+        ".agents/skills/shape/agents/openai.yaml": "89cd6f49c663b90a55ea44b57d69d1be54bbdee2a5fa206a7a7fd7b1e5993d1e"
+      }
+    },
+    {
+      "path": ".agents/skills/external-research",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/external-research",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/external-research/SKILL.md": "0006fd6916e94612ba182d50d015686dbc06179cb9de130d0ae4aa13b3d6fa6e",
+        ".agents/skills/external-research/agents/openai.yaml": "13693a241e7ffbfa8cc3b367557afb5751a43b4dc832f41eca8bcd8d7f8c6fcc"
+      }
+    },
+    {
+      "path": ".agents/skills/disposable-prototype",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/disposable-prototype",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/disposable-prototype/SKILL.md": "8e592c8c84ace3d613bbf9c245dc231f36fb59541d27e294013fd3f17a80e69b",
+        ".agents/skills/disposable-prototype/agents/openai.yaml": "d65fe8c911fc2d6762c37cbc17b243ef4da2947b6e786023a4bda850a3923ba9"
+      }
+    },
+    {
+      "path": ".agents/skills/decisions-to-spec",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/decisions-to-spec",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/decisions-to-spec/SKILL.md": "ddbfdb9469c8a47f16313ea71f6051f1eca4c17bfe436bcb1c710144ff795e61",
+        ".agents/skills/decisions-to-spec/agents/openai.yaml": "5c1bb10bd37f014aab6080075b425f8680bf7e8db49d41e3c5a00b6eb7d1f884",
+        ".agents/skills/decisions-to-spec/references/spec-outline.md": "2474d6a6b5235b04b7fb81d082eaac1cb29a50f1dbfc806db11d3ec1a6ed892d"
+      }
+    },
+    {
+      "path": ".agents/skills/proposal-audit",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/proposal-audit",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/proposal-audit/SKILL.md": "2145d62743542e18b2f5bd45bc8d8a4131496eb97ebf1442982c08c8806161b9",
+        ".agents/skills/proposal-audit/agents/openai.yaml": "78c1cd1bc5a0c648358a5fc5296d56257948e5acd192f7477b16c144b5aaedbb",
+        ".agents/skills/proposal-audit/references/audit-checklist.md": "6a392a2c941a7ccade01c910c5696daf3c670b92f87dae04a2a109034ee7de00"
+      }
+    },
+    {
+      "path": ".agents/skills/references",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/references",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/references/context-contract.md": "eb81241a26b0260a416bf25f94042bbe6d1c6492da0847ae97a1ebedfff5b711"
+      }
+    },
+    {
+      "path": ".agents/skills/evals",
+      "source": "https://github.com/daphne-proj/daphne/tree/997f4f36bace2e94613b9e20649c548146498631/.agents/skills/evals",
+      "revision": "997f4f36bace2e94613b9e20649c548146498631",
+      "sha256": {
+        ".agents/skills/evals/README.md": "fe1fed21452b661f33235c7e0135ea02a5b6ae6330b3aae2046349d1a697ae7b",
+        ".agents/skills/evals/cases.yaml": "7c006051f22f89a8dbfd40dce16ca0e561f6ab036a4c118de16b0a9d0b10b113",
+        ".agents/skills/evals/rubric.yaml": "0148ef8e774da3b905e51576958c111ca0b2d147ca5b223bc38c470deac8e3e3"
+      }
+    },
+    {
+      "path": ".agents/skills/vitest",
+      "source": "https://github.com/antfu/skills/tree/feb0f3aba6566426f12230e7fc7a10d97c1293bb/skills/vitest",
+      "revision": "feb0f3aba6566426f12230e7fc7a10d97c1293bb",
+      "license": "MIT",
+      "licensePath": ".agents/skills/vitest/LICENSE.md",
+      "sha256": {
+        ".agents/skills/vitest/GENERATION.md": "23311c1ba3ed0422e7ba071e2dc800f7fd9800c2290292e2fc0079eb0ba02026",
+        ".agents/skills/vitest/LICENSE.md": "2a596f697b619094b6f4067936e0f385027a393bce32211383db0478774c1cb2",
+        ".agents/skills/vitest/SKILL.md": "d0c470a07b90936ca77fea9fbe25ab657a5bc1f386eb45b18bb70899df7e6baf",
+        ".agents/skills/vitest/references/advanced-environments.md": "845c872d9f0d4fccf9b09b20e98a7528869477c3f40273b0b587f51c7ac66429",
+        ".agents/skills/vitest/references/advanced-projects.md": "a91fe2033feb5336c18d154c661fa9f417962a3673de9cc468e6dec933891ae2",
+        ".agents/skills/vitest/references/advanced-type-testing.md": "88a5c36d3510200e1ebb5181520b4dcf87939d0d49ac58ead30588689340829c",
+        ".agents/skills/vitest/references/advanced-vi.md": "48b29696590615ddff5bcf439bdf50f434182e57bb9d1ec83cfca58d344610fc",
+        ".agents/skills/vitest/references/core-cli.md": "9b91797f4e74e70ded6934b35de9ee525acc4e0ab251bd30f935e87eb1e8f00e",
+        ".agents/skills/vitest/references/core-config.md": "60fd084b93f2c398236c55031070a85c549711234df1eb2faefeaa7312b8576c",
+        ".agents/skills/vitest/references/core-describe.md": "0c99cd75e7808b0abaaf06eb9ad3ba6046fff0054d1624c8983dfae87d1e0827",
+        ".agents/skills/vitest/references/core-expect.md": "d1f59f28e56825a676259dcb7fe46f71079dd16b1191bb01ec12eb3f69ee4d45",
+        ".agents/skills/vitest/references/core-hooks.md": "2ff9b1700579a8e734ceb1ec783b01d0bd90837094f729bc65e63d5596a172d4",
+        ".agents/skills/vitest/references/core-test-api.md": "0529b5cffcdf08fed41e84fa7cb94c1e47eb102a659621b4c81dbea129678ff7",
+        ".agents/skills/vitest/references/features-benchmarking.md": "05dcfd9ec2fa2b4cac77bb2ab3dcd09e1f22d99041d51554cb78ea0ed43b0f86",
+        ".agents/skills/vitest/references/features-concurrency.md": "c4ee8b0994270ebd97fa903bb8430faea5a823896bbda1a965dbcf93fc48810a",
+        ".agents/skills/vitest/references/features-context.md": "9cf4a1f51af7379055f30bc4b9dde72ce2d8d07037a24835d8803774bb456be8",
+        ".agents/skills/vitest/references/features-coverage.md": "6c4562fb5f32fe5671dbe593ca8188e9188244650d0d58400587748393006696",
+        ".agents/skills/vitest/references/features-filtering.md": "87cf40827574f359b140c18923d812232c77c54badf2f015a90fe626e685deaa",
+        ".agents/skills/vitest/references/features-mocking.md": "08a0f7345144c428720523428dd56609f32efcc1c1a573702b4659715a2c40fb",
+        ".agents/skills/vitest/references/features-reporters.md": "62bbec975ef89f0172e0c6fc39182240c8c5bc2ba3c0f209a1e6ca0432bd326a",
+        ".agents/skills/vitest/references/features-snapshots.md": "906f5b111b747a7d1396eef82725c23a590e2ecd4c7d4889679a72f40adcc051",
+        ".agents/skills/vitest/references/features-test-tags.md": "6e39db1a7b622b0f325a5cec0fca1e78aab4ed14b8e1a8dbe0eb396e7a0f642d"
+      }
+    }
+  ]
+}

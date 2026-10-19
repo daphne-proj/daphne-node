@@ -1,0 +1,6 @@
+interface:
+  display_name: "Shape"
+  short_description: "Pressure-test concepts before implementation"
+  default_prompt: "Use $shape to pressure-test this decision before implementation."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,13 @@
+node_modules/
+**/dist/
+coverage/
+bun.lock
+**/fixtures/**
+.agents/skills/vitest/
+.agents/skills/shape/
+.agents/skills/external-research/
+.agents/skills/disposable-prototype/
+.agents/skills/decisions-to-spec/
+.agents/skills/proposal-audit/
+.agents/skills/references/
+.agents/skills/evals/

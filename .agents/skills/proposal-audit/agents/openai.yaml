@@ -1,0 +1,6 @@
+interface:
+  display_name: "Proposal Audit"
+  short_description: "Evidence-backed audits of existing proposals"
+  default_prompt: "Use $proposal-audit to critically review this artifact against the supplied context."
+policy:
+  allow_implicit_invocation: false
