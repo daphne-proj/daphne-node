@@ -17,8 +17,9 @@ help:
 		'make test-watch    Build and start Vitest in watch mode' \
 		'make clean         Remove TypeScript build outputs' \
 		'make cli           Build and run the CLI without arguments' \
-		'make inspect PR=https://github.com/OWNER/REPO/pull/123 OUTPUT=./inspection-123' \
-		'                   Build and inspect a PR into a new output directory'
+		'make inspect PR=https://github.com/OWNER/REPO/pull/123' \
+		'                   Build and inspect into a new ignored outputs/context-* directory' \
+		'                   Optional: OUTPUT=NEW_DIRECTORY overrides the default'
 
 install:
 	bun install --frozen-lockfile
@@ -36,9 +37,13 @@ cli: build
 	bun run cli
 
 inspect:
-	@test -n "$$PR" && test -n "$$OUTPUT" || { \
-		printf '%s\n' 'Usage: make inspect PR=https://github.com/OWNER/REPO/pull/123 OUTPUT=NEW_DIRECTORY' >&2; \
+	@test -n "$$PR" || { \
+		printf '%s\n' 'Usage: make inspect PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=NEW_DIRECTORY]' >&2; \
 		exit 1; \
 	}
 	bun run build
+	@if test -z "$$OUTPUT"; then \
+		mkdir -p outputs || exit 1; \
+		OUTPUT="outputs/context-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
+	fi; \
 	bun run cli -- context inspect --pr "$$PR" --output "$$OUTPUT"
