@@ -143,6 +143,53 @@ export default defineConfig(
     },
   },
   {
+    files: ['packages/review-evidence/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            prReviewImportRestriction,
+            {
+              group: [
+                '@daphne/context-engine',
+                '@daphne/context-engine/**',
+                '**/context-engine',
+                '**/context-engine/**',
+              ],
+              message:
+                'Evidence retrieval must not depend on context retention or assembly.',
+            },
+            {
+              regex:
+                '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
+              message: 'Repository I/O goes through the public git-source API.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/review-evidence/src/contracts.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**'],
+              message:
+                'Evidence data contracts must not import runtime or Git types.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
+    },
+  },
+  {
     files: ['packages/context-engine/src/**/*.ts'],
     rules: {
       'no-restricted-imports': [

@@ -1,6 +1,6 @@
 # Context Engine Design
 
-Status: revised boundaries, 2026-10-19; corrected Step 2 was approved and implemented in git-source; later evidence/context steps remain pending. This is a new TypeScript foundation, not a port of the Rust agent loop or a claim of Rust output compatibility.
+Status: revised boundaries, 2026-10-19; corrected Step 2 was approved and implemented in git-source; Step 3 source evidence is implemented; bounded tools and context assembly remain pending. This is a new TypeScript foundation, not a port of the Rust agent loop or a claim of Rust output compatibility.
 
 ## Intent and learning goal
 
@@ -60,7 +60,7 @@ Contract ownership follows the receiving responsibility. `git-source/contracts.t
 
 This preserves the Rust responsibility split: `git-source` reads repository facts, `review-evidence` exposes pinned repository operations, and `review-agent/src/context.rs` retains evidence and query progress. Rust currently has transitive package dependencies through review-evidence; the TypeScript contracts subpath deliberately avoids a runtime retrieval dependency in context-engine. This is an architectural adaptation, not a claim of exact crate or output parity.
 
-These documents and ADR 0002 supersede the earlier instruction to keep Git inside context-engine. Corrected Task 2 synchronizes broader workspace ownership docs and lint rules, rehomes the Git draft into git-source, and removes the old context-engine registration. Downstream packages are still deferred.
+These documents and ADR 0002 supersede the earlier instruction to keep Git inside context-engine. Corrected Task 2 synchronizes broader workspace ownership docs and lint rules, rehomes the Git draft into git-source, and removes the old context-engine registration. Step 3 adds a working review-evidence source session; context-engine remains deferred.
 
 Information flow:
 
@@ -99,7 +99,7 @@ All Git invocations use argument arrays, a controlled environment/configuration,
 
 Review-evidence materializes source evidence from exact git-source reads. A source reference includes session identity, side, commit, repository-relative path, Git blob identity, and zero-based half-open byte range. The host derives these fields; model-supplied identity is never trusted.
 
-Source reads preserve original bytes. Validate UTF-8 before producing model text, preserve CRLF/BOM, and reject ranges splitting an encoded character. Line numbers are display metadata derived from those same bytes, not canonical identity. BASE and HEAD coordinates are never interchangeable.
+Source reads preserve original bytes. Validate UTF-8 before producing model text, preserve CRLF/BOM, and reject ranges splitting an encoded character. Step 3 accepts byte ranges directly; line/hunk-to-byte conversion is deferred until Task 4 consumes hunk windows. Line numbers are display metadata derived from those same bytes, not canonical identity. BASE and HEAD coordinates are never interchangeable.
 
 Inventory additions, deletions, renames, mode changes, binary files, symlinks and submodules. Copies may appear as additions in the initial diff policy. Never follow symlinks or materialize submodules. Non-UTF-8 paths/content and oversized blobs remain explicit limitations, not silently decoded or fabricated source. Preserve raw path identity internally when display requires an escaped representation.
 
@@ -138,7 +138,7 @@ These are initial implementation decisions, not performance claims. Each library
 
 - `pr-review/src/limits.ts` owns `PullRequestLimits`, with `httpTimeoutMs: 30_000` and `maxHttpBytes: 2_097_152`, plus `defaultPullRequestLimits` and `resolvePullRequestLimits`. Its `ResolvePullRequestOptions` contains `signal`, these `limits` and an optional `token`. HTTP work obeys both the caller signal and the request timeout through body consumption.
 - `git-source/src/limits.ts` owns `GitLimits`: `acquisitionTimeoutMs: 300_000`, `gitTimeoutMs: 30_000`, `maxGitOutputBytes: 16_777_216` and `maxBlobBytes: 2_097_152`. It exports `defaultGitLimits`, `resolveGitLimits` and `GitOperationOptions` containing `signal` and these `limits`.
-- `review-evidence/src/limits.ts` owns `EvidenceLimits`: `maxToolBytes: 16_384` and `maxPageEntries: 100`, with `defaultEvidenceLimits` and `resolveEvidenceLimits`. `EvidenceOperationOptions` contains `signal`, these `limits` and explicitly named `gitLimits`; forwarding Git limits to its concrete Git dependency does not expose them to context-engine.
+- Starting in Task 4, `review-evidence/src/limits.ts` owns `EvidenceLimits`: `maxToolBytes: 16_384` and `maxPageEntries: 100`, with `defaultEvidenceLimits` and `resolveEvidenceLimits`. `EvidenceOperationOptions` in Task 3 contains only `signal` and explicitly named `gitLimits`; Task 4 adds these tool `limits`; forwarding Git limits to its concrete Git dependency does not expose them to context-engine.
 - `context-engine/src/limits.ts` owns only `ContextLimits: { maxContextBytes: number }`, defaulting to `65_536`, with `defaultContextLimits` and `resolveContextLimits`. Token counting remains an optional per-assembly input. Context construction needs neither an acquisition signal nor Git options.
 - The CLI owns the deadline spanning PR resolution and snapshot acquisition. It starts one 300,000 ms deadline before metadata resolution and passes the combined deadline/user-cancellation signal to both I/O libraries. Git-source additionally bounds standalone acquisition by its own limit. Subsequent inspection uses user cancellation and operation limits, not the completed acquisition phase's deadline.
 

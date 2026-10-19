@@ -1,5 +1,10 @@
 import type { GitChange, GitChangeHunk } from './contracts.js';
-import { checkCancellation, GitOperationError } from './limits.js';
+import {
+  checkCancellation,
+  GitBlobUnavailableError,
+  GitOperationError,
+} from './limits.js';
+import { readBlobBytes } from './source.js';
 import type { GitOperationOptions } from './limits.js';
 import { runGit } from './process.js';
 import { withSnapshot } from './snapshot.js';
@@ -171,32 +176,19 @@ async function blobKind(
   directory: string,
   options: GitOperationOptions,
 ): Promise<'text' | 'binary' | 'unsupported'> {
-  const size = Number(
-    (
-      await runGit(['cat-file', '-s', oid], directory, {
-        ...options,
-        fetch: false,
-      })
-    )
-      .toString()
-      .trim(),
-  );
+  let bytes: Buffer;
 
-  if (!Number.isSafeInteger(size) || size < 0) {
-    throw invalidOutput();
-  }
+  try {
+    bytes = await readBlobBytes(oid, directory, options);
+  } catch (error) {
+    if (
+      error instanceof GitBlobUnavailableError &&
+      error.reason === 'too_large'
+    ) {
+      return 'unsupported';
+    }
 
-  if (size > options.limits.maxBlobBytes) {
-    return 'unsupported';
-  }
-
-  const bytes = await runGit(['cat-file', 'blob', oid], directory, {
-    ...options,
-    fetch: false,
-  });
-
-  if (bytes.byteLength !== size) {
-    throw invalidOutput();
+    throw error;
   }
 
   if (bytes.includes(0)) {

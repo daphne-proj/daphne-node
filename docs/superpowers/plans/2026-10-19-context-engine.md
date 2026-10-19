@@ -1,6 +1,6 @@
 # Context Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for the user's native, one-task-at-a-time execution. The user approved corrected Task 2; execute only that task in this turn.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for the user's native, one-task-at-a-time execution. The user approved corrected Task 2; Step 3 is now approved with hunk conversion and tool limits deferred to Step 4.
 
 **Goal:** Build acquisition-independent evidence retention and context assembly, demonstrated through separately owned PR resolution, Git access and bounded repository operations.
 
@@ -21,7 +21,7 @@
 - The host owns retrieval/selection policy, overall deadlines and Git cleanup. No generic acquisition package, engine superclass or dependency container.
 - No model calls, reviewed-repository code execution/dependency installation, GitHub writes, automatic pushes or Rust artifact compatibility claims.
 - Preserve no-argument CLI behavior. Introduce packages only with working behavior.
-- Execute one task at a time with explanation and a manual demonstration. The user approved implementation and a verified commit of corrected Task 2. Tasks 3–6 require their later learning checkpoints.
+- Execute one task at a time with explanation and a manual demonstration. The user approved Step 3 and its verified commit after reviewing the boundary. Tasks 4–6 remain later learning checkpoints.
 - Use the spec's exact initial limits and artifact contracts.
 
 ## Review Focus
@@ -44,8 +44,8 @@ All paths below are relative to the repository. Create only the files needed by 
 | `packages/git-source/src/contracts.ts`, `limits.ts`, `index.ts`                                 | Task 2 repository inputs, Git data, limits/errors and public exports                                   |
 | `packages/git-source/src/process.ts`, `snapshot.ts`, `changes.ts`                               | Task 2 subprocess control, owned snapshot and change inventory                                         |
 | `packages/git-source/src/source.ts`                                                             | Task 3 exact blob access; Task 4 bounded Git search                                                    |
-| `packages/review-evidence/src/contracts.ts`, `source.ts`, `session.ts`, `limits.ts`, `index.ts` | Task 3 evidence data, byte validation and borrowing repository session                                 |
-| `packages/review-evidence/src/tools/validate.ts`, `tools/execute.ts`                            | Task 4 request validation, repository operations and pagination; tool data types extend `contracts.ts` |
+| `packages/review-evidence/src/contracts.ts`, `source.ts`, `session.ts`, `errors.ts`, `index.ts` | Task 3 evidence data, byte validation and borrowing repository session                                 |
+| `packages/review-evidence/src/limits.ts`, `tools/validate.ts`, `tools/execute.ts`               | Task 4 request validation, repository operations and pagination; tool data types extend `contracts.ts` |
 | `packages/context-engine/src/evidence.ts`, `assembly.ts`, `engine.ts`, `limits.ts`, `index.ts`  | Task 5 retention, recorded progress, bounded rendering and in-memory public API                        |
 | `apps/cli/src/context.ts`, `output.ts`, `main.ts`                                               | Task 6 workflow composition, artifacts and dispatch                                                    |
 
@@ -80,7 +80,7 @@ Define each contract only when first consumed; readonly records and arrays are r
 - Review-evidence `Side = 'base' | 'head'`; `ByteRange = { startByte: number; endByte: number }` uses safe nonnegative integers and a half-open interval.
 - Review-evidence `SourceRef: { sessionId: string; side: Side; commit: string; path: string; blobId: string; range: ByteRange }`; `SourceEvidence: { ref: SourceRef; text: string }`. Admit text only after byte/range/encoding validation.
 - Review-evidence `ContextNotice: { code: string; message: string; path: string | null }`; centralize concrete notice codes and redact I/O details before presentation.
-- Review-evidence `EvidenceLimits: { maxToolBytes: 16_384; maxPageEntries: 100 }` gives defaults, with numeric fields in the type; export `defaultEvidenceLimits` and `resolveEvidenceLimits`. `EvidenceOperationOptions: { signal: AbortSignal; limits: EvidenceLimits; gitLimits: GitLimits }` belongs to its runtime API, not its contracts subpath.
+- In Task 4, review-evidence adds `EvidenceLimits: { maxToolBytes: 16_384; maxPageEntries: 100 }` gives defaults, with numeric fields in the type; export `defaultEvidenceLimits` and `resolveEvidenceLimits`. `EvidenceOperationOptions` lives in the runtime session API: Task 3 defines only `{ signal: AbortSignal; gitLimits: GitLimits }`; Task 4 adds `limits: EvidenceLimits`. Neither form belongs in the data-only contracts subpath.
 - Context-engine `ContextLimits` contains only numeric `maxContextBytes`, default `65_536`; export `defaultContextLimits` and `resolveContextLimits`. No acquisition or Git limits/signals.
 - All limit resolvers accept partial overrides, require positive safe integers, and may only lower defaults. The CLI owns one 300,000 ms acquisition deadline spanning HTTP and Git, without restarting it between stages.
 - Context-engine `TokenBudget: { counterId: string; maxTokens: number; countTokens: (renderedContext: string) => Promise<number> }`. Counts concern the exact rendering, not a complete provider request.
@@ -142,28 +142,33 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 
 ## Task 3: Read exact blobs and materialize source evidence
 
-**Files:** Create `packages/git-source/src/source.ts`; extend its public exports with exact blob access. Create the functional review-evidence workspace and `src/{contracts,source,session,limits,index}.ts`, including a direct compiled `./contracts` export. Add its git-source dependency/build reference and update workspace docs/lock/walkthrough.
+**Files:** Create `packages/git-source/src/source.ts`; extend its public exports with exact blob access. Create the functional review-evidence workspace and `src/{contracts,source,session,errors,index}.ts`, including a direct compiled `./contracts` export. Add its git-source dependency/build reference and update workspace docs/lock/walkthrough.
 
 **Interfaces:**
+
+- Git-source exports `GitBlobUnavailableError` with missing/symlink/submodule/not_regular/too_large reasons. Review-evidence maps these to `SourceUnavailableError` and adds binary/invalid_utf8; malformed ranges use `EvidenceInputError`. Other Git failures propagate unchanged.
 
 - Git-source exports `readSnapshotBlob(snapshot: GitSnapshot, input: { side: 'base' | 'head'; path: string }, options: GitOperationOptions): Promise<{ commit: string; path: string; blobId: string; bytes: Buffer }>`. Validate object kind/size before reading. Each result owns its bytes; no mutable snapshot buffer is exposed.
 - Review-evidence exports `createEvidenceSession(snapshot: GitSnapshot, options: EvidenceOperationOptions): EvidenceSession`. It borrows the snapshot; it never closes it.
 - `EvidenceSession` exposes immutable `identity: ReviewIdentity` and `readSource(input: { side: Side; path: string; range: ByteRange }): Promise<SourceEvidence>`. Task 4 adds execution; no separate interchangeable backend interface is needed.
-- Internal `lineRangeToBytes(bytes: Buffer, startLine: number, lineCount: number): ByteRange` lives in review-evidence. Zero-count hunks are anchors after the preceding line.
+- Step 3 takes byte ranges directly. Defer line/hunk conversion, tool response/page limits and `limits.ts` until their first consumer in Task 4.
 
-- [ ] **Step 1: Implement Git object reads.** Resolve literal paths against pinned trees, verify regular-file type and blob size, and return original bytes and provenance. Never shell-interpolate paths or dereference host symlinks.
-- [ ] **Step 2: Register review-evidence and implement exact text materialization.** Copy snapshot metadata into the I/O-free identity contract. Validate safe byte bounds and UTF-8 boundaries; preserve BOM/CRLF, empty files and insertion/deletion anchors. Reject invalid text rather than replacing bytes.
-- [ ] **Step 3: Define source failure behavior.** Materialize host-derived session/commit/side/path/blob/range references. Distinguish missing sides, binary/symlink/submodule/oversized source from valid empty text; use typed unavailable-source errors that Task 4 maps to notices. Preserve cancellation/limit failures as failures.
-- [ ] **Step 4: Demonstrate source boundaries.** Use existing accessible public PRs containing emoji, CRLF, empty file, deletion and symlink examples; report cases unavailable in the selected PRs. Compare public API excerpts with Git bytes, reject a mid-emoji range, read deleted text only on BASE and show symlinks are not followed. Close the snapshot in the host's `finally`.
-- [ ] **Step 5: Verify and commit.** Review the direct contracts export for zero Git/I/O dependencies, format, run the existing full gate and diff check. Commit as `feat(review-evidence): materialize exact committed source`.
+- [x] **Step 1: Implement Git object reads.** Resolve literal paths against pinned trees, verify regular-file type and blob size, and return original bytes and provenance. Never shell-interpolate paths or dereference host symlinks.
+- [x] **Step 2: Register review-evidence and implement exact text materialization.** Copy snapshot metadata into the I/O-free identity contract. Validate safe byte bounds and UTF-8 boundaries; preserve BOM/CRLF and valid empty ranges/files. Capture caller input before awaiting Git so later mutation cannot change evidence provenance. Reject invalid text rather than replacing bytes.
+- [x] **Step 3: Define source failure behavior.** Materialize host-derived session/commit/side/path/blob/range references. Distinguish missing sides, binary/symlink/submodule/oversized source from valid empty text; use typed unavailable-source errors that Task 4 maps to notices. Preserve cancellation/limit failures as failures.
+- [x] **Step 4: Demonstrate source boundaries.** Use existing accessible public PRs containing emoji, CRLF, empty file, deletion and symlink examples; report cases unavailable in the selected PRs. Compare public API excerpts with Git bytes, reject a mid-emoji range, read deleted text only on BASE and show symlinks are not followed. Close the snapshot in the host's `finally`.
+- [x] **Step 5: Verify and commit.** Review the direct contracts export for zero Git/I/O dependencies, format, run the existing full gate and diff check. Commit as `feat(review-evidence): materialize exact committed source`.
 
 **Discuss:** Git proves which bytes exist; review-evidence interprets safe source ranges. Neither operation chooses model context.
 
 ## Task 4: Expose bounded repository operations in review-evidence
 
-**Files:** Extend review-evidence `contracts.ts` with data-only tool variants, add `tools/validate.ts` and `tools/execute.ts`, extend its session/public exports and update walkthrough. Extend git-source `source.ts` with bounded committed-tree search. No context-engine package yet.
+**Files:** Extend review-evidence `contracts.ts` with data-only tool variants, add `limits.ts`, `tools/validate.ts` and `tools/execute.ts`, extend its session/public exports and update walkthrough. Extend git-source `source.ts` with bounded committed-tree search. No context-engine package yet.
 
 **Interfaces:**
+
+- Add `EvidenceLimits` (16,384 tool bytes, 100 page entries), its default/resolver and the `limits` field on `EvidenceOperationOptions`.
+- Add internal `lineRangeToBytes(bytes: Buffer, startLine: number, lineCount: number): ByteRange` in review-evidence for hunk windows; zero-count hunks anchor after the preceding line.
 
 - `ToolRequest` discriminates on `name`: `list_changes` takes cursor/page limit; `inspect_change` takes change ID/cursor; `read_source` takes side/path/range/cursor; `search_code` takes side/query/literal path prefix/cursor/page limit. All may lower the response byte allowance.
 - `ToolResult: { identity: ReviewIdentity; request: ToolRequest; entries: readonly ToolEntry[]; completeness: 'complete' | 'partial' | 'unavailable'; nextCursor: string | null; notices: readonly ContextNotice[] }`.
@@ -225,8 +230,8 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 
 ## Completion and planning self-review
 
-- Task 1 remains complete. Corrected Task 2 is complete in git-source, with the verification recorded in the walkthrough. Tasks 3–6 remain pending; no downstream placeholders exist.
-- Next learning checkpoint after verified Task 2 is Task 3, exact blob access and source evidence. Native execution on main and no new tests remain selected; do not ask for a new execution mode or implement subsequent tasks automatically.
+- Task 1 remains complete. Corrected Task 2 is complete in git-source, with the verification recorded in the walkthrough. Step 3 source reads and materialization are complete; frozen install, the full existing check gate, manual demonstrations and independent review passed. Tasks 4–6 remain pending; context-engine has no placeholder.
+- Next learning checkpoint after verified Task 3 is Task 4, bounded repository operations. Native execution on main and no new tests remain selected; do not ask for a new execution mode or implement subsequent tasks automatically.
 - Spec coverage: HTTP → Task 1; immutable Git/lifecycle → Task 2; exact evidence → Task 3; tools/cursors → Task 4; retention/context budgets → Task 5; composition/artifacts → Task 6.
 - Dependency consistency: Task 2 exports Git contracts only; Task 3 introduces an I/O-free evidence data export; Task 5 consumes only those types and supplied data; Task 6 owns all resource orchestration.
 - The key architecture demonstration is assembly from already supplied evidence after Git closes. Type checking and prior draft demonstrations alone do not establish this property.

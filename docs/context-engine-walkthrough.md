@@ -156,3 +156,106 @@ PR source, CLI source, existing tests and runtime/tool version pins were unchang
 ### Remote-only scope follow-up
 
 Local acquisition and its public contract were removed after the Step 2 review. Remote acquisition now has a direct implementation without the former population callback. The existing full check gate and frozen install passed. A manual check through compiled public exports fetched the same exact remote commits and 36 changes, confirmed the local export is absent, rejected a file URL, checked pre-aborted cancellation, and verified idempotent close plus rejection of reads after close. No new test files or dependencies were added. The current follow-up was self-reviewed; the independent review above applies to the earlier Step 2 implementation.
+
+## Step 3: Read exact blobs and materialize evidence
+
+The plan now defers hunk-to-byte conversion and tool response/page limits to Step 4. This step accepts byte ranges directly. It preserves the remote-only acquisition API introduced after Step 2.
+
+### Read the code in this order
+
+1. [Git source reader](../packages/git-source/src/source.ts): `readSnapshotBlob` validates a literal repository-relative path and a BASE/HEAD side, then resolves exactly that entry in the pinned tree. NUL-delimited tree output keeps unusual filenames distinct. Only a regular-file blob can be read; symlinks/submodules are never followed or materialized.
+2. In the same file, `readBlobBytes` checks the object size before reading and verifies the returned length. It is package-internal and shared with inventory classification, so blob limits have one implementation. Its bytes belong to the result; mutating them cannot alter snapshot state or a later read.
+3. [Evidence contracts](../packages/review-evidence/src/contracts.ts): identity, side, half-open byte range, source reference and source text. This file has no imports and the `./contracts` package export resolves directly to its compiled module. Future context code can import these types without loading Git/retrieval code.
+4. [Borrowing session](../packages/review-evidence/src/session.ts): `createEvidenceSession` copies immutable comparison metadata and captures validated Git limits. It exposes `identity` and `readSource`, with no acquisition or cleanup methods. Options contain only `signal` and `gitLimits`; tool limits do not exist yet.
+5. [Evidence materialization](../packages/review-evidence/src/source.ts): validate and copy input before awaiting Git, validate full-blob UTF-8, reject binary text, check byte-range bounds and character boundaries, and decode the exact slice while preserving BOM/CRLF. Freeze the returned evidence, reference and range.
+6. [Evidence errors](../packages/review-evidence/src/errors.ts): invalid input differs from unavailable source. Git cancellation/deadline/output/lifecycle failures propagate as operation failures rather than becoming empty text.
+
+### Why two source readers?
+
+Git-source establishes which bytes exist at a commit/path. Review-evidence establishes which exact text range those bytes support and attaches session provenance. Neither chooses evidence for a model. The host still closes Git in `finally`; returned evidence remains ordinary immutable data after cleanup.
+
+`SourceRef` contains session ID, side, exact commit, path, blob ID and byte range. The caller supplies only side/path/range; the implementation derives the remaining facts. A future model cannot override the session or commit through this API.
+
+For example, the observed `×` occupies bytes `[517, 519)` in `apps/admin/src/order-table.ts`. Reading those two bytes returns one character. Starting at byte 518 is rejected, including an empty range there. Valid empty excerpts on character boundaries remain valid; absent files are unavailable, not empty.
+
+### Use the public APIs
+
+From `packages/review-evidence` after `bun run build`:
+
+```js
+import { acquireSnapshot, defaultGitLimits } from '@daphne/git-source';
+import { createEvidenceSession } from '@daphne/review-evidence';
+
+const signal = new AbortController().signal;
+const snapshot = await acquireSnapshot(
+  {
+    targetRepositoryUrl: 'https://github.com/daphne-proj/pr-review-test.git',
+    headRepositoryUrl: 'https://github.com/daphne-proj/pr-review-test.git',
+    targetCommit: '3f0d15e8834c098d26b428bad1b325e6f33d9755',
+    headCommit: '93076efe37909ef3f36480170048cc9387aa29be',
+  },
+  {
+    signal,
+    limits: defaultGitLimits,
+  },
+);
+
+try {
+  const session = createEvidenceSession(snapshot, {
+    signal,
+    gitLimits: defaultGitLimits,
+  });
+
+  const source = await session.readSource({
+    side: 'head',
+    path: 'README.md',
+    range: { startByte: 0, endByte: 10 },
+  });
+
+  console.log(source);
+} finally {
+  await snapshot.close();
+}
+```
+
+The recorded example text is `# Commerce`. Step 3 does not create a context engine, tools, cursor state or a CLI command.
+
+### Failure meanings
+
+| Outcome                                   | Meaning                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| `EvidenceInputError`                      | Malformed side/path/range, unsafe offsets, out-of-bounds or split UTF-8 character |
+| `SourceUnavailableError.reason = missing` | No file at the requested path on that side                                        |
+| `symlink`, `submodule`, `not_regular`     | A tree entry exists but cannot be read as ordinary source                         |
+| `too_large`                               | Blob exceeds the source byte cap and is not loaded                                |
+| `binary`, `invalid_utf8`                  | Bytes cannot be represented as supported source text                              |
+| `GitOperationError`                       | Git/output/deadline/cancellation/closed-snapshot failure; not source absence      |
+
+### Observed manual results
+
+Using the existing public demonstration commits, Node 24.22.0 and Git 2.54.0 on macOS:
+
+- README bytes and blob ID matched an independent `git show` / `git rev-parse` in a separate disposable bare repository. The 1,120-byte HEAD file round-tripped exactly through evidence text.
+- Mutating the returned Git Buffer left a subsequent read unchanged.
+- Reading `×` at bytes `[517,519)` succeeded; splitting its UTF-8 encoding or placing an empty range inside it failed.
+- Changing a pending request's side, path and range did not change its captured reference or excerpt.
+- BASE and HEAD README reads recorded their respective pinned commits and distinct blob IDs. The added admin file was unavailable on BASE.
+- Valid empty excerpts succeeded. Missing paths, directories, traversal, unsafe integers, oversized ranges, invalid sides and null requests produced the expected distinct errors.
+- A one-byte blob cap produced `SourceUnavailableError(too_large)`; a one-byte Git output cap produced `GitOperationError(output_limit)`; a one-millisecond operation deadline produced `timeout`.
+- Cancellation did not echo the caller's reason. Closing during a read cancelled it; subsequent reads returned `closed`. Already returned evidence remained readable.
+- Inventory still returned 36 changes after sharing the bounded blob reader. All temporary snapshots and the independent oracle repository were removed.
+- Emitted `contracts.js` contains only an empty export and a source-map comment, with no runtime import.
+
+The selected changed files did not supply emoji, BOM, CRLF, empty-file, deletion, symlink/submodule, binary or invalid-UTF-8 examples. Those branches were inspected in source but not all exercised live. No local acquisition API, synthetic fixture repository or replacement test harness was added to cover them.
+
+Independent read-only review found no actionable source findings. New behavior has manual evidence and source review, not automated regression coverage.
+
+### Final Step 3 verification
+
+- `bun install --frozen-lockfile`: passed without lockfile changes.
+- `bun run check`: passed formatting, lint, workspace builds/typechecks and the one existing CLI smoke test.
+- `git diff --check`: passed.
+- Source review found no actionable issues; the manual results and uncovered cases are recorded above.
+- No new tests, fixtures, harnesses or third-party runtime dependencies. PR/CLI source and runtime/tool pins are unchanged.
+
+Step 3 is complete on main. The next learning checkpoint is Step 4: bounded repository operations in review-evidence.

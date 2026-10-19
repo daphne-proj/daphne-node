@@ -9,6 +9,9 @@
     },
     {
       "path": "./packages/git-source/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/review-evidence/tsconfig.build.json"
     }
   ]
 }

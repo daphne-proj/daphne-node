@@ -26,6 +26,20 @@ export class GitInputError extends Error {
   override readonly name = 'GitInputError';
 }
 
+type GitBlobUnavailableReason =
+  'missing' | 'symlink' | 'submodule' | 'not_regular' | 'too_large';
+
+export class GitBlobUnavailableError extends Error {
+  override readonly name = 'GitBlobUnavailableError';
+
+  constructor(
+    readonly reason: GitBlobUnavailableReason,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 /**
  * Gives callers stable failure categories without making them parse error messages.
  * Example: timeout can be presented differently from an already closed snapshot.
