@@ -1,4 +1,5 @@
 import {
+  defaultGitLimits,
   GitBlobUnavailableError,
   GitInputError,
   GitOperationError,
@@ -162,5 +163,126 @@ export async function readSnapshotBlob(
     const bytes = await readBlobBytes(blobId, directory, operation);
 
     return Object.freeze({ commit, path, blobId, bytes });
+  });
+}
+
+/** Returns NUL-delimited matching-file records, not source evidence or paginated results. */
+export async function searchSnapshot(
+  snapshot: GitSnapshot,
+  input: {
+    readonly side: 'base' | 'head';
+    readonly query: string;
+    readonly pathPrefix?: string;
+  },
+  options: GitOperationOptions,
+): Promise<Buffer> {
+  const request: unknown = input;
+
+  if (
+    typeof request !== 'object' ||
+    request === null ||
+    !('side' in request) ||
+    (request.side !== 'base' && request.side !== 'head') ||
+    !('query' in request) ||
+    typeof request.query !== 'string' ||
+    request.query.length === 0 ||
+    /[\0\r\n]/u.test(request.query) ||
+    Buffer.from(request.query).toString('utf8') !== request.query ||
+    Buffer.byteLength(request.query) > defaultGitLimits.maxGitOutputBytes
+  ) {
+    throw new GitInputError(
+      'A pinned side and bounded single-line literal UTF-8 query are required.',
+    );
+  }
+
+  const { side, query } = request;
+  let pathPrefix = '';
+
+  if ('pathPrefix' in request && request.pathPrefix !== undefined) {
+    const prefix = request.pathPrefix;
+
+    if (typeof prefix !== 'string') {
+      throw new GitInputError(
+        'The path prefix must be literal repository-relative text.',
+      );
+    }
+
+    validatePath(prefix.endsWith('/') ? prefix.slice(0, -1) : prefix);
+    pathPrefix = prefix;
+  }
+
+  return withSnapshot(snapshot, options, async (directory, operation) => {
+    const commit =
+      side === 'base'
+        ? snapshot.identity.baseCommit
+        : snapshot.identity.headCommit;
+    // A literal directory prunes work; the final component remains a literal string prefix.
+    const parent = pathPrefix.slice(0, pathPrefix.lastIndexOf('/'));
+    const output = await runGit(
+      [
+        'grep',
+        '--no-recurse-submodules',
+        '--no-textconv',
+        '--no-color',
+        '--full-name',
+        '--threads=1',
+        '-I',
+        '-F',
+        '-l',
+        '-z',
+        '-e',
+        query,
+        commit,
+        '--',
+        ...(parent ? [parent] : []),
+      ],
+      directory,
+      { ...operation, fetch: false, acceptedExitCodes: [0, 1] },
+    );
+
+    const records: Buffer[] = [];
+    let offset = 0;
+
+    while (offset < output.length) {
+      const end = output.indexOf(0, offset);
+      const record = output.subarray(offset, end);
+      const prefix = Buffer.from(`${commit}:`);
+
+      if (end < 0 || !record.subarray(0, prefix.length).equals(prefix)) {
+        throw new GitOperationError(
+          'invalid_git_output',
+          'Git returned an invalid search record.',
+        );
+      }
+
+      const bytes = record.subarray(prefix.length);
+      let path: string;
+
+      try {
+        path = new TextDecoder('utf-8', {
+          fatal: true,
+          ignoreBOM: true,
+        }).decode(bytes);
+      } catch {
+        throw new GitOperationError(
+          'unsupported',
+          'Search returned a non-UTF-8 path.',
+        );
+      }
+
+      validatePath(path);
+
+      if (path.startsWith(pathPrefix)) {
+        records.push(record);
+      }
+
+      offset = end + 1;
+    }
+
+    records.sort((left, right) => Buffer.compare(left, right));
+
+    return Buffer.concat(
+      records.flatMap((record) => [record, Buffer.from([0])]),
+    );
   });
 }

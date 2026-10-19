@@ -184,7 +184,10 @@ From `packages/review-evidence` after `bun run build`:
 
 ```js
 import { acquireSnapshot, defaultGitLimits } from '@daphne/git-source';
-import { createEvidenceSession } from '@daphne/review-evidence';
+import {
+  createEvidenceSession,
+  defaultEvidenceLimits,
+} from '@daphne/review-evidence';
 
 const signal = new AbortController().signal;
 const snapshot = await acquireSnapshot(
@@ -204,6 +207,7 @@ try {
   const session = createEvidenceSession(snapshot, {
     signal,
     gitLimits: defaultGitLimits,
+    limits: defaultEvidenceLimits,
   });
 
   const source = await session.readSource({
@@ -259,3 +263,98 @@ Independent read-only review found no actionable source findings. New behavior h
 - No new tests, fixtures, harnesses or third-party runtime dependencies. PR/CLI source and runtime/tool pins are unchanged.
 
 Step 3 is complete on main. The next learning checkpoint is Step 4: bounded repository operations in review-evidence.
+
+## Step 4: Execute bounded repository tools
+
+The plan now specifies three-line hunk margins, stable/retryable pagination, explicit completeness and resource ownership. This step is authorized on main without new tests or a commit. Context-engine is still absent.
+
+### Read the implementation in this order
+
+1. [Tool contracts](../packages/review-evidence/src/contracts.ts) define data-only requests, changes, search hits, notices and results. Every result includes identity and the normalized request. There are no Git or runtime imports.
+2. [Request validation](../packages/review-evidence/src/tools/validate.ts) rejects unknown fields, invalid sides/paths/ranges, multiline queries and invalid limits. `execute` validates at runtime even for typed callers, and copies input before I/O.
+3. [Git search](../packages/git-source/src/source.ts) runs a bounded fixed-string search against the selected pinned commit. It returns validated NUL-delimited matching-file records. Literal directory pruning and final path-prefix filtering do not enable wildcard or shell interpretation.
+4. [Repository operations](../packages/review-evidence/src/tools/operations.ts) project Git changes into evidence-owned data, materialize source, inspect hunks and derive navigation hits from validated candidate bytes. Search ordering is byte-sorted path then ascending nonoverlapping match offset. Previews are bounded to a 240-byte window; they never become source evidence.
+5. [Hunk windows](../packages/review-evidence/src/tools/hunks.ts) convert BASE and HEAD line coordinates separately, using a fixed three-line margin and merged overlapping/adjacent windows. Line offsets are computed once per blob. Zero-count hunks anchor after the preceding line. Pure renames/mode changes can have no source windows.
+6. [Pagination](../packages/review-evidence/src/tools/execute.ts) admits entries/notices against the complete serialized JSON size and their page caps. It splits source at character boundaries and records each delivered byte range. Indivisible items or an envelope that cannot fit fail explicitly.
+7. [Cursors](../packages/review-evidence/src/tools/cursor.ts) authenticate normalized query/effective limits and position with one private key per evidence session. There is no cursor registry or response history. Replaying a cursor regenerates bounded observations; tokens are not consumed by attempts.
+
+### Example host workflow
+
+Create a session using `signal`, `gitLimits` and `limits: defaultEvidenceLimits`, then:
+
+```ts
+const changes = await session.execute({
+  name: 'list_changes',
+  pageSize: 10,
+});
+
+const detail = await session.execute({
+  name: 'inspect_change',
+  changeId: 'change-1',
+});
+
+const navigation = await session.execute({
+  name: 'search_code',
+  side: 'head',
+  query: 'total',
+  pathPrefix: 'apps/admin/',
+  pageSize: 2,
+});
+
+if (changes.nextCursor !== null) {
+  const next = await session.execute({
+    ...changes.request,
+    cursor: changes.nextCursor,
+  });
+
+  console.log(next.entries);
+}
+
+console.log(detail.entries, navigation.entries);
+```
+
+The host decides what to retain and when to ask for another page. It still closes the Git snapshot in `finally`. Future context-engine receives only supplied data; it will not accept this session, execute its requests or follow its cursors.
+
+### Completion and failure behavior
+
+- `complete` without a cursor means this requested query completed within its declared scope.
+- `partial` with a cursor offers more observations. A successful continued page always makes progress.
+- `partial` without a cursor preserves limitations. If earlier pages contained unavailable source, a later otherwise-successful page includes an `earlier_unavailable` notice.
+- `unavailable` means the query supplied no requested evidence. A real empty source range and a successful no-match search are different outcomes.
+- Invalid requests/cursors throw `EvidenceInputError`; unrepresentable responses throw `EvidenceLimitError`; Git output/deadline/cancellation failures remain operation errors.
+
+The default response cap is 16,384 bytes, including JSON escaping, identity, request, provenance, notices and cursor. Both entries and notices arrays are individually capped at 100, lowered by list/search page size or session configuration. Bytes are not tokens.
+
+### Work bounds and review decisions
+
+Git search/inventory must complete within Git limits before their output can establish completeness. Candidate matching-file records are bounded; individual source blobs retain their 2 MiB cap. Final path-prefix filtering can discard candidates from the containing directory after the Git output cap applies. Binary files excluded by Git are outside the declared regular-text search scope; unsupported matching candidates produce notices.
+
+Pagination retains the current page, bounded underlying query data and one lookahead observation. Continuations recompute prior observations rather than caching them. The host owns the total workflow deadline. The direct `readSource` API remains a host primitive with the blob cap; the serialized-response cap applies to `execute`.
+
+Independent review found avoidable repeated long-line scans and delayed timer cancellation during replay. Search now advances one newline position and restricts preview scans to its display window. Blob text is validated once before hunk slices. Replay yields to Node every 128 skipped observations, then checks cancellation. The reviewer confirmed both fixes and found no new actionable issue.
+
+### Observed manual demonstrations
+
+Using the existing public demonstration comparison and compiled public exports:
+
+- Inventory produced all 36 unique changes across four pages; retrying the same cursor returned an identical page.
+- The 1,120-byte README reconstructed exactly across nine responses capped at 1,000 JSON bytes.
+- Inspection returned separate BASE and HEAD README windows. Their byte references remain independent.
+- Scoped `export` search produced 16 pages at one hit per page; reading each hit's exact range returned the query.
+- Changed query, page size, byte budget, altered cursor and a different evidence-session instance were rejected.
+- Literal partial filename prefixes worked; a prefix containing `[` did not become a glob. A no-match search returned a complete empty result.
+- The 952-byte admin source containing `×` reconstructed exactly across five 1,100-byte responses, including JSON escaping.
+- Missing BASE source was unavailable; a valid empty range was complete. Split UTF-8, traversal, unknown fields, bad change IDs and a one-byte response budget failed explicitly.
+- With a 600-byte blob cap and one-item pages, search returned supported hits and three oversized-source notices; its terminal page stayed partial and retained an earlier-limitation notice.
+
+- A one-byte Git output cap returned `output_limit`, cancellation returned `cancelled`, a one-millisecond Git deadline returned `timeout`, and post-close retrieval returned `closed`. Owned snapshots were cleaned.
+- Paginated inspection reconstructed the same BASE/HEAD windows as unpaged inspection across four 1,100-byte pages, with change metadata emitted once.
+- Mutating request side/path/range after invocation did not change captured input or returned evidence. Results and their data records are frozen.
+
+### Final Step 4 verification
+
+`bun install --frozen-lockfile` and `bun run check` passed: formatting, lint, builds/workspace typechecks and the one existing CLI test. `git diff --check` passed. The compiled contracts module still contains no runtime imports. Independent review confirmed its two findings were resolved.
+
+No new tests, fixtures, harnesses, packages or runtime dependencies were added. CLI/PR implementation, tool/runtime pins and lockfile remain unchanged. The work remains uncommitted on main, as requested.
+
+The selected example did not exercise every BOM/CRLF, emoji, empty-file, deletion, symlink/submodule or invalid-text case. Large/minified-file replay was inspected and corrected but not stress-benchmarked. New behavior has manual verification and source review, not automated regression coverage. RCI/PCG indexing, context assembly and CLI/model integration remain future work.

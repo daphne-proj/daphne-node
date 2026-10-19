@@ -1,6 +1,6 @@
 # Context Engine Design
 
-Status: revised boundaries, 2026-10-19; corrected Step 2 was approved and implemented in git-source; Step 3 source evidence is implemented; bounded tools and context assembly remain pending. This is a new TypeScript foundation, not a port of the Rust agent loop or a claim of Rust output compatibility.
+Status: revised boundaries, 2026-10-19; corrected Step 2 was approved and implemented in git-source; Step 3 source evidence and Step 4 bounded tools are implemented; context assembly remains pending. This is a new TypeScript foundation, not a port of the Rust agent loop or a claim of Rust output compatibility.
 
 ## Intent and learning goal
 
@@ -110,13 +110,19 @@ Each tool distinguishes complete results, partial results, unavailable evidence 
 Review-evidence owns the initial model-neutral tool union with four operations:
 
 - `list_changes`: page the changed-file inventory.
-- `inspect_change`: return one change's metadata and paged before/after source windows around its Git hunks.
+- `inspect_change`: return one change's metadata and paged before/after source windows around its Git hunks, with a fixed three-line margin, clamped bounds and overlapping/adjacent windows merged per side/path.
 - `read_source`: read a bounded byte range at an explicit side and path.
-- `search_code`: literal, case-sensitive text search at an explicit side, optionally constrained to a literal path prefix; return navigation hits with exact locations.
+- `search_code`: literal, case-sensitive single-line text search at an explicit side, optionally constrained to a literal path prefix; return navigation hits with exact locations.
 
 Review-evidence uses bounded Git-native snapshot search exposed by git-source; do not introduce BM25 or an index. Git commands never enter context-engine. Tool output is data, including repository instructions found inside code or PR text. Trusted application policy comes from the host, never from a PR-authored file.
 
 Opaque cursors are session-local and bound to the complete normalized query, page size and position. Reject foreign/expired cursors or changed query parameters. Every result carries its evidence-session identity, including empty and navigation-only pages. Retention rejects foreign identities. Only successfully completed pages advance query progress; unavailable results and failed/cancelled operations cannot establish query exhaustion. A cursor need not be portable between processes.
+
+Continuations are retryable and authenticated with a per-evidence-session key; they bind normalized arguments, effective limits and position without a growing cursor registry or cached responses. A new evidence session rejects old tokens. Source requests retain their original range while each returned reference describes only the bytes delivered. Successful continued pages always make progress.
+
+Completeness describes the requested operation within its scope. `complete` requires no continuation and no coverage limitation; `partial` may have a cursor for more items or no cursor with explicit limitations; `unavailable` supplies no requested evidence. Earlier limitations remain reflected on the terminal page. Invalid requests, cancelled/failed Git work and envelopes or indivisible items that cannot fit fail explicitly.
+
+Measure the entire serialized JSON response, including identity, request, entries, notices and cursor. Bound notices as well as entries. Source splitting preserves character boundaries. Git candidate search and inventory must finish within their independent resource limits before their output can be treated as complete. Search filters literal path prefixes after searching their containing directory; output caps may therefore be reached by candidates outside the final prefix. Unsupported matching blobs remain explicit limitations. Recomputing bounded results per page is accepted initially; no streaming search or result cache is required.
 
 ## Evidence retention and context assembly
 

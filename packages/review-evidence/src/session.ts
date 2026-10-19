@@ -5,16 +5,22 @@ import type {
   ReviewIdentity,
   Side,
   SourceEvidence,
+  ToolResult,
 } from './contracts.js';
 import { readSource } from './source.js';
+import { resolveEvidenceLimits } from './limits.js';
+import type { EvidenceLimits } from './limits.js';
+import { createToolExecutor } from './tools/execute.js';
 
 export interface EvidenceOperationOptions {
   readonly signal: AbortSignal;
   readonly gitLimits: GitLimits;
+  readonly limits: EvidenceLimits;
 }
 
 export interface EvidenceSession {
   readonly identity: ReviewIdentity;
+  execute(request: unknown): Promise<ToolResult>;
   readSource(input: {
     readonly side: Side;
     readonly path: string;
@@ -40,8 +46,12 @@ export function createEvidenceSession(
     limits: resolveGitLimits(options.gitLimits),
   });
 
+  const limits = resolveEvidenceLimits(options.limits);
+  const execute = createToolExecutor(snapshot, identity, operation, limits);
+
   return Object.freeze({
     identity,
+    execute,
     readSource(input: {
       readonly side: Side;
       readonly path: string;

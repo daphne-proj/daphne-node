@@ -1,6 +1,6 @@
 # ADR 0002: Separate PR acquisition, Git access, evidence retrieval and context assembly
 
-- Status: accepted; Git snapshots and source evidence implemented through Step 3
+- Status: accepted; Git snapshots, source evidence and bounded tools implemented through Step 4
 - Date: 2026-10-19
 - Revision: replaces this ADR's earlier decision to keep Git inside context-engine
 
@@ -53,9 +53,9 @@ Preserve immutable revision identity, exact bytes, cancellation, bounded outputs
 
 ## Transition and status
 
-The user approved corrected Task 2 after reviewing the revised plan. Its Git implementation now lives in git-source; the superseded context-engine draft/build registration is removed. Workspace architecture, migration/package docs and lint restrictions now follow this decision. Task 1 PR behavior is unchanged. Step 3 now implements review-evidence source materialization with a direct I/O-free contracts export. Context-engine remains deferred with no placeholder. Tool limits and hunk-to-byte conversion wait for Step 4.
+The user approved corrected Task 2 after reviewing the revised plan. Its Git implementation now lives in git-source; the superseded context-engine draft/build registration is removed. Workspace architecture, migration/package docs and lint restrictions now follow this decision. Task 1 PR behavior is unchanged. Step 3 now implements review-evidence source materialization with a direct I/O-free contracts export. Context-engine remains deferred with no placeholder. Step 4 adds hunk windows, bounded tools and retryable authenticated cursors in review-evidence; Git-native candidate search stays in git-source.
 
-The walkthrough records post-migration public-API demonstrations and final verification. Later steps remain separate learning checkpoints; bounded tools and context assembly are not part of Step 3.
+The walkthrough records post-migration public-API demonstrations and final verification. Later steps remain separate learning checkpoints; context retention/assembly and CLI composition remain later work.
 
 ## Revisit when
 

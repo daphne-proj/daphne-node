@@ -209,6 +209,7 @@ export default defineConfig(
       'packages/git-source/src/contracts.ts',
       'packages/git-source/src/limits.ts',
       'packages/pr-review/src/limits.ts',
+      'packages/review-evidence/src/limits.ts',
       'packages/context-engine/src/**/*.ts',
     ],
     rules: {

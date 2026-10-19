@@ -22,3 +22,8 @@ export class SourceUnavailableError extends Error {
     super(message);
   }
 }
+
+/** No complete response or indivisible item fits the requested byte allowance. */
+export class EvidenceLimitError extends Error {
+  override readonly name = 'EvidenceLimitError';
+}

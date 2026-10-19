@@ -44,6 +44,7 @@ Assume the host has already acquired a Git snapshot for those BASE and HEAD comm
 const session = createEvidenceSession(snapshot, {
   signal: abortController.signal,
   gitLimits: defaultGitLimits,
+  limits: defaultEvidenceLimits,
 });
 ```
 
@@ -79,6 +80,38 @@ The host owns the snapshot and must close it when finished. Closing the snapshot
 3. Review-evidence validates the range and UTF-8 text, then returns the excerpt with provenance.
 4. The host decides what to do with that evidence. A future context engine can retain and assemble supplied evidence without opening Git.
 
-This version accepts byte ranges directly. Mapping diff hunk line numbers to byte ranges and bounded repository tools are planned for a later step.
+The direct `readSource` method accepts byte ranges and retains the Git blob cap. Use `execute` when the response must obey the separate tool byte/page limits.
+
+## Bounded repository tools
+
+The session now also accepts four validated requests: `list_changes`, `inspect_change`, `read_source` and `search_code`. The host chooses requests; the session never invokes a model or a context engine.
+
+```ts
+const page = await session.execute({
+  name: 'list_changes',
+  pageSize: 10,
+});
+
+if (page.nextCursor !== null) {
+  const next = await session.execute({
+    ...page.request,
+    cursor: page.nextCursor,
+  });
+
+  console.log(next.entries);
+}
+```
+
+Import `defaultEvidenceLimits` from the package alongside `createEvidenceSession`. Defaults cap the entire JSON response at 16,384 UTF-8 bytes and each entries/notices array at 100 items. Requests may lower the response cap, and list/search may lower the page size. Session limits always win.
+
+Inspection supplies change metadata and source windows with a three-line margin, merged on each side/path. Search uses literal, case-sensitive, single-line text and an optional literal path prefix. It searches committed regular text files, not untracked files or submodule contents; it returns navigation previews, not exact source evidence. Candidate blobs that cannot be materialized produce explicit notices.
+
+Continuation requests keep the returned normalized arguments and effective limits. Cursors are authenticated, local to this evidence-session instance and retryable. Changing a query or reusing a token in another session is an input error. Do not parse or edit tokens.
+
+A `complete` result has no continuation or coverage limitation. A `partial` result may offer another page, or may end with notices explaining unavailable information. `unavailable` means no requested evidence could be supplied. A null cursor alone does not establish completeness.
+
+Source pages carry contiguous ranges on UTF-8 boundaries. The byte cap includes all JSON metadata and escaping, so a small budget may leave little room for text. An envelope or indivisible item that cannot fit throws `EvidenceLimitError`. Git output limits, deadlines and cancellation remain operation failures.
+
+Continuation recomputes bounded observations; it does not keep a response cache or a growing cursor registry. Underlying Git search/inventory must finish within their own limits. Pagination bounds delivery, not total query work. The host must supply an overall workflow deadline if needed.
 
 For the wider package boundaries, see [the architecture guide](../../docs/architecture.md) and [the implementation walkthrough](../../docs/context-engine-walkthrough.md).

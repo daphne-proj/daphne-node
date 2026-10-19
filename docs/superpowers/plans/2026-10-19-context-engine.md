@@ -1,6 +1,6 @@
 # Context Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for the user's native, one-task-at-a-time execution. The user approved corrected Task 2; Step 3 is now approved with hunk conversion and tool limits deferred to Step 4.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for the user's native, one-task-at-a-time execution. The user approved corrected Task 2; Step 4 is now approved on main, with no new tests and no commit.
 
 **Goal:** Build acquisition-independent evidence retention and context assembly, demonstrated through separately owned PR resolution, Git access and bounded repository operations.
 
@@ -21,7 +21,7 @@
 - The host owns retrieval/selection policy, overall deadlines and Git cleanup. No generic acquisition package, engine superclass or dependency container.
 - No model calls, reviewed-repository code execution/dependency installation, GitHub writes, automatic pushes or Rust artifact compatibility claims.
 - Preserve no-argument CLI behavior. Introduce packages only with working behavior.
-- Execute one task at a time with explanation and a manual demonstration. The user approved Step 3 and its verified commit after reviewing the boundary. Tasks 4–6 remain later learning checkpoints.
+- Execute one task at a time with explanation and a manual demonstration. The user approved Step 4 after reviewing the boundary and requires leaving its changes uncommitted. Task 4 is authorized for implementation without committing; Tasks 5–6 remain later learning checkpoints.
 - Use the spec's exact initial limits and artifact contracts.
 
 ## Review Focus
@@ -163,7 +163,7 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 
 ## Task 4: Expose bounded repository operations in review-evidence
 
-**Files:** Extend review-evidence `contracts.ts` with data-only tool variants, add `limits.ts`, `tools/validate.ts` and `tools/execute.ts`, extend its session/public exports and update walkthrough. Extend git-source `source.ts` with bounded committed-tree search. No context-engine package yet.
+**Files:** Extend review-evidence `contracts.ts` with data-only tool variants, add `limits.ts`, `tools/validate.ts`, `tools/execute.ts` and focused `tools/{cursor,hunks,operations}.ts` helpers, extend its session/public exports and update walkthrough. Extend git-source `source.ts` with bounded committed-tree search. No context-engine package yet.
 
 **Interfaces:**
 
@@ -173,14 +173,26 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 - `ToolRequest` discriminates on `name`: `list_changes` takes cursor/page limit; `inspect_change` takes change ID/cursor; `read_source` takes side/path/range/cursor; `search_code` takes side/query/literal path prefix/cursor/page limit. All may lower the response byte allowance.
 - `ToolResult: { identity: ReviewIdentity; request: ToolRequest; entries: readonly ToolEntry[]; completeness: 'complete' | 'partial' | 'unavailable'; nextCursor: string | null; notices: readonly ContextNotice[] }`.
 - `ToolEntry` is a tagged union of `Change`, `SourceEvidence`, or a search navigation hit with side/path/byte location/preview. No unknown payloads or Git implementation types in these contracts.
-- Export `parseToolRequest(input: unknown): ToolRequest`; extend `EvidenceSession` with `execute(request: ToolRequest): Promise<ToolResult>`.
+- Export `parseToolRequest(input: unknown): ToolRequest`; extend `EvidenceSession` with `execute(request: unknown): Promise<ToolResult>`, validating and normalizing every request at execution.
 - Git-source exports `searchSnapshot(snapshot: GitSnapshot, input: { side: 'base' | 'head'; query: string; pathPrefix?: string }, options: GitOperationOptions): Promise<Buffer>` for bounded Git-native search records. Review-evidence parses these records and materializes navigation hits; raw output never reaches context-engine or a model. A capped/killed search fails explicitly and cannot mean no matches.
 
-- [ ] **Step 1: Implement runtime request validation.** Reject unknown fields, invalid sides/paths/ranges and embedded revision overrides. Requests operate only on the active session. Repository/PR content is untrusted data.
-- [ ] **Step 2: Implement the four operations.** Map Git inventory into evidence `Change` records, inspect hunk windows, read source and search literal case-sensitive text using git-source. Git grep exit 1 alone means no matches; exit 2/termination is failure. Use literal path prefixes, include tracked docs/config and do not silently infer coverage from ignore rules.
-- [ ] **Step 3: Implement bounded pagination.** Cap complete serialized responses at 16,384 UTF-8 bytes and pages at 100 entries; split source on UTF-8 boundaries. Session-local cursors bind normalized query, size and position; reject foreign cursors or changed parameters. An unrepresentable item produces an explicit limitation/error.
-- [ ] **Step 4: Demonstrate retrieval.** Exercise list → inspect → read, a known search, tiny pages and continuation. Change a query with an existing cursor and confirm rejection. Cancel a page and confirm no successful result is emitted. Navigation previews are not exact source evidence.
-- [ ] **Step 5: Verify and commit.** Inspect contract/runtime separation, format and run the full existing gate plus diff check. Commit as `feat(review-evidence): expose bounded repository operations`.
+**Approved Step 4 clarifications:**
+
+- Inspect hunk windows with a fixed three-line margin, clamped to each side's file bounds; merge overlapping/adjacent windows on the same side/path. Preserve zero-count anchors and separate BASE/HEAD paths.
+- Cursors bind session, tool, complete normalized arguments, effective byte/entry limits and continuation position. Preserve the original requested source range while returned references describe each delivered slice. Stable ordering and UTF-8 boundaries prevent gaps/duplicates.
+- Cursors are retryable, not consumed by an attempted page. Use a session-private HMAC key and authenticated compact position tokens; no registry or retained response history. A new evidence session rejects old tokens. Recompute bounded query results on continuation rather than introducing a cache.
+- A successful page with a continuation must make progress. Invalid input, cancellation, Git deadlines/output limits, or an envelope/indivisible item that cannot fit are explicit failures, never successful empty pages.
+- `complete` with no cursor means the requested operation completed within its declared scope. `partial` with a cursor means more items remain. `partial` without a cursor retains explicit limitations; `unavailable` means no requested evidence could be supplied. A null cursor alone never proves completion. Carry earlier limitations through the continuation outcome.
+- Count the complete JSON response in UTF-8 bytes, including request, identity, notices and cursor. Apply the byte and entry caps together; notices are also page-bounded (each entries/notices array obeys the effective page cap). Split source only on valid character boundaries; fail explicitly for indivisible metadata that cannot fit.
+- Git search identifies matching committed regular text files using fixed, case-sensitive single-line queries. Review-evidence validates candidate blobs and derives byte locations and bounded previews. Search is navigation, not exact source evidence or semantic analysis.
+- Pagination bounds delivery, not the underlying Git search/inventory. Git must complete within its own limits; killed/capped output is an error. Literal path prefixes filter candidate paths; Git may search the containing directory before that exact prefix filter. Unsupported candidate blobs produce limitations, not fabricated hits. No streaming search, result cache, index or dependency is introduced.
+- The host owns overall workflow deadlines and Git cleanup. Retrieval remains usable without context-engine, and returned evidence remains plain data after cleanup.
+
+- [x] **Step 1: Implement runtime request validation.** Reject unknown fields, invalid sides/paths/ranges and embedded revision overrides. Requests operate only on the active session. Repository/PR content is untrusted data.
+- [x] **Step 2: Implement the four operations.** Map Git inventory into evidence `Change` records, inspect hunk windows, read source and search literal case-sensitive text using git-source. Git grep exit 1 alone means no matches; exit 2/termination is failure. Use literal path prefixes, include tracked docs/config and do not silently infer coverage from ignore rules.
+- [x] **Step 3: Implement bounded pagination.** Cap complete serialized responses at 16,384 UTF-8 bytes and pages at 100 entries; split source on UTF-8 boundaries. Session-local cursors bind normalized query, size and position; reject foreign cursors or changed parameters. An unrepresentable item produces an explicit limitation/error.
+- [x] **Step 4: Demonstrate retrieval.** Exercise list → inspect → read, a known search, tiny pages and continuation. Change a query with an existing cursor and confirm rejection. Cancel a page and confirm no successful result is emitted. Navigation previews are not exact source evidence.
+- [x] **Step 5: Verify without committing.** Inspect contract/runtime separation, independently review the change, format and run the full existing gate plus diff check. The latest user instruction prohibits committing; leave the verified changes uncommitted on main.
 
 **Discuss:** Retrieval produces observations. Recording those observations and deciding what the model receives belong elsewhere.
 
@@ -230,8 +242,8 @@ The initial evidence identity describes a comparison; no universal storage/sessi
 
 ## Completion and planning self-review
 
-- Task 1 remains complete. Corrected Task 2 is complete in git-source, with the verification recorded in the walkthrough. Step 3 source reads and materialization are complete; frozen install, the full existing check gate, manual demonstrations and independent review passed. Tasks 4–6 remain pending; context-engine has no placeholder.
-- Next learning checkpoint after verified Task 3 is Task 4, bounded repository operations. Native execution on main and no new tests remain selected; do not ask for a new execution mode or implement subsequent tasks automatically.
+- Task 1 remains complete. Corrected Task 2 is complete in git-source, with the verification recorded in the walkthrough. Step 3 source reads and materialization are complete; frozen install, the full existing check gate, manual demonstrations and independent review passed. Task 4 is implemented and verified, deliberately uncommitted at the user's request. Tasks 5–6 remain pending and context-engine has no placeholder.
+- Next learning checkpoint is Task 5, supplied-evidence retention and context assembly. Native execution on main and no new tests remain selected; do not ask for a new execution mode or implement subsequent tasks automatically.
 - Spec coverage: HTTP → Task 1; immutable Git/lifecycle → Task 2; exact evidence → Task 3; tools/cursors → Task 4; retention/context budgets → Task 5; composition/artifacts → Task 6.
 - Dependency consistency: Task 2 exports Git contracts only; Task 3 introduces an I/O-free evidence data export; Task 5 consumes only those types and supplied data; Task 6 owns all resource orchestration.
 - The key architecture demonstration is assembly from already supplied evidence after Git closes. Type checking and prior draft demonstrations alone do not establish this property.

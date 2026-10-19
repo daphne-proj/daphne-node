@@ -64,14 +64,8 @@ function isBoundary(bytes: Buffer, offset: number): boolean {
   return offset === bytes.length || ((bytes[offset] ?? 0) & 0xc0) !== 0x80;
 }
 
-// Text validation belongs here; Git exposes bytes without interpreting their encoding.
-function sourceText(bytes: Buffer, range: ByteRange): string {
-  if (range.endByte > bytes.length) {
-    throw new EvidenceInputError(
-      'The requested range exceeds the source byte length.',
-    );
-  }
-
+// Validate the whole blob once, including bytes outside any requested excerpt.
+function validateSourceBytes(bytes: Buffer): void {
   if (bytes.includes(0)) {
     throw new SourceUnavailableError(
       'binary',
@@ -79,14 +73,21 @@ function sourceText(bytes: Buffer, range: ByteRange): string {
     );
   }
 
-  const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
-
   try {
-    decoder.decode(bytes);
+    new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
   } catch {
     throw new SourceUnavailableError(
       'invalid_utf8',
       'The source is not valid UTF-8 text.',
+    );
+  }
+}
+
+// Only readEvidenceBlob supplies bytes here, so materializing many hunks need not revalidate the blob.
+function sourceText(bytes: Buffer, range: ByteRange): string {
+  if (range.endByte > bytes.length) {
+    throw new EvidenceInputError(
+      'The requested range exceeds the source byte length.',
     );
   }
 
@@ -99,20 +100,21 @@ function sourceText(bytes: Buffer, range: ByteRange): string {
     );
   }
 
-  return decoder.decode(bytes.subarray(range.startByte, range.endByte));
+  return bytes.subarray(range.startByte, range.endByte).toString('utf8');
 }
 
-export async function readSource(
+type SourceBlob = Awaited<ReturnType<typeof readSnapshotBlob>>;
+
+/** Keeps unavailable-source translation and whole-blob text validation shared across tools. */
+export async function readEvidenceBlob(
   snapshot: GitSnapshot,
-  input: SourceInput,
+  input: { readonly side: Side; readonly path: string },
   options: GitOperationOptions,
-): Promise<SourceEvidence> {
-  // Capture caller-owned data before awaiting I/O so the reference describes the bytes read.
-  const { side, path, range } = parseSourceInput(input);
-  let blob: Awaited<ReturnType<typeof readSnapshotBlob>>;
+): Promise<SourceBlob> {
+  let blob: SourceBlob;
 
   try {
-    blob = await readSnapshotBlob(snapshot, { side, path }, options);
+    blob = await readSnapshotBlob(snapshot, input, options);
   } catch (error) {
     if (error instanceof GitBlobUnavailableError) {
       throw new SourceUnavailableError(error.reason, error.message);
@@ -125,15 +127,43 @@ export async function readSource(
     throw error;
   }
 
-  const text = sourceText(blob.bytes, range);
+  validateSourceBytes(blob.bytes);
+
+  return blob;
+}
+
+export function sourceFromBlob(
+  snapshot: GitSnapshot,
+  side: Side,
+  blob: SourceBlob,
+  range: ByteRange,
+): SourceEvidence {
+  validateRange(range);
+  const capturedRange = Object.freeze({
+    startByte: range.startByte,
+    endByte: range.endByte,
+  });
+  const text = sourceText(blob.bytes, capturedRange);
   const ref = Object.freeze({
     sessionId: snapshot.identity.sessionId,
     side,
     commit: blob.commit,
     path: blob.path,
     blobId: blob.blobId,
-    range,
+    range: capturedRange,
   });
 
   return Object.freeze({ ref, text });
+}
+
+export async function readSource(
+  snapshot: GitSnapshot,
+  input: SourceInput,
+  options: GitOperationOptions,
+): Promise<SourceEvidence> {
+  // Capture caller-owned data before awaiting I/O so the reference describes the bytes read.
+  const { side, path, range } = parseSourceInput(input);
+  const blob = await readEvidenceBlob(snapshot, { side, path }, options);
+
+  return sourceFromBlob(snapshot, side, blob, range);
 }
