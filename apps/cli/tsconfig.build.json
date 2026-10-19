@@ -11,5 +11,19 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["tests"]
+  "exclude": ["tests"],
+  "references": [
+    {
+      "path": "../../packages/pr-review/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/git-source/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/review-evidence/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/context-engine/tsconfig.build.json"
+    }
+  ]
 }

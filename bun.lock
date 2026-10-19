@@ -17,6 +17,12 @@
     "apps/cli": {
       "name": "@daphne/cli",
       "version": "0.0.0",
+      "dependencies": {
+        "@daphne/context-engine": "workspace:*",
+        "@daphne/git-source": "workspace:*",
+        "@daphne/pr-review": "workspace:*",
+        "@daphne/review-evidence": "workspace:*",
+      },
       "devDependencies": {
         "@types/node": "24.19.2",
         "typescript": "6.0.3",

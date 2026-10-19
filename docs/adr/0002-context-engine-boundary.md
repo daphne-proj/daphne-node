@@ -1,6 +1,6 @@
 # ADR 0002: Separate PR acquisition, Git access, evidence retrieval and context assembly
 
-- Status: accepted; acquisition, retrieval and independent context implemented through Step 5
+- Status: accepted; acquisition, retrieval and independent context implemented and composed by the CLI through Step 6
 - Date: 2026-10-19
 - Revision: replaces this ADR's earlier decision to keep Git inside context-engine
 
@@ -57,7 +57,7 @@ The user approved corrected Task 2 after reviewing the revised plan. Its Git imp
 
 Step 5 introduces the working context-engine package. Its 4 MiB serialized ledger retains source once, references source IDs from page history and commits whole pages atomically. Incompatible retries, broken continuation chains and conflicting source fail without changing state. Its assembler captures immutable supplied data and selects whole source entries before navigation under a separate 64 KiB rendered-byte cap; optional named token counting remains host-supplied. It preserves omission and incomplete-query metadata without fetching anything.
 
-The walkthrough records post-migration public-API demonstrations, including assembly after Git cleanup and from a serialized snapshot. CLI composition remains a separate learning checkpoint. This implementation retains comparison-shaped provenance types; a broader identity model should follow an actual second use case.
+The walkthrough records post-migration public-API demonstrations, including assembly after Git cleanup and from a serialized snapshot. Step 6 composes the four public interfaces in the CLI. Whole-page source admission, change selection and run reporting stay in the host; Git closes before assembly. Artifact publication uses a same-directory hard link to avoid overwrites, with cancellation checked before synchronous final publication. This implementation retains comparison-shaped provenance types; a broader identity model should follow an actual second use case.
 
 ## Revisit when
 

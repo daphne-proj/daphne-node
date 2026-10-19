@@ -407,3 +407,57 @@ Independent source review found no actionable issue in retention atomicity, quer
 Additional demonstrations confirmed search previews remain navigation, cursor cycles fail, unavailable results never establish completion, mutable supplied source is copied, altered snapshot fingerprints fail, configured engine and token caps are enforced, and a concurrent retain does not change an assembly already waiting on its counter.
 
 Frozen install and the full existing check gate passed: formatting, lint, builds, all five workspace typechecks and the one existing CLI smoke test. Inline ESLint checks allowed evidence-contract type imports and rejected runtime evidence imports, Git types and filesystem imports. Diff whitespace and local documentation links passed. No application, Git-source, PR or retrieval source was changed. HEAD remains 7c216e1 on main; nothing is staged or committed. No new automated regression coverage is authorized. Model delivery, actual provider tokenization and worst-case performance near the retention cap are outside this step. CLI composition remains Step 6.
+
+## Step 6: Compose the CLI inspection workflow
+
+The CLI now connects the four existing library interfaces. Its host owns policy, process signals, environment access, output files and snapshot lifetime. None of the library implementations changed in this step.
+
+### Read the code in this order
+
+1. [main.ts](../apps/cli/src/main.ts) preserves the no-argument response, dispatches the command, installs SIGINT/SIGTERM handlers and sets the exit code after asynchronous cleanup. It does not call process.exit while work is pending.
+2. [context.ts](../apps/cli/src/context.ts) validates arguments, resolves PR metadata, maps URLs/commits explicitly, acquires Git and constructs the borrowing evidence session plus data-only context engine. A single five-minute acquisition signal spans HTTP and Git. Inspection uses user cancellation plus the libraries' operation limits.
+3. The same file's `inspectRepository` enumerates and records inventory pages, then inspects changes in stable order. The host admits each inspection page whole only if its UTF-8 source-text bytes fit the remaining 65,536-byte allowance. A rejected page is not recorded or rewritten. The current change is unfinished; subsequent known changes remain unstarted.
+4. Git cleanup runs in `finally`, covering session construction and retrieval failures. Primary and cleanup failures are both recorded. Context assembly starts only after successful cleanup, with retained IDs in recorded order.
+5. [output.ts](../apps/cli/src/output.ts) claims a new 0700 directory, prepares 0600 temporary files and publishes complete JSON through no-replace hard links. Temporary links are removed. Existing files/directories are never overwritten.
+
+### Run the command
+
+After `bun run build`, from the repository root:
+
+```sh
+bun run cli -- context inspect \
+  --pr https://github.com/daphne-proj/pr-review-test/pull/2 \
+  --output ./inspection-2
+```
+
+The parent directory must already exist. The output directory must not exist.
+
+`context.json` contains the constructed packet. `run.json` contains the PR reference, pinned identity, policy allowance, stage durations, inventory completeness, each known change's inspection progress, source admission count, packet omissions and safe errors. It is the host's record of why inspection stopped; a page rejected before retention cannot appear in the engine's query history.
+
+Stdout contains one JSON summary; stderr contains diagnostics. A missing context path means no packet artifact was successfully published. Metadata/acquisition failure can still leave a useful run report with null identity/unknown total change count.
+
+### Completion and cancellation
+
+Exit 0 means this bounded inspection completed without declared limitations or packet omissions. Exit 2 means artifacts are usable but retrieval or inclusion is partial. Exit 1 covers invalid input, cancellation, operation/cleanup failure or output failure. None of these statuses asserts semantic review coverage.
+
+The 64 KiB source allowance counts admitted source text, not fetched bytes, JSON metadata or a tokenizer estimate. The engine's 4 MiB retention and 64 KiB rendering caps remain independent. Whole-page admission may leave unused allowance. Inventory completion does not imply every change was inspected; completed inspection does not imply every navigation observation fit the packet.
+
+Independent review caught a final-publication cancellation gap. After asynchronous temporary-file preparation, the writer now checks cancellation and performs hard-link publication and temporary unlink without yielding. That publication is the completion point. If cancellation arrives before run publication, the host writes a stopped report on one uncancelled final attempt. Ordinary output failures remain failures; nothing is overwritten.
+
+### Observed demonstrations
+
+- Public PR #1 enumerated and inspected 36 changes, retaining 54 source excerpts with 20,668 admitted source bytes. Its 65,404-byte rendering omitted 24 navigation observations, so the CLI exited 2 with inventory and all per-change inspections complete.
+- Public PR #2, through the documented Bun command, completed all four changes with ten source excerpts, no omissions and exit 0.
+- A nonexistent public PR exited 1 with a metadata `not_found` error, null identity, unknown total change count and a run report; no context artifact was claimed.
+- SIGINT during metadata resolution and SIGTERM during active post-acquisition inspection both exited 1 with stopped reports. The latter recorded successful cleanup; isolated Git temporary directories were empty afterward.
+- Existing output directories, duplicate options, unknown options, malformed PR URLs and unknown commands failed before external work.
+- Inline artifact demonstrations verified 0700/0600 permissions, preservation of an existing context artifact, removal of temporary links after rejected publication, cancellation before publication and subsequent publication of a stopped report. No test or harness files were added.
+- The live PR #1 report placed successful cleanup before assembly. Rendered byte counts matched UTF-8 bytes and the source allowance remained below its cap. All 54 rendered excerpts matched fresh reads of their pinned Git blobs, including commit/blob identities and exact byte ranges.
+
+### Limits and final verification
+
+The live examples did not cross the 64 KiB source-admission allowance; that whole-page rejection path was inspected in independent review, not forced with synthetic fixtures. Simultaneous Git operation/cleanup failures and disk exhaustion were not injected. No new automated regression coverage was added.
+
+PR #1 took about 69 seconds, with about 67 seconds in retrieval. Each inspection currently recomputes the existing bounded change inventory. Step 6 exposes that existing cost but does not add a cache or change retrieval ownership. Broader performance work and an overall inspection deadline remain separate decisions.
+
+The focused reviewer confirmed the cancellation fix and reported no further actionable issues. Frozen install and the full existing gate passed: formatting, lint, build, all five workspace typechecks and the one existing compiled CLI smoke test. Diff whitespace and 50 local documentation paths passed. HEAD remains c41feee on main; Step 6 is unstaged and uncommitted. No new third-party dependencies, library source changes, branches, staging, commits or pushes.
