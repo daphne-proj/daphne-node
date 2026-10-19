@@ -11,3 +11,7 @@ bun.lock
 .agents/skills/proposal-audit/
 .agents/skills/references/
 .agents/skills/evals/
+.agents/skills/property-based-testing/
+.agents/skills/typescript-discriminated-unions/
+.agents/skills/typescript-types/
+.agents/licenses/

@@ -96,6 +96,53 @@
         ".agents/skills/vitest/references/features-snapshots.md": "906f5b111b747a7d1396eef82725c23a590e2ecd4c7d4889679a72f40adcc051",
         ".agents/skills/vitest/references/features-test-tags.md": "6e39db1a7b622b0f325a5cec0fca1e78aab4ed14b8e1a8dbe0eb396e7a0f642d"
       }
+    },
+    {
+      "path": ".agents/skills/property-based-testing",
+      "source": "https://github.com/trailofbits/skills",
+      "sourcePath": "plugins/property-based-testing/skills/property-based-testing/SKILL.md",
+      "installation": "Skills CLI; upstream commit revision not recorded",
+      "installerLockfile": "skills-lock.json",
+      "installerComputedHash": "c754807c7113dfb2e8c2de64e19a6612f87282b621da8b1e50e2a7137d8bbe8c",
+      "license": "CC-BY-SA-4.0",
+      "licensePath": ".agents/licenses/trailofbits-skills.txt",
+      "sha256": {
+        ".agents/skills/property-based-testing/README.md": "ffbe30eec09cc64fb1eae836b07ca1d82939bda3f1e6f0dceadcdd78793a3112",
+        ".agents/skills/property-based-testing/SKILL.md": "9448cacb65c6237a7c22dc59602667177ecae405524079ae9ff92240590b995a",
+        ".agents/skills/property-based-testing/agents/openai.yaml": "51d635deefa254d8cdf6dc56450851b6ec9545cd37f88a4eb4035cf3f2262fff",
+        ".agents/skills/property-based-testing/assets/trail-of-bits-mark.svg": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05",
+        ".agents/skills/property-based-testing/references/generating.md": "c0e72dfc89babe3c32de718b81b94044362c85e776d7475e950dfeaab78bb58e",
+        ".agents/skills/property-based-testing/references/interpreting-failures.md": "dbae7db8773712ba03268a3d56ea5aa6720af0650a5189580bfd88aa2edc3f9a",
+        ".agents/skills/property-based-testing/references/libraries.md": "f7218acf8e668130ef3048983472579d04e12030c5401926f666363e5f69c686",
+        ".agents/skills/property-based-testing/references/refactoring.md": "6eb5c206f575704791f089608bb06e41d6eed91b9d3c7fb27912f969aed07a18",
+        ".agents/skills/property-based-testing/references/reviewing.md": "110b08118a1e7b1a2566def6e9d2a0bf43fc2deefce857d2ce3b4382b07bc774"
+      }
+    },
+    {
+      "path": ".agents/skills/typescript-discriminated-unions",
+      "source": "https://github.com/mkosir/typescript-style-guide",
+      "sourcePath": "skills/typescript-discriminated-unions/SKILL.md",
+      "installation": "Skills CLI; upstream commit revision not recorded",
+      "installerLockfile": "skills-lock.json",
+      "installerComputedHash": "9d78f0a301706ba0becfa780ef9c6a80dee373340a240c4a5f5e59de1d75f370",
+      "license": "MIT",
+      "licensePath": ".agents/licenses/mkosir-typescript-style-guide.txt",
+      "sha256": {
+        ".agents/skills/typescript-discriminated-unions/SKILL.md": "7f019ca10e9694258673c743c66ca7b7078d02bf048b7985154c075874dbacd4"
+      }
+    },
+    {
+      "path": ".agents/skills/typescript-types",
+      "source": "https://github.com/mkosir/typescript-style-guide",
+      "sourcePath": "skills/typescript-types/SKILL.md",
+      "installation": "Skills CLI; upstream commit revision not recorded",
+      "installerLockfile": "skills-lock.json",
+      "installerComputedHash": "0f13dbf8d7bb2100444b97bee2e280716e6bd5171defa257261e8d78067851c6",
+      "license": "MIT",
+      "licensePath": ".agents/licenses/mkosir-typescript-style-guide.txt",
+      "sha256": {
+        ".agents/skills/typescript-types/SKILL.md": "cc3b62b958188e6be9c682a1468e3599bcc437e5fbe29ab63ebafbf3207655e9"
+      }
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "property-based-testing": {
+      "source": "trailofbits/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/property-based-testing/skills/property-based-testing/SKILL.md",
+      "computedHash": "c754807c7113dfb2e8c2de64e19a6612f87282b621da8b1e50e2a7137d8bbe8c"
+    },
+    "typescript-discriminated-unions": {
+      "source": "mkosir/typescript-style-guide",
+      "sourceType": "github",
+      "skillPath": "skills/typescript-discriminated-unions/SKILL.md",
+      "computedHash": "9d78f0a301706ba0becfa780ef9c6a80dee373340a240c4a5f5e59de1d75f370"
+    },
+    "typescript-types": {
+      "source": "mkosir/typescript-style-guide",
+      "sourceType": "github",
+      "skillPath": "skills/typescript-types/SKILL.md",
+      "computedHash": "0f13dbf8d7bb2100444b97bee2e280716e6bd5171defa257261e8d78067851c6"
+    }
+  }
+}
