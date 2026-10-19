@@ -3,6 +3,9 @@
   "references": [
     {
       "path": "./apps/cli/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/pr-review/tsconfig.build.json"
     }
   ]
 }

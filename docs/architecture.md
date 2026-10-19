@@ -2,32 +2,33 @@
 
 ## Current implementation
 
-`apps/cli` is the only executable workspace. Its entry point reports that setup is ready. The compiled-process test exercises ESM output on Node from outside the repository directory. Other package names below reserve ownership, not working APIs.
+`apps/cli` is the only executable workspace. Its entry point reports that setup is ready. The compiled-process test exercises ESM output on Node from outside the repository directory. `packages/pr-review` now provides public GitHub PR URL parsing and bounded metadata resolution. The CLI does not consume it yet. Other package names below reserve ownership, not working APIs.
 
-Bun handles installation and scripts. Node 24 is the production runtime. TypeScript compiles with NodeNext modules; `tsc -b` manages dependency order. Tests use Vitest on Node. Libraries will export compiled JavaScript and declarations, with no package-private source imports.
+Bun handles installation and scripts. Node 24 is the production runtime. TypeScript compiles with NodeNext modules; `tsc -b` manages dependency order. Tests use Vitest on Node. Libraries export compiled JavaScript and declarations, with no package-private source imports.
 
 ## Target ownership
 
-| Location                         | Responsibility / Rust reference                             |
-| -------------------------------- | ----------------------------------------------------------- |
-| `apps/cli`                       | User command composition and process exit behavior          |
-| `apps/eval`                      | Evaluation suites, trials, grading, and reports             |
-| `packages/domain`                | Shared domain values, identities, serialized contracts      |
-| `packages/git-source`            | Git access and revision comparison                          |
-| `packages/review-evidence`       | Evidence/session contracts and correspondence               |
-| `packages/tree-sitter-extractor` | Syntax extraction and byte/position boundaries              |
-| `packages/scip-extractor`        | SCIP data decoding and semantic extraction                  |
-| `packages/revision-extractor`    | Normalized extraction and coverage                          |
-| `packages/rci`                   | Revision code index                                         |
-| `packages/pcg`                   | Graph model and validation                                  |
-| `packages/pcg-builder`           | Graph construction                                          |
-| `packages/lifecycle`             | Review/revision state and promotion                         |
-| `packages/semantic-split`        | Semantic grouping and investigation state                   |
-| `packages/review-agent`          | Model orchestration and provider adapters                   |
-| `packages/pr-review`             | Pull-request acquisition and review orchestration           |
-| `packages/integration-tests`     | Cross-package scenarios once multiple implementations exist |
+| Location                         | Responsibility / Rust reference                               |
+| -------------------------------- | ------------------------------------------------------------- |
+| `apps/cli`                       | User command composition and process exit behavior            |
+| `apps/eval`                      | Evaluation suites, trials, grading, and reports               |
+| `packages/context-engine`        | Planned Git-backed retrieval, evidence retention and assembly |
+| `packages/domain`                | Shared domain values, identities, serialized contracts        |
+| `packages/git-source`            | Git access and revision comparison                            |
+| `packages/review-evidence`       | Evidence/session contracts and correspondence                 |
+| `packages/tree-sitter-extractor` | Syntax extraction and byte/position boundaries                |
+| `packages/scip-extractor`        | SCIP data decoding and semantic extraction                    |
+| `packages/revision-extractor`    | Normalized extraction and coverage                            |
+| `packages/rci`                   | Revision code index                                           |
+| `packages/pcg`                   | Graph model and validation                                    |
+| `packages/pcg-builder`           | Graph construction                                            |
+| `packages/lifecycle`             | Review/revision state and promotion                           |
+| `packages/semantic-split`        | Semantic grouping and investigation state                     |
+| `packages/review-agent`          | Model orchestration and provider adapters                     |
+| `packages/pr-review`             | Pull-request acquisition and review orchestration             |
+| `packages/integration-tests`     | Cross-package scenarios once multiple implementations exist   |
 
-Preserve these ownership boundaries initially; actual import edges must be derived from the Rust dependency graph for each migration. Domain contracts must not depend on apps, provider SDKs, Git subprocesses, or extraction runtimes. Apps compose libraries; libraries never import apps. IO lives at adapter boundaries. Avoid introducing a generic shared package that bypasses ownership.
+This is a future ownership map, not a requirement to create all these packages. For Rust migrations, derive import edges from the source dependency graph. The new context foundation follows the PR/context split below; Git access remains internal to context-engine in this iteration. Domain contracts must not depend on apps, provider SDKs, Git subprocesses, or extraction runtimes. Apps compose libraries; libraries never import apps. IO lives at adapter boundaries. Avoid introducing a generic shared package that bypasses ownership.
 
 Use ordinary packages and explicit build references first. Add a build orchestrator, package publishing, web framework, service container, or cache only for a measured need. Native parser/protobuf/model dependencies are selected during their migration, when compatibility tests exist.
 
@@ -42,11 +43,18 @@ Use the `codebase-design` skill when defining or changing a module contract. A c
 - Apps consume public package exports. Libraries never import apps. Internal files use direct relative imports rather than their own public barrel. Keep the dependency graph acyclic and avoid cross-package relative imports.
 - Record significant decisions with the problem, alternatives, choice, consequences, and a condition for revisiting the choice. Reuse `docs/adr/`; do not create an ADR for every helper.
 
-ESLint rejects static imports into `src`/`dist` trees from production files, known app imports from libraries, and acquisition/Git/composition imports from context-engine contracts, evidence, limits, and assembly. The latter modules also reject imports of process, filesystem, and networking APIs, and direct uses of `fetch`, `process`, and `console`. These checks supplement source review: import spelling rules do not resolve every path, detect cycles, or prove the absence of runtime I/O. Review computed imports, global access, and aliases explicitly. Add a resolved dependency-graph tool only when these limitations become a practical maintenance problem.
+ESLint rejects static imports into `src`/`dist` trees from production files, known app imports from libraries, and acquisition/Git/composition imports from context-engine contracts, evidence, limits, and assembly. The latter modules also reject imports of process, filesystem, and networking APIs, and direct uses of `fetch`, `process`, and `console`. Both pr-review and context-engine also reject imports of the other package, including type-only imports, package subpaths and relative paths. These checks supplement source review: import spelling rules do not resolve every path, detect cycles, or prove the absence of runtime I/O. Review computed imports, global access, and aliases explicitly. Add a resolved dependency-graph tool only when these limitations become a practical maintenance problem.
 
-## Context-engine foundation (planned)
+## PR acquisition and context-engine foundation
 
-The [context-engine design](superpowers/specs/2026-10-19-context-engine-design.md) and [implementation plan](superpowers/plans/2026-10-19-context-engine.md) define the next slice, superseding the broad migration ordering for this work. One `@daphne/context-engine` package will contain Git-backed retrieval and context assembly; it is not implemented by this policy change. The plan records the allowed internal dependencies and the owning file for each shared contract.
+The [context-engine design](superpowers/specs/2026-10-19-context-engine-design.md) and [implementation plan](superpowers/plans/2026-10-19-context-engine.md) supersede the broad migration ordering for this work.
+
+- `@daphne/pr-review` owns PR URL parsing, GitHub HTTP/authentication, metadata validation and HTTP limits/errors. This first step is implemented with no runtime dependencies.
+- `@daphne/context-engine` will own repository/revision inputs, Git snapshots, bounded retrieval, evidence retention and assembly. Its package starts with working Git acquisition in Task 2; there is no placeholder workspace.
+- The CLI will compose both public APIs and explicitly map PR metadata into the context engine's comparison input. Neither library imports the other in this slice. Tokens and PR references never enter the context engine.
+- Each library owns its configuration. PR resolution has a request timeout and byte cap; the future CLI owns the deadline spanning metadata resolution and Git acquisition.
+
+This initial engine is PR-independent but Git-backed and comparison-oriented. A single-revision workflow or another storage backend needs a deliberate contract extension. See [ADR 0002](adr/0002-context-engine-boundary.md) and the [walkthrough](context-engine-walkthrough.md).
 
 RCI/PCG retain indexing and qualified navigation ownership. Their future integrations will translate into the context engine's evidence contracts; assembly will not depend on index construction. Model requests and review/grouping policy remain outside the engine.
 

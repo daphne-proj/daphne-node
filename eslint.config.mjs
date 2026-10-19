@@ -24,6 +24,28 @@ const libraryImportRestrictions = [
   },
 ];
 
+const prReviewImportRestriction = {
+  group: [
+    '@daphne/pr-review',
+    '@daphne/pr-review/**',
+    '**/pr-review',
+    '**/pr-review/**',
+  ],
+  message:
+    'The context engine consumes repository/revision inputs, not PR acquisition.',
+};
+
+const contextEngineImportRestriction = {
+  group: [
+    '@daphne/context-engine',
+    '@daphne/context-engine/**',
+    '**/context-engine',
+    '**/context-engine/**',
+  ],
+  message:
+    'PR acquisition owns its contracts; the host composes it with context-engine.',
+};
+
 export default defineConfig(
   globalIgnores([
     '**/dist/**',
@@ -77,6 +99,29 @@ export default defineConfig(
     },
   },
   {
+    files: ['packages/pr-review/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            contextEngineImportRestriction,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/context-engine/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...libraryImportRestrictions, prReviewImportRestriction] },
+      ],
+    },
+  },
+  {
     files: [
       'packages/context-engine/src/contracts.ts',
       'packages/context-engine/src/limits.ts',
@@ -90,6 +135,7 @@ export default defineConfig(
         {
           patterns: [
             ...libraryImportRestrictions,
+            prReviewImportRestriction,
             {
               group: [
                 '**/git/**',

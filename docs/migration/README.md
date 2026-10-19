@@ -2,6 +2,14 @@
 
 The foundation is separate from application migration. `reference.json` records the source commit, not a passing Rust baseline. Do not treat a green TypeScript bootstrap as proof of parity.
 
+## Current foundation slice
+
+The [context-engine plan](../superpowers/plans/2026-10-19-context-engine.md) takes precedence over the broad migration order below for the current work. Task 1 introduces `@daphne/pr-review` for PR URL and public GitHub metadata resolution. Task 2 will introduce `@daphne/context-engine` with repository/revision inputs; the CLI later composes both packages. RCI/PCG retain indexing and semantic navigation ownership.
+
+This is a new TypeScript foundation, not a Rust behavior port. No runtime/model integration, Git snapshot acquisition or context assembly is implemented yet. No new automated tests were added at the user's request; the walkthrough records manual demonstrations and existing checks.
+
+## Later Rust migration sequence
+
 1. **Capture the baseline.** Pin the Rust reference, run its relevant tests, inventory CLI/JSON/error contracts, and collect sanitized representative fixtures. Record environment, extractor versions, and timing/memory measurements. Resolve uncommitted source changes explicitly.
 2. **Domain and evidence contracts.** Port identities, validated values, serialization, evidence/session types, and pure invariants with differential tests. Preserve names and observable ordering.
 3. **Git and pure normalization.** Port Git source behavior and deterministic transformations. Exercise invalid revisions, unusual paths, missing files, and failure diagnostics.
