@@ -7,7 +7,10 @@ import {
 } from './limits.js';
 import type { GitOperationOptions } from './limits.js';
 
-// Only host-installed Git is trusted; repository config and inherited Git settings are not.
+/**
+ * Disables implicit helpers and side effects while trusting only the host-installed Git executable.
+ * Example: a repository hook must not execute just because we update a private snapshot ref.
+ */
 const gitConfig = [
   'core.hooksPath=/dev/null',
   'core.fsmonitor=false',
@@ -23,6 +26,10 @@ const gitConfig = [
   'diff.renameLimit=0',
 ];
 
+/**
+ * Runs package-owned Git commands with cancellation, output caps and controlled settings.
+ * Example: merge-base may explicitly allow exit 1 for unrelated histories; other failures reject.
+ */
 export async function runGit(
   args: readonly string[],
   cwd: string,
@@ -37,8 +44,11 @@ export async function runGit(
       'Git process-group cleanup currently requires macOS or Linux.',
     );
   }
+
   const limits = resolveGitLimits(options.limits);
+
   checkCancellation(options.signal);
+
   const timeout = options.fetch
     ? limits.acquisitionTimeoutMs
     : limits.gitTimeoutMs;
@@ -46,6 +56,7 @@ export async function runGit(
     options.signal,
     AbortSignal.timeout(timeout),
   ]);
+
   const env = {
     PATH: process.env.PATH ?? '/usr/bin:/bin',
     HOME: cwd,
@@ -82,15 +93,21 @@ export async function runGit(
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
+
     const output: Buffer[] = [];
     let bytes = 0;
     let failure: GitOperationError | undefined;
     let killTimer: ReturnType<typeof setTimeout> | undefined;
 
+    /**
+     * Signals Git and its subprocesses so stopping a fetch also stops its transport helper.
+     * Example: SIGTERM is sent to the process group, not only the parent Git process.
+     */
     function killGroup(killSignal: NodeJS.Signals): void {
       if (child.pid === undefined) {
         return;
       }
+
       try {
         process.kill(-child.pid, killSignal);
       } catch {
@@ -99,10 +116,15 @@ export async function runGit(
       }
     }
 
+    /**
+     * Keeps the first failure and escalates shutdown if graceful termination is ignored.
+     * Example: exceeding the output cap sends SIGTERM, then SIGKILL after 500 ms.
+     */
     function stop(error: GitOperationError): void {
       if (failure) {
         return;
       }
+
       failure = error;
       killGroup('SIGTERM');
       killTimer = setTimeout(() => {
@@ -111,6 +133,10 @@ export async function runGit(
       killTimer.unref();
     }
 
+    /**
+     * Connects deadline or caller cancellation to the same subprocess cleanup path.
+     * Example: aborting the caller's signal interrupts a running fetch.
+     */
     function onAbort(): void {
       try {
         checkCancellation(signal);
@@ -121,11 +147,17 @@ export async function runGit(
       }
     }
 
+    /**
+     * Counts both output streams while retaining only stdout for parsing.
+     * Example: a large stderr stream still hits the cap even though we never return it.
+     */
     function capture(chunk: Buffer, keep: boolean): void {
       if (failure) {
         return;
       }
+
       bytes += chunk.byteLength;
+
       if (bytes > limits.maxGitOutputBytes) {
         stop(
           new GitOperationError(
@@ -135,6 +167,7 @@ export async function runGit(
         );
         return;
       }
+
       if (keep) {
         output.push(chunk);
       }
@@ -146,6 +179,7 @@ export async function runGit(
     child.stderr.on('data', (chunk: Buffer) => {
       capture(chunk, false);
     });
+
     child.on('error', () => {
       stop(
         new GitOperationError(
@@ -154,14 +188,17 @@ export async function runGit(
         ),
       );
     });
+
     child.once('close', (exitCode, exitSignal) => {
       signal.removeEventListener('abort', onAbort);
       clearTimeout(killTimer);
+
       if (failure) {
         killGroup('SIGKILL');
         reject(failure);
         return;
       }
+
       if (
         exitCode === null ||
         !(options.acceptedExitCodes ?? [0]).includes(exitCode)
@@ -177,8 +214,10 @@ export async function runGit(
         );
         return;
       }
+
       resolve(Buffer.concat(output));
     });
+
     signal.addEventListener('abort', onAbort, { once: true });
     if (signal.aborted) {
       onAbort();

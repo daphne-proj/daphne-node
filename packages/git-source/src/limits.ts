@@ -1,3 +1,7 @@
+/**
+ * Bounds how long Git runs and how much output or blob content we read.
+ * Example: a blob above maxBlobBytes is classified as unsupported instead of loaded.
+ */
 export interface GitLimits {
   readonly acquisitionTimeoutMs: number;
   readonly gitTimeoutMs: number;
@@ -5,15 +9,27 @@ export interface GitLimits {
   readonly maxBlobBytes: number;
 }
 
+/**
+ * Lets the caller cancel work and supply limits explicitly, without global configuration.
+ * Example: one AbortController can cancel both acquisition and later inventory calls.
+ */
 export interface GitOperationOptions {
   readonly signal: AbortSignal;
   readonly limits: GitLimits;
 }
 
+/**
+ * Identifies invalid caller input so it can be corrected before retrying.
+ * Example: a branch name such as main is rejected where a full commit ID is required.
+ */
 export class GitInputError extends Error {
   override readonly name = 'GitInputError';
 }
 
+/**
+ * Gives callers stable failure categories without making them parse error messages.
+ * Example: timeout can be presented differently from an already closed snapshot.
+ */
 type GitErrorCode =
   | 'git'
   | 'cancelled'
@@ -26,6 +42,10 @@ type GitErrorCode =
   | 'closed'
   | 'cleanup';
 
+/**
+ * Carries an operation's failure category and safe diagnostics across the package boundary.
+ * Example: a failed Git command includes its exit code, not raw stderr or credentials.
+ */
 export class GitOperationError extends Error {
   override readonly name = 'GitOperationError';
 
@@ -38,6 +58,10 @@ export class GitOperationError extends Error {
   }
 }
 
+/**
+ * Provides fixed upper bounds that callers can tighten but cannot increase.
+ * Example: an interactive caller can lower the Git deadline from 30 seconds to 5.
+ */
 export const defaultGitLimits: GitLimits = Object.freeze({
   acquisitionTimeoutMs: 300_000,
   gitTimeoutMs: 30_000,
@@ -45,10 +69,18 @@ export const defaultGitLimits: GitLimits = Object.freeze({
   maxBlobBytes: 2_097_152,
 });
 
+/**
+ * Checks a runtime key before using it to look up a limit.
+ * Example: maxBlobBytes is accepted; a misspelled maxBlobByte is rejected.
+ */
 function isLimitName(name: string): name is keyof GitLimits {
   return Object.hasOwn(defaultGitLimits, name);
 }
 
+/**
+ * Validates overrides and fills omitted settings with defaults, returning a frozen result.
+ * Example: resolveGitLimits({ gitTimeoutMs: 5000 }) keeps the default byte caps.
+ */
 export function resolveGitLimits(overrides?: Partial<GitLimits>): GitLimits;
 export function resolveGitLimits(overrides: unknown = {}): GitLimits {
   if (
@@ -75,9 +107,14 @@ export function resolveGitLimits(overrides: unknown = {}): GitLimits {
       );
     }
   }
+
   return Object.freeze({ ...defaultGitLimits, ...overrides });
 }
 
+/**
+ * Stops work with a safe error instead of exposing the caller's arbitrary abort reason.
+ * Example: an expired deadline becomes timeout; a user cancellation becomes cancelled.
+ */
 export function checkCancellation(signal: AbortSignal): void {
   if (!signal.aborted) {
     return;
@@ -92,5 +129,6 @@ export function checkCancellation(signal: AbortSignal): void {
       'The Git operation exceeded its deadline.',
     );
   }
+
   throw new GitOperationError('cancelled', 'The Git operation was cancelled.');
 }

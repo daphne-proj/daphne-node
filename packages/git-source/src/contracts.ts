@@ -1,3 +1,7 @@
+/**
+ * Identifies the exact remote commits to compare without depending on a PR API.
+ * Example: target comes from the upstream repository, while head comes from a fork.
+ */
 export interface RepositoryComparisonInput {
   readonly targetRepositoryUrl: string;
   readonly headRepositoryUrl: string;
@@ -5,12 +9,20 @@ export interface RepositoryComparisonInput {
   readonly headCommit: string;
 }
 
+/**
+ * Allows the same comparison using a local repository, without GitHub access.
+ * Example: compare two full commit IDs from a checkout at /work/project.
+ */
 export interface LocalComparisonInput {
   readonly repositoryPath: string;
   readonly targetCommit: string;
   readonly headCommit: string;
 }
 
+/**
+ * Records which immutable comparison produced the results, even if branches move.
+ * Example: target advanced to C, head is D, but their shared ancestor (base) is B.
+ */
 export interface GitSnapshotIdentity {
   readonly sessionId: string;
   readonly repositoryUrl: string;
@@ -19,6 +31,10 @@ export interface GitSnapshotIdentity {
   readonly headCommit: string;
 }
 
+/**
+ * Locates an edit on both sides; starts follow Git line numbering, counts give its size.
+ * Example: beforeStartLine 5 with count 0 anchors an insertion after old line 5.
+ */
 export interface GitChangeHunk {
   readonly beforeStartLine: number;
   readonly beforeLineCount: number;
@@ -26,6 +42,10 @@ export interface GitChangeHunk {
   readonly afterLineCount: number;
 }
 
+/**
+ * Describes a file operation even when it has no readable text or changed lines.
+ * Example: a pure rename has different before/after paths and an empty hunks array.
+ */
 export interface GitChange {
   readonly id: string;
   readonly beforePath: string | null;
