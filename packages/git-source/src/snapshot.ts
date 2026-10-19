@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { access, mkdtemp, realpath, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type {
-  LocalComparisonInput,
   RepositoryComparisonInput,
   GitSnapshotIdentity,
 } from './contracts.js';
@@ -135,20 +133,18 @@ async function removeOwnedDirectory(directory: string): Promise<void> {
 }
 
 /**
- * Shares validation, one acquisition deadline and cleanup between remote and local inputs.
- * Example: either population path must yield complete commits and exactly one merge base.
+ * Fetches exact remote commits into owned state with one acquisition deadline and cleanup.
+ * Example: target and head can come from different repositories when reviewing a fork.
  */
-async function prepareSnapshot(
-  repository: string,
-  targetCommit: string,
-  headCommit: string,
+export async function acquireSnapshot(
+  input: RepositoryComparisonInput,
   options: GitOperationOptions,
-  populate: (
-    root: string,
-    directory: string,
-    options: GitOperationOptions,
-  ) => Promise<void>,
 ): Promise<GitSnapshot> {
+  const targetRepositoryUrl = repositoryUrl(input.targetRepositoryUrl);
+  const headRepositoryUrl = repositoryUrl(input.headRepositoryUrl);
+  const targetCommit = commitId(input.targetCommit);
+  const headCommit = commitId(input.headCommit);
+
   const limits = resolveGitLimits(options.limits);
   const signal = AbortSignal.any([
     options.signal,
@@ -164,7 +160,31 @@ async function prepareSnapshot(
     root = await mkdtemp(join(tmpdir(), 'daphne-git-'));
     const directory = join(root, 'repository.git');
 
-    await populate(root, directory, acquisition);
+    await runGit(['init', '--bare', '--template=', directory], root, {
+      ...acquisition,
+      fetch: false,
+    });
+
+    for (const [url, commit, name] of [
+      [targetRepositoryUrl, targetCommit, 'target'],
+      [headRepositoryUrl, headCommit, 'head'],
+    ] as const) {
+      await runGit(
+        [
+          'fetch',
+          '--no-tags',
+          '--no-write-fetch-head',
+          '--no-recurse-submodules',
+          '--no-auto-maintenance',
+          '--force',
+          '--',
+          url,
+          `${commit}:refs/daphne/${name}`,
+        ],
+        directory,
+        { ...acquisition, fetch: true },
+      );
+    }
 
     checkCancellation(signal);
 
@@ -253,7 +273,7 @@ async function prepareSnapshot(
 
     const identity = Object.freeze({
       sessionId: randomUUID(),
-      repositoryUrl: repository,
+      repositoryUrl: targetRepositoryUrl,
       targetCommit,
       baseCommit: base,
       headCommit,
@@ -300,116 +320,6 @@ async function prepareSnapshot(
       'Could not prepare the temporary Git repository.',
     );
   }
-}
-
-/**
- * Fetches the requested remote commits into owned state, keeping later reads stable.
- * Example: target and head can come from different repositories when reviewing a fork.
- */
-export async function acquireSnapshot(
-  input: RepositoryComparisonInput,
-  options: GitOperationOptions,
-): Promise<GitSnapshot> {
-  const targetRepositoryUrl = repositoryUrl(input.targetRepositoryUrl);
-  const headRepositoryUrl = repositoryUrl(input.headRepositoryUrl);
-  const targetCommit = commitId(input.targetCommit);
-  const headCommit = commitId(input.headCommit);
-
-  return prepareSnapshot(
-    targetRepositoryUrl,
-    targetCommit,
-    headCommit,
-    options,
-    async (root, directory, acquisition) => {
-      await runGit(['init', '--bare', '--template=', directory], root, {
-        ...acquisition,
-        fetch: false,
-      });
-
-      for (const [url, commit, name] of [
-        [targetRepositoryUrl, targetCommit, 'target'],
-        [headRepositoryUrl, headCommit, 'head'],
-      ] as const) {
-        await runGit(
-          [
-            'fetch',
-            '--no-tags',
-            '--no-write-fetch-head',
-            '--no-recurse-submodules',
-            '--no-auto-maintenance',
-            '--force',
-            '--',
-            url,
-            `${commit}:refs/daphne/${name}`,
-          ],
-          directory,
-          { ...acquisition, fetch: true },
-        );
-      }
-    },
-  );
-}
-
-/**
- * Copies committed objects into owned state without modifying the source checkout.
- * Example: changing the source branch afterward does not change this comparison's head.
- */
-export async function openLocalSnapshot(
-  input: LocalComparisonInput,
-  options: GitOperationOptions,
-): Promise<GitSnapshot> {
-  const targetCommit = commitId(input.targetCommit);
-  const headCommit = commitId(input.headCommit);
-
-  if (
-    typeof input.repositoryPath !== 'string' ||
-    input.repositoryPath.length === 0 ||
-    input.repositoryPath.includes('\0')
-  ) {
-    throw new GitInputError('A local repository path is required.');
-  }
-
-  checkCancellation(options.signal);
-
-  let source: string;
-
-  try {
-    source = await realpath(input.repositoryPath);
-  } catch {
-    throw new GitOperationError(
-      'acquisition',
-      'The local repository path is not accessible.',
-    );
-  }
-
-  return prepareSnapshot(
-    pathToFileURL(source).href,
-    targetCommit,
-    headCommit,
-    options,
-    async (root, directory, acquisition) => {
-      // --local bypasses upload-pack; copying objects avoids executing source-repository helpers.
-      await runGit(
-        [
-          '-c',
-          'protocol.file.allow=always',
-          'clone',
-          '--bare',
-          '--local',
-          '--no-hardlinks',
-          '--no-checkout',
-          '--no-tags',
-          '--reject-shallow',
-          '--template=',
-          '--',
-          source,
-          directory,
-        ],
-        root,
-        { ...acquisition, fetch: true },
-      );
-    },
-  );
 }
 
 /**

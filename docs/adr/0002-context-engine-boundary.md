@@ -18,6 +18,8 @@ The context builder must retain and assemble supplied evidence without opening a
 - `@daphne/context-engine` owns supplied-evidence retention, deduplication, query progress and packet assembly. Introduce it in Task 5. It receives evidence identity/data, never a Git handle, repository acquisition input or retrieval callback.
 - The CLI and future agent orchestration compose these APIs, select retrieval/assembly policy and own cleanup. The host closes Git in `finally`; context-engine has no repository `close` or tool `execute` method.
 
+The supported user workflow begins with a PR URL. Local-checkout acquisition is removed from the current scope. Git-source still accepts validated remote repository URLs and exact commits rather than PR transport types; its private temporary object store remains necessary.
+
 PR and Git packages do not import one another or downstream packages. Review-evidence implementation imports git-source. Its separate `contracts` export is I/O-free and imports no Git types or implementation; context-engine imports only its data types with `import type`. Emitted context JavaScript must not load retrieval code. This avoids a speculative shared-contract package while making the dependency explicit and reviewable.
 
 Evidence retains commit/blob/path/range metadata. Provenance is data, not a backend dependency. Review-evidence establishes correspondence with actual committed bytes; context-engine checks evidence/session consistency and selects already supplied data. No missing source is fetched during assembly.
@@ -45,7 +47,7 @@ Rust review-agent depends on review-evidence, which depends on Git; do not claim
 
 There are more focused packages, each introduced with its first behavior, and no empty placeholders. Scope the independent review to both contract ownership and runtime imports, not merely implementation agreement with the plan.
 
-Required change scenarios: local input leaves context-engine unchanged; context assembly works from previously supplied evidence after Git closes; packet rendering leaves acquisition unchanged; future RCI/PCG retrieval changes review-evidence without moving index construction or source access into context-engine.
+Required change scenarios: changes to remote acquisition leave context-engine unchanged; context assembly works from previously supplied evidence after Git closes; packet rendering leaves acquisition unchanged; future RCI/PCG retrieval changes review-evidence without moving index construction or source access into context-engine.
 
 Preserve immutable revision identity, exact bytes, cancellation, bounded outputs and cleanup when rehoming the draft. Existing manual demonstrations are useful evidence about Git behavior, but they do not verify the corrected package boundary. Re-run relevant checks after migration. No new tests are authorized; that leaves regression coverage incomplete.
 

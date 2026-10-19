@@ -15,7 +15,7 @@ This step turns an untrusted PR URL into validated GitHub repository locations a
 
 ### Why these boundaries exist
 
-`PullRequestRef` identifies a GitHub PR; it is not a context-engine input. The future CLI will explicitly copy repository locations and commit IDs into git-source's `RepositoryComparisonInput`. Local workflows can instead supply a repository path and revisions. Neither library needs to import the other.
+`PullRequestRef` identifies a GitHub PR; it is not a context-engine input. The future CLI will explicitly copy repository locations and commit IDs into git-source's `RepositoryComparisonInput`. Neither library needs to import the other.
 
 `targetCommit` is the target branch tip reported by GitHub. It is not necessarily the merge base. Task 2 will acquire the exact objects and calculate that merge base. The values observed in this step do not guarantee publication freshness or successful Git acquisition.
 
@@ -75,11 +75,11 @@ This step implements `@daphne/git-source`. It does not implement a context build
 
 ### Read the code in this order
 
-1. [Public exports](../packages/git-source/src/index.ts): three operations, Git input/data types, four limits and typed errors. There are no arbitrary-command, private-directory, PR or context exports.
-2. [Contracts](../packages/git-source/src/contracts.ts): `RepositoryComparisonInput` and `LocalComparisonInput` describe acquisition; `GitSnapshotIdentity` records target/base/head separately. `GitChange` describes file status, kind, modes and hunk coordinates.
+1. [Public exports](../packages/git-source/src/index.ts): two operations, Git input/data types, four limits and typed errors. There are no arbitrary-command, private-directory, PR or context exports.
+2. [Contracts](../packages/git-source/src/contracts.ts): `RepositoryComparisonInput` describes remote acquisition; `GitSnapshotIdentity` records target/base/head separately. `GitChange` describes file status, kind, modes and hunk coordinates.
 3. [Limits](../packages/git-source/src/limits.ts): acquisition is capped at 300,000 ms; an inventory operation at 30,000 ms; each subprocess captures at most 16,777,216 combined stdout/stderr bytes; each classified blob is at most 2,097,152 bytes. Inventory also caps accumulated raw/patch output. Overrides may only lower defaults. These are Git limits, not tool-response or context budgets.
 4. [Process control](../packages/git-source/src/process.ts): commands use argument arrays, no shell, a controlled environment and disabled executable Git helpers. Stderr is counted but not returned. Cancellation terminates the process group and waits for child closure; errors omit raw command output and caller reasons.
-5. [Snapshot lifecycle](../packages/git-source/src/snapshot.ts): remote acquisition fetches exact target/head commits and history into a private bare repository. Local acquisition copies objects without hardlinks or borrowed alternates. Validation requires complete SHA-1 history and exactly one merge base. Private refs retain the selected commits.
+5. [Snapshot lifecycle](../packages/git-source/src/snapshot.ts): remote acquisition fetches exact target/head commits and history into a private bare repository. Validation requires complete SHA-1 history and exactly one merge base. Private refs retain the selected commits.
 6. In that same file, `withSnapshot` leases private state while an operation runs. The public `close()` aborts active operations, waits for them and removes only the owned directory. It is idempotent; closed or foreign handles are rejected. The caller must close successfully acquired snapshots in `finally`.
 7. [Change inventory](../packages/git-source/src/changes.ts): parse NUL-delimited raw paths, sort by UTF-8 path bytes, classify file modes/content and derive zero-context hunk coordinates from blob-to-blob diffs. Rename detection uses 50% similarity and the Myers algorithm. Filenames are never recovered from display patch headers.
 
@@ -93,13 +93,13 @@ Git-source contains no downstream package imports and no PR imports. The old con
 
 ### Try the compiled public API
 
-Run `bun run build` from the root, then enter `packages/git-source`. Supply a disposable local repository and two full commit IDs:
+Run `bun run build` from the root, then enter `packages/git-source`. Use remote URLs and exact commits resolved from a public PR:
 
 ```sh
 node --input-type=module <<'JS'
 import {
   defaultGitLimits,
-  openLocalSnapshot,
+  acquireSnapshot,
   listSnapshotChanges,
 } from '@daphne/git-source';
 
@@ -107,10 +107,12 @@ const options = {
   signal: new AbortController().signal,
   limits: defaultGitLimits,
 };
-const snapshot = await openLocalSnapshot({
-  repositoryPath: '/absolute/path/to/disposable-repository',
-  targetCommit: 'FULL_TARGET_COMMIT_ID',
-  headCommit: 'FULL_HEAD_COMMIT_ID',
+
+const snapshot = await acquireSnapshot({
+  targetRepositoryUrl: 'https://github.com/daphne-proj/pr-review-test.git',
+  headRepositoryUrl: 'https://github.com/daphne-proj/pr-review-test.git',
+  targetCommit: '3f0d15e8834c098d26b428bad1b325e6f33d9755',
+  headCommit: '93076efe37909ef3f36480170048cc9387aa29be',
 }, options);
 
 try {
@@ -122,11 +124,11 @@ try {
 JS
 ```
 
-For remote input use `acquireSnapshot` with canonical target/head repository URLs and full commit IDs. No PR URL or token belongs in either entry point.
+The application workflow starts from a PR URL, resolved by pr-review. Git-source receives only the resulting canonical remote URLs and commits. Local checkout input is not supported; the private temporary bare repository is still required internally.
 
-### Observed results after rehoming
+### Historical results after rehoming
 
-The manual demonstration used a disposable repository, the compiled `@daphne/git-source` exports, Node 24.22.0 and Git 2.54.0 on macOS.
+These observations predate the removal of local acquisition and are not instructions for the current API. The manual demonstration used a disposable repository, the compiled `@daphne/git-source` exports, Node 24.22.0 and Git 2.54.0 on macOS.
 
 - Target `dac5861982d479a2b528a1426d72376bcd6fa98a`, merge base `93ac9f8f3275d6ac01a9dfcdc5d21cb335ccc916`, and head `da33cc9847e62c0b35bec992581aa1331acf08c8` matched ordinary Git. Target-only content was absent from the inventory.
 - Seven changes matched `git diff --name-status --find-renames=50%`: ordinary text, binary data, empty text, invalid-UTF-8 content marked unsupported, a symlink, a filename containing tab/newline, and a rename.
@@ -141,7 +143,7 @@ Earlier draft demonstrations also rejected shallow/alternate-object repositories
 
 ### Limits and next step
 
-The adapter initially supports complete SHA-1 repositories on macOS/Linux and public canonical HTTPS GitHub origins or local inputs. Non-UTF-8 paths are rejected; binary, symlink, submodule and oversized/invalid text content receive explicit inventory classifications. Disk/network transfer quotas are not implemented. No reviewed-repository code is executed.
+The adapter initially supports complete SHA-1 repositories on macOS/Linux and public canonical HTTPS GitHub origins. Non-UTF-8 paths are rejected; binary, symlink, submodule and oversized/invalid text content receive explicit inventory classifications. Disk/network transfer quotas are not implemented. No reviewed-repository code is executed.
 
 No tests, fixtures, harnesses or runtime dependencies were added. The existing CLI smoke test cannot establish regression coverage for these Git behaviors. Step 3 will expose exact blob reads and introduce review-evidence source materialization; no context assembly is needed for that step.
 
@@ -150,3 +152,7 @@ No tests, fixtures, harnesses or runtime dependencies were added. The existing C
 After relocation, `bun install --frozen-lockfile` and `bun run check` passed: formatting, lint, three workspace typechecks, build and the one existing CLI smoke test. `git diff --check` passed. An independent read-only reviewer found no actionable issues in contract ownership, subprocess controls, exact revisions, lifecycle leases, deterministic inventory or configuration.
 
 PR source, CLI source, existing tests and runtime/tool version pins were unchanged. Task 2 is complete on main. The next checkpoint is Step 3; it has not been implemented.
+
+### Remote-only scope follow-up
+
+Local acquisition and its public contract were removed after the Step 2 review. Remote acquisition now has a direct implementation without the former population callback. The existing full check gate and frozen install passed. A manual check through compiled public exports fetched the same exact remote commits and 36 changes, confirmed the local export is absent, rejected a file URL, checked pre-aborted cancellation, and verified idempotent close plus rejection of reads after close. No new test files or dependencies were added. The current follow-up was self-reviewed; the independent review above applies to the earlier Step 2 implementation.

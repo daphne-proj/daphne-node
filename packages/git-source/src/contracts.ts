@@ -10,16 +10,6 @@ export interface RepositoryComparisonInput {
 }
 
 /**
- * Allows the same comparison using a local repository, without GitHub access.
- * Example: compare two full commit IDs from a checkout at /work/project.
- */
-export interface LocalComparisonInput {
-  readonly repositoryPath: string;
-  readonly targetCommit: string;
-  readonly headCommit: string;
-}
-
-/**
  * Records which immutable comparison produced the results, even if branches move.
  * Example: target advanced to C, head is D, but their shared ancestor (base) is B.
  */

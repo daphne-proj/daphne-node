@@ -52,7 +52,7 @@ Allowed package dependencies:
 - `context-engine` imports those contracts with `import type` only. It has no runtime dependency on review-evidence execution and no direct or re-exported dependency on Git handles, PR acquisition, filesystem or subprocess APIs. Its package manifest declares the workspace type dependency, but emitted JavaScript must not load the retrieval package. The contracts subpath must resolve directly to its own compiled module, never through a runtime barrel.
 - The CLI composes all four packages through their public exports. Internal imports remain one-way and avoid public barrels.
 
-Contract ownership follows the receiving responsibility. `git-source/contracts.ts` owns `RepositoryComparisonInput` (target/head repository URLs and exact commits), `LocalComparisonInput` (repository path and exact commits), `GitSnapshotIdentity` and `GitChange`. The host explicitly maps PR metadata into Git input. Two URLs preserve fork support.
+Contract ownership follows the receiving responsibility. `git-source/contracts.ts` owns `RepositoryComparisonInput` (target/head repository URLs and exact commits), `GitSnapshotIdentity` and `GitChange`. The host explicitly maps PR metadata into Git input. Two URLs preserve fork support.
 
 `review-evidence/contracts.ts` owns `ReviewIdentity`, `Side`, `ByteRange`, `SourceRef`, `SourceEvidence`, `Change`, notices and tool data. The identity contains session/repository/target/base/head metadata copied from the snapshot; it is not a resource handle. Source provenance can contain commit/blob IDs without making context assembly execute or understand Git. Retention rechecks session/range/conflict invariants, but establishing correspondence with committed bytes belongs to review-evidence and git-source.
 
@@ -64,7 +64,7 @@ These documents and ADR 0002 supersede the earlier instruction to keep Git insid
 
 Information flow:
 
-1. The CLI resolves the PR through pr-review, or a local host supplies repository/revision inputs directly.
+1. The CLI resolves the PR URL through pr-review and maps the remote repository URLs and exact commits into git-source input.
 2. The host acquires a snapshot through git-source, pinning target, head and the computed merge base.
 3. Review-evidence borrows that snapshot and exposes validated source reads and bounded repository operations.
 4. The host executes retrieval and explicitly records successful results in context-engine.
@@ -79,7 +79,7 @@ In pr-review, initially accept canonical HTTPS `github.com/<owner>/<repository>/
 
 Use Node `fetch` for the single PR metadata endpoint. Request JSON, pin API version `2026-03-10`, bound response size, and validate consumed fields from `unknown`. Construct fetch URLs from the trusted GitHub origin and validated repository names. Reject redirects and private base/head repositories for this first slice.
 
-Git-source independently validates its remote repository inputs before running Git. The first remote transport policy allows only credential-free canonical HTTPS GitHub repository URLs without query strings, fragments or redirects; arbitrary hosts and SSH remain unsupported. This transport restriction requires no PR metadata or GitHub API call. Local comparison input uses a separate path-based entry point and copies into owned temporary state.
+Git-source independently validates its remote repository inputs before running Git. The first remote transport policy allows only credential-free canonical HTTPS GitHub repository URLs without query strings, fragments or redirects; arbitrary hosts and SSH remain unsupported. This transport restriction requires no PR metadata or GitHub API call. Local-checkout acquisition is out of scope; the only acquisition entry point fetches these remote commits.
 
 Record separately:
 
@@ -91,7 +91,7 @@ Use merge base → head for the review diff. Never substitute the latest branch 
 
 Use a fresh temporary bare repository per run. Fetch the required base/head history without a shallow boundary; fetch the validated fork repository when needed. Use git-source-owned refs to retain fetched objects through the run. No shared cache, lock manager, incremental indexing, submodule fetch, or dependency installation in this slice.
 
-Local acquisition copies objects into owned bare state without hardlinks or borrowed alternates and never changes the input checkout. Initially support complete SHA-1 repositories on macOS/Linux; reject shallow or borrowed object stores, non-UTF-8 paths and unsupported platforms explicitly. These are Git adapter limits, not context-builder requirements.
+Initially support complete SHA-1 repositories on macOS/Linux; reject shallow or borrowed object stores, non-UTF-8 paths and unsupported platforms explicitly. These are Git adapter limits, not context-builder requirements.
 
 All Git invocations use argument arrays, a controlled environment/configuration, disabled external diff/text conversion, noninteractive authentication, deadlines, bounded stdout/stderr and explicit cleanup. No shell tool is exposed. A bare repository avoids executing checked-out files but does not replace subprocess controls.
 
@@ -172,7 +172,7 @@ Retain the current no-argument CLI bootstrap behavior so the existing smoke chec
 
 No new automated tests or fixtures. Keep the existing suite and strict checks. Each task has a reproducible manual demonstration with expected output, plus source inspection of the affected trust boundaries. Do not create a hidden assertion harness to work around the user's no-test instruction.
 
-Task 1 demonstrates live metadata resolution independently through pr-review. Before the end-to-end PR inspection in Task 6, manually demonstrate source retrieval on a disposable local repository with two commits. Include a rename, deletion, Unicode and CRLF; inspect ordinary Git output alongside engine output. Then demonstrate the combined public-PR workflow. Confirm the local workflow needs no PR resolution, the allowed import graph holds, and supplied evidence can still be assembled after Git cleanup without invoking retrieval. No model key, paid call, or GitHub write is needed.
+Task 1 demonstrates live metadata resolution independently through pr-review. Use an accessible public PR and its exact remote commits for acquisition and later source-retrieval demonstrations. Prefer existing examples covering rename, deletion, Unicode and CRLF; compare returned data with ordinary Git and report any cases unavailable in those examples rather than creating an unsupported local-input API. Confirm the allowed import graph holds and supplied evidence can still be assembled after Git cleanup without invoking retrieval. No model key, paid call, or GitHub write is needed.
 
 Compilation and existing tests do not cover these new semantics. Keep that limitation visible in the implementation closeout. Do not call this release production-validated; the architectural foundations are the goal of this iteration.
 

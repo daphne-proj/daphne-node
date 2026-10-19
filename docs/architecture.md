@@ -57,7 +57,7 @@ The [context-engine design](superpowers/specs/2026-10-19-context-engine-design.m
 
 Each library owns its configuration. Git-source has acquisition/operation/output/blob limits; future evidence retrieval has page/response limits; future context assembly has packet limits. No shared options base class or provider framework.
 
-The current Git adapter supports complete SHA-1 repositories on macOS/Linux, public canonical HTTPS GitHub origins or local repositories copied into owned state. It rejects unsupported input explicitly. Those restrictions apply to Git access, not to packet assembly. Neither review-evidence nor context-engine has a placeholder workspace.
+The current Git adapter supports complete SHA-1 repositories on macOS/Linux, public canonical HTTPS GitHub origins. It rejects unsupported input explicitly. Those restrictions apply to Git access, not to packet assembly. Neither review-evidence nor context-engine has a placeholder workspace.
 
 RCI/PCG retain indexing and qualified navigation ownership. Model requests and review/grouping policy remain outside these packages. Source identity is preserved through data contracts, not resource ownership. See the [walkthrough](context-engine-walkthrough.md) for reading order and observed checks.
 
