@@ -4,9 +4,9 @@ The foundation is separate from application migration. `reference.json` records 
 
 ## Current foundation slice
 
-The [context-engine plan](../superpowers/plans/2026-10-19-context-engine.md) takes precedence over the broad migration order below for the current work. Task 1 introduces `@daphne/pr-review` for PR URL and public GitHub metadata resolution. Task 2 introduces `@daphne/git-source` for immutable snapshots and change inventory. Task 3 introduces review-evidence source materialization and Git blob reads; Task 4 adds bounded repository tools and pagination; Task 5 implements context-engine retention of supplied evidence and bounded packet assembly. Task 6 composes these packages in the CLI and owns retrieval policy and Git cleanup. RCI/PCG retain indexing and semantic navigation ownership.
+The TypeScript foundation now resolves public PR metadata in `@daphne/pr-review`, pins revisions and reads Git blobs in `@daphne/git-source`, exposes bounded repository tools in `@daphne/review-evidence`, and retains supplied evidence for packet assembly in `@daphne/context-engine`. The CLI composes these packages in `context inspect`, choosing retrieval policy and closing Git resources. [Architecture](../architecture.md), [ADR 0002](../adr/0002-context-engine-boundary.md) and the [walkthrough](../context-engine-walkthrough.md) describe the boundaries and observed checks.
 
-This is a new TypeScript foundation, not a Rust behavior port. Git acquisition/comparison and exact source evidence reads are implemented. Bounded retrieval tools and pagination are implemented. Evidence retention and context assembly are implemented. CLI context inspection is implemented; model integration and semantic splitting remain deferred. No new automated tests were added at the user's request; the walkthrough records manual demonstrations and existing checks.
+This foundation does not establish Rust behavior parity. RCI/PCG indexing, model integration and semantic splitting remain later work. No new automated tests were added for this slice at the user's request; the walkthrough records manual demonstrations and existing checks.
 
 ## Later Rust migration sequence
 
@@ -16,7 +16,7 @@ This is a new TypeScript foundation, not a Rust behavior port. Git acquisition/c
 4. **Extraction and indexes.** Validate tree-sitter/SCIP package choices against byte positions, language support, protobuf behavior, and fixtures. Port extraction coverage, normalization, and revision indexing in dependency order.
 5. **Graph and lifecycle.** Port graph validation/building and state transitions. Test promotion, persistence compatibility, and incomplete evidence before enabling writes.
 6. **Review workflows.** Port semantic grouping, review orchestration, provider adapters, and PR acquisition. Keep model calls opt-in and compare deterministic components independently of generated text.
-7. **CLI and evaluation.** Replace the bootstrap with actual commands, then port evaluation suites and reporting. Compare end-to-end outputs and failure exit codes against the reference. Command shells can be introduced earlier only to exercise a completed vertical slice.
+7. **CLI and evaluation.** Extend the CLI with migrated commands, then port evaluation suites and reporting. Compare end-to-end outputs and failure exit codes against the reference. Command shells can be introduced earlier only to exercise a completed vertical slice.
 8. **Cutover.** Require agreed parity, representative performance, platform/native dependency checks, and an operational rollback plan before retiring Rust paths.
 
 For each step: name the slice and its dependencies; capture expected Rust behavior; add the target package; implement; run differential/contract checks; review; record the result. Package boundaries follow [architecture](../architecture.md), and detailed parity rules live in [parity.md](parity.md). A deliberate behavior change needs a separately recorded decision, not a silently updated golden file.

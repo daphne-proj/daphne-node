@@ -47,7 +47,7 @@ ESLint rejects static imports into workspace `src`/`dist` internals and app impo
 
 ## PR acquisition, Git source and reusable context
 
-The [context-engine design](superpowers/specs/2026-10-19-context-engine-design.md), [implementation plan](superpowers/plans/2026-10-19-context-engine.md) and [ADR 0002](adr/0002-context-engine-boundary.md) define this slice.
+The [boundary decision](adr/0002-context-engine-boundary.md) explains the package split; the [walkthrough](context-engine-walkthrough.md) traces the implemented workflow and its verification.
 
 - `@daphne/pr-review` owns PR URL parsing, GitHub HTTP/authentication, metadata validation and HTTP limits/errors. Task 1 is implemented.
 - `@daphne/git-source` owns repository/revision inputs, immutable snapshots, subprocess controls, Git limits/errors and change inventory. Tasks 2–4 provide this behavior, exact source reads and bounded matching-file search.
