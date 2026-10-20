@@ -57,9 +57,9 @@ Assembly first admits a whole prefix of host-prioritized sources, then a whole p
 
 An optional `tokens` input contains `counterId`, `maxTokens` and an asynchronous `countTokens(renderedContext)` function. Supply the relevant tokenizer externally. Counts must be nonnegative safe integers; without a counter, `tokenCount` is null. Inputs are captured before awaiting it. The host owns counter failure, cancellation and latency.
 
-## Page one supplied diff hunk
+## Page supplied diff hunks
 
-`paginateDiffContext` yields plain context strings from the exact sources returned by `session.readHunk`. The host supplies the change, zero-based hunk index, `TokenBudget` and page consumer:
+`paginateDiffContext` accepts a list of `DiffContextHunk` entries containing a change, zero-based hunk index and exact sources returned by `session.readHunk`. It yields `DiffContextPage` objects with `unitIds`, rendered `context` and `inputTokens`. A single-hunk call looks like this:
 
 ```ts
 import { paginateDiffContext } from '@daphne/context-engine';
@@ -68,26 +68,24 @@ const sources = await session.readHunk({ changeId: change.id, hunkIndex });
 
 for await (const page of paginateDiffContext({
   identity: session.identity,
-  change,
-  hunkIndex,
-  sources,
+  hunks: [{ change, hunkIndex, sources }],
   tokens,
 })) {
   await consumePage(page);
 }
 ```
 
-Each page fits both the **65,536-byte** context ceiling and `tokens.maxTokens`. The counter receives the exact rendered string, including repeated comparison, change, path, mode and hunk headers. A candidate over the byte ceiling splits before token counting.
+Supply multiple entries in `hunks` to pack them together. Each page fits both the **65,536-byte** context ceiling and `tokens.maxTokens`. The counter receives the exact rendered string, including unit IDs and repeated comparison, change, path, mode and hunk headers. The host's callback should count its complete request, including instructions and output schema; `inputTokens` records that count. A candidate over the byte ceiling splits before token counting.
 
-A fitting hunk stays in one page. Otherwise the pager separates BASE/HEAD, then divides oversized excerpts near their byte midpoint at a line boundary, falling back to a UTF-8 boundary. Every fragment retains its side and absolute byte range; whitespace, CRLF and final newlines are preserved. BASE and HEAD can produce different numbers of pages. Empty anchors remain explicit sources, while missing file sides are absent.
+The pager first tries all supplied hunks together. If they exceed either limit, it halves the ordered list and recursively pages each half. Only when a single hunk is too large does it separate BASE/HEAD, then divide oversized excerpts near their byte midpoint at a line boundary, falling back to a UTF-8 boundary. Every fragment retains its unit ID, side and absolute byte range; whitespace, CRLF and final newlines are preserved. BASE and HEAD can produce different numbers of pages. Empty anchors remain explicit sources, while missing file sides are absent. Page boundaries do not determine review groups.
 
-For a change without readable text hunks, pass `hunkIndex: null` and `sources: []` to produce a metadata-only page. For a whole comparison, follow every `list_changes` cursor and visit every text hunk; this pager has no total-diff source cutoff.
+For a change without readable text hunks, include an entry with `hunkIndex: null` and `sources: []` to retain its metadata. For a whole comparison, follow every `list_changes` cursor and collect every text hunk; this pager has no total-diff source cutoff. Each change/hunk pair must be supplied once. An empty list produces no pages or token-count calls.
 
-The entry point validates and captures evidence before its first token count. Internal splitting trusts those captured types. Invalid identity, side/path, range, index, budget or count values throw `ContextInputError`. An indivisible fragment or metadata page that cannot fit throws `ContextLimitError`. Counter failures propagate; the host owns counter deadlines.
+The entry point validates and captures all evidence before its first token count. Internal splitting trusts those captured types. Invalid identity, side/path, range, index, duplicate unit IDs, budget or count values throw `ContextInputError`. An indivisible fragment or metadata page that cannot fit throws `ContextLimitError`. Counter failures propagate; the host owns counter deadlines.
 
 Calling the function creates an async iterator. Each requested page resumes its work until the next `yield`; pages are produced as the consumer asks for them. Breaking out of `for await` closes the iterator and stops further paging. The pager has no cancellation signal and does not interrupt a pending token count.
 
-Consume the iterator to completion: stopping early or an error leaves delivery unfinished. Successful completion preserves all supplied source bytes. This prepares context only; it does not verify model output or budget instructions, tools, history and output reserves. The host must choose an appropriate context allowance and avoid accumulating every page in one growing conversation. Existing retention and `assembleContext` behavior are unchanged.
+Consume the iterator to completion: stopping early or an error leaves delivery unfinished. Successful completion preserves all supplied source bytes. This prepares context only; it does not verify model output. The host must include instructions, tools and history in its counter, reserve output capacity and avoid accumulating every page in one growing conversation. Existing retention and `assembleContext` behavior are unchanged.
 
 ## Identity, errors and limits of the guarantee
 

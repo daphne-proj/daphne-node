@@ -4,10 +4,18 @@ import type {
   Side,
   SourceEvidence,
 } from '@daphne/review-evidence/contracts';
-import type { TokenBudget } from './contracts.js';
+import type {
+  DiffContextHunk,
+  DiffContextPage,
+  TokenBudget,
+} from './contracts.js';
 import { ContextInputError, ContextLimitError } from './errors.js';
 import { defaultContextLimits } from './limits.js';
 import * as validate from './validation.js';
+
+interface CapturedHunk extends DiffContextHunk {
+  readonly unitId: string;
+}
 
 /*
  * Split the source near its byte midpoint, preferably just after a newline.
@@ -77,20 +85,19 @@ function splitSource(source: SourceEvidence): [SourceEvidence, SourceEvidence] {
   return [slice(0, cut), slice(cut, bytes.length)];
 }
 
-/*
- * Produce pages as the caller advances the async iterator.
- * Stopping early or an error leaves delivery unfinished.
- */
-export async function* paginateDiffContext(input: {
-  identity: ReviewIdentity;
-  change: Change;
-  hunkIndex: number | null;
-  sources: readonly SourceEvidence[];
-  tokens: TokenBudget;
-}): AsyncIterable<string> {
-  /* Validate and capture supplied evidence once, before awaiting a counter. */
-  const identity = validate.identity(input.identity);
-  const change = validate.change(input.change);
+/* Capture validated evidence before async counting; hunks share one copy of their change metadata. */
+function captureHunk(
+  value: unknown,
+  identity: ReviewIdentity,
+  capturedChanges: Map<unknown, Change>,
+): CapturedHunk {
+  const input = validate.object(value);
+  let change = capturedChanges.get(input.change);
+
+  if (!change) {
+    change = validate.change(input.change);
+    capturedChanges.set(input.change, change);
+  }
 
   const hunkIndex =
     input.hunkIndex === null ? null : validate.integer(input.hunkIndex);
@@ -98,10 +105,6 @@ export async function* paginateDiffContext(input: {
   const sources = validate
     .array(input.sources)
     .map((source) => validate.source(source, identity));
-
-  const maxTokens = validate.integer(input.tokens.maxTokens, 1);
-
-  const { countTokens } = input.tokens;
 
   const hunk = hunkIndex === null ? undefined : change.hunks[hunkIndex];
 
@@ -136,9 +139,49 @@ export async function* paginateDiffContext(input: {
     }
   }
 
+  return {
+    unitId: `${change.id}:${hunkIndex === null ? 'metadata' : String(hunkIndex)}`,
+    change,
+    hunkIndex,
+    sources,
+  };
+}
+
+/*
+ * Pack supplied hunks before splitting oversized evidence. All callers share
+ * the same byte and token checks; the host supplies complete-request counting.
+ * Stopping early or an error leaves delivery unfinished.
+ */
+export async function* paginateDiffContext(input: {
+  identity: ReviewIdentity;
+  hunks: readonly DiffContextHunk[];
+  tokens: TokenBudget;
+}): AsyncIterable<DiffContextPage> {
+  /* Capture all evidence before awaiting the host's token counter. */
+  const identity = validate.identity(input.identity);
+  const capturedChanges = new Map<unknown, Change>();
+  const hunks = validate
+    .array(input.hunks)
+    .map((hunk) => captureHunk(hunk, identity, capturedChanges));
+
+  const maxTokens = validate.integer(input.tokens.maxTokens, 1);
+  const { countTokens } = input.tokens;
+
+  if (new Set(hunks.map((hunk) => hunk.unitId)).size !== hunks.length) {
+    throw new ContextInputError('Supply each change/hunk pair only once.');
+  }
+
   /* Repeat metadata on every page; source text stays byte-for-byte unchanged. */
-  function render(fragments: SourceEvidence[]): string {
+  function render({
+    unitId,
+    change,
+    hunkIndex,
+    sources,
+  }: CapturedHunk): string {
+    const hunk = hunkIndex === null ? undefined : change.hunks[hunkIndex];
+
     return [
+      `unitId: ${unitId}`,
       `BASE commit: ${identity.baseCommit}`,
       `HEAD commit: ${identity.headCommit}`,
       `Change: ${JSON.stringify(change.id)}; status: ${change.status}; kind: ${change.kind}`,
@@ -147,7 +190,7 @@ export async function* paginateDiffContext(input: {
       hunk
         ? `Hunk: ${String(hunkIndex)}; BASE lines ${String(hunk.beforeStartLine)},${String(hunk.beforeLineCount)}; HEAD lines ${String(hunk.afterStartLine)},${String(hunk.afterLineCount)}`
         : 'Hunk: none (metadata-only; no text shown)',
-      ...fragments.map(
+      ...sources.map(
         ({ ref, text }) =>
           `Source: ${ref.side.toUpperCase()} ${JSON.stringify(ref.path)} bytes [${String(ref.range.startByte)}, ${String(ref.range.endByte)})\n${text}`,
       ),
@@ -158,30 +201,49 @@ export async function* paginateDiffContext(input: {
    * Recursively split candidates until they fit.
    * yield* forwards each child's pages before moving to the next child.
    */
-  async function* paginate(fragments: SourceEvidence[]): AsyncIterable<string> {
-    const rendered = render(fragments);
+  async function* paginate(
+    candidates: CapturedHunk[],
+  ): AsyncIterable<DiffContextPage> {
+    const [first] = candidates;
+
+    if (!first) {
+      return;
+    }
+
+    const context = candidates.map(render).join('\n\n');
 
     /* Oversized byte candidates split before invoking the token counter. */
-    if (Buffer.byteLength(rendered) <= defaultContextLimits.maxContextBytes) {
-      const count = await countTokens(rendered);
+    if (Buffer.byteLength(context) <= defaultContextLimits.maxContextBytes) {
+      const inputTokens = validate.integer(await countTokens(context));
 
-      if (validate.integer(count) <= maxTokens) {
+      if (inputTokens <= maxTokens) {
         /* This branch is complete; return after yielding to avoid splitting it again. */
-        yield rendered;
+        yield Object.freeze({
+          unitIds: Object.freeze(candidates.map((hunk) => hunk.unitId)),
+          context,
+          inputTokens,
+        });
         return;
       }
     }
 
+    /* Preserve whole hunks until a single hunk is itself too large. */
+    if (candidates.length > 1) {
+      const middle = Math.ceil(candidates.length / 2);
+
+      yield* paginate(candidates.slice(0, middle));
+      yield* paginate(candidates.slice(middle));
+      return;
+    }
+
     /* A pair of validated sources is always BASE followed by HEAD. */
-    const [base, head] = fragments;
+    const [base, head] = first.sources;
 
     if (base && head) {
-      yield* paginate([base]);
-      yield* paginate([head]);
+      yield* paginate([{ ...first, sources: [base] }]);
+      yield* paginate([{ ...first, sources: [head] }]);
     } else {
-      const source = fragments[0];
-
-      if (!source) {
+      if (!base) {
         throw new ContextLimitError(
           'packet',
           'Metadata-only context cannot fit.',
@@ -189,12 +251,12 @@ export async function* paginateDiffContext(input: {
       }
 
       /* One source remains: split its text and page the left part before the right. */
-      const [left, right] = splitSource(source);
+      const [left, right] = splitSource(base);
 
-      yield* paginate([left]);
-      yield* paginate([right]);
+      yield* paginate([{ ...first, sources: [left] }]);
+      yield* paginate([{ ...first, sources: [right] }]);
     }
   }
 
-  yield* paginate(sources);
+  yield* paginate(hunks);
 }

@@ -34,9 +34,9 @@ Put `OPENAI_API_KEY` in the ignored `.env` file or export it in your environment
 make split-pr PR=https://github.com/daphne-proj/pr-review-test/pull/2
 ```
 
-This builds the CLI and uses `gpt-6.1-sol`. It sends each exact hunk through `paginateDiffContext` and analyzes the resulting pages independently. It then asks for a proposed grouping of whole hunks from those notes. Metadata-only changes are included. No branches, commits or GitHub PRs are created.
+This builds the CLI and uses `gpt-6.1-sol`. It reads exact hunks through review-evidence, then passes them together to `paginateDiffContext`, which owns packing and splitting within the request budget. When the diff fits one page, one generation groups the raw evidence directly. Larger inputs use page analyses followed by a grouping request. Groups represent independently reviewable responsibilities; sharing a file or module is not a reason to merge them. Metadata-only changes are included. No branches, commits or GitHub PRs are created.
 
-The command saves one `outputs/split-pr-*/run.json` containing pinned commits, the change inventory, exact pages, page analyses, provider responses and `proposal.groups`. Each group's `unitIds` refers to a change/hunk pair recorded on the pages; all fragments of a hunk stay together. The host checks that every unit appears exactly once. The proposal still needs human review: neither independence nor semantic correctness is verified.
+The command saves one `outputs/split-pr-*/run.json` containing pinned commits, the change inventory, collected `hunks`, exact pages, provider responses and `proposal.groups`. Collected hunks preserve evidence even if a later retrieval or paging operation fails; their `changeId` references the inventory without duplicating full change metadata. The `daphne-split-pr-v2` format records each page's `unitIds`, its complete grouping-request `inputTokens`, and nullable `analysis`; a direct grouping has no intermediate analysis. `calls` counts attempted token-count and generation requests separately. Each group's `unitIds` refers to a change/hunk pair recorded on the pages; all fragments of a hunk stay together. The host checks that every unit appears exactly once. The proposal still needs human review: neither independence nor semantic correctness is verified.
 
 Optional Make variables are `OUTPUT=NEW_DIRECTORY`, `MODEL=gpt-6.1-sol` and `MAX_INPUT_TOKENS=16384`. Existing output directories are rejected. The equivalent CLI command is:
 
@@ -50,7 +50,7 @@ bun run cli -- split-pr \
 
 Input counts come from the [OpenAI token-counting API](https://developers.openai.com/api/docs/guides/token-counting), including instructions and the final output schema. Each generation allows up to 4,096 output tokens, including reasoning, with a 120-second request deadline. Requests do not accumulate conversation history. The input limit applies per request, not to total spending; a large PR makes more calls. Source pages retain the pager's 64 KiB ceiling and Git's existing blob limits.
 
-Final grouping uses page notes rather than all source text. If those notes exceed the input limit, or a request fails, the command exits 1 and saves completed page analyses with the error. Exit 0 means a proposal was produced and its unit coverage validated. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur only when explicitly running `split-pr`, never in `bun run check`.
+Final grouping uses raw evidence for a single page and page notes for multiple pages. If those notes exceed the context budget, or a request fails, the command exits 1 and saves collected evidence and completed analyses with the error. Exit 0 means a proposal was produced and its unit coverage validated. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur only when explicitly running `split-pr`, never in `bun run check`.
 
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |

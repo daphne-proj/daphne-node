@@ -16,6 +16,8 @@ export type {
   RecordedQuery,
   EvidenceSnapshot,
   TokenBudget,
+  DiffContextHunk,
+  DiffContextPage,
   AssembleInput,
   ContextPacket,
 } from './contracts.js';

@@ -99,7 +99,7 @@ Unknown changes, invalid indexes and changes without text hunks throw `EvidenceI
 
 `inspect_change` continues to add three surrounding lines and merge nearby windows. `readHunk` returns only the selected original hunk.
 
-The host can pass these sources, the session identity and the original change/hunk index to [`paginateDiffContext`](../context-engine/README.md#page-one-supplied-diff-hunk) in `@daphne/context-engine`. Consume each hunk's pages completely and follow every inventory cursor for a whole comparison. Changes without readable text hunks use a metadata-only page; a failed source read must still be reported as unfinished work.
+The host can collect these sources with their original change/hunk indexes and pass the entries with the session identity to [`paginateDiffContext`](../context-engine/README.md#page-supplied-diff-hunks) in `@daphne/context-engine`. The pager packs supplied hunks together and splits oversized evidence. Consume its pages completely and follow every inventory cursor for a whole comparison. Changes without readable text hunks use a metadata-only entry; a failed source read must still be reported as unfinished work.
 
 ## Bounded repository tools
 

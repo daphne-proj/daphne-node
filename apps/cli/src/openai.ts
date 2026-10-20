@@ -33,6 +33,8 @@ export function createOpenAI(
   model: string,
   signal: AbortSignal,
 ) {
+  const calls = { count: 0, generate: 0 };
+
   async function post(path: string, body: object) {
     try {
       const response = await fetch(
@@ -74,7 +76,9 @@ export function createOpenAI(
   }
 
   return {
+    calls,
     async count(request: ModelRequest): Promise<number> {
+      calls.count += 1;
       const response = await post('/input_tokens', request);
       const count = response.input_tokens;
 
@@ -89,6 +93,7 @@ export function createOpenAI(
       return count;
     },
     async generate(request: ModelRequest): Promise<ModelReply> {
+      calls.generate += 1;
       const response = await post('', {
         ...request,
         store: false,
