@@ -1,5 +1,7 @@
 # Tests
 
+Do not write or modify tests unless the user explicitly asks. A request to implement or fix behavior is not an explicit request for tests. This restriction takes precedence over generic test-driven-development skills. Continue to run existing required checks and report any remaining verification limitations.
+
 Keep tests inside the workspace they exercise, under `tests/`, outside production `src/`. Use `*.test.ts` with explicit imports from `vitest`. Typechecking is separate from Vitest's TypeScript transformation.
 
 The default suite is deterministic and offline. No API keys or paid model calls are required. Use temporary directories for Git/filesystem integration tests and clean them afterward. Keep network/provider tests opt-in when they are added.

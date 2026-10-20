@@ -9,7 +9,7 @@ Use the smallest complete implementation. Minimize unnecessary complexity, not l
 - Preserve deterministic ordering. JavaScript strings use UTF-16; use bytes for Rust byte offsets. Check Rust integer range against JavaScript safe integers and serialized formats before conversion.
 - Use `readonly` where mutation would break a concrete ownership or consistency guarantee, such as shared identities, retained evidence and snapshots. Use ordinary properties and arrays for short-lived request objects and local working data. `readonly` is not runtime validation or freezing; preserve existing immutability contracts without decorating every new type or introducing a functional architecture. Separate transport data from validated domain values when needed.
 - Keep module exports intentional. Use `import type` and `.js` ESM relative specifiers. Consumers use public package exports, never a sibling's `src` tree.
-- Test meaningful behavior and failure cases in `tests/`; review the final diff for unnecessary abstractions and dependencies.
+- Write or modify tests only when explicitly requested by the user; then cover meaningful behavior and failure cases in `tests/`. Run existing required checks and review the final diff for unnecessary abstractions and dependencies.
 
 Tool changes follow [CONTRIBUTING.md](../../CONTRIBUTING.md). Bun configuration uses seconds for `minimumReleaseAge`; keep Node as the script runtime and use `bun run test` for Vitest. Use the migration parity reference before translating Rust behavior.
 
