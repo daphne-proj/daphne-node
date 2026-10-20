@@ -1,6 +1,6 @@
 # Daphne — TypeScript workspace
 
-Foundation for migrating [Daphne](https://github.com/daphne-proj/daphne) to TypeScript. This repository includes tooling, agent guidance and a bounded PR context-inspection command. The command connects PR metadata, pinned Git source, evidence retrieval and context assembly. AI review, semantic splitting, extraction, graph, lifecycle and evaluation logic remain future work.
+Foundation for migrating [Daphne](https://github.com/daphne-proj/daphne) to TypeScript. This repository includes tooling, agent guidance, bounded PR context inspection and an experimental LLM split proposal command. The commands connect PR metadata, pinned Git source, evidence retrieval and context assembly. Rust workflow parity, extraction, graph, lifecycle and evaluation logic remain future work.
 
 ## Getting started
 
@@ -25,6 +25,32 @@ bun run cli -- context inspect \
 The command saves `context.json` and `run.json`, prints one JSON summary to stdout and sends diagnostics to stderr. Exit 0 means the bounded inspection completed; 2 means usable partial artifacts; 1 means invalid input, cancellation or an operational/output failure. Existing destinations are rejected. SIGINT/SIGTERM stop work and clean up Git before saving a stopped report where possible.
 
 The host admits whole tool pages up to 64 KiB of source text. The engine separately bounds retained data at 4 MiB and rendered context at 64 KiB. Inventory completeness, per-change inspection and packet omissions are reported separately. This is deterministic change-order inspection, not a semantic coverage or AI-review claim. Optional `GITHUB_TOKEN` is used only for metadata access; private repository cloning is not supported. See the [walkthrough](docs/context-engine-walkthrough.md#step-6-compose-the-cli-inspection-workflow) for the data flow and limitations.
+
+## Try an LLM split proposal
+
+Put `OPENAI_API_KEY` in the ignored `.env` file or export it in your environment, then run:
+
+```sh
+make split-pr PR=https://github.com/daphne-proj/pr-review-test/pull/2
+```
+
+This builds the CLI and uses `gpt-6.1-sol`. It sends each exact hunk through `paginateDiffContext` and analyzes the resulting pages independently. It then asks for a proposed grouping of whole hunks from those notes. Metadata-only changes are included. No branches, commits or GitHub PRs are created.
+
+The command saves one `outputs/split-pr-*/run.json` containing pinned commits, the change inventory, exact pages, page analyses, provider responses and `proposal.groups`. Each group's `unitIds` refers to a change/hunk pair recorded on the pages; all fragments of a hunk stay together. The host checks that every unit appears exactly once. The proposal still needs human review: neither independence nor semantic correctness is verified.
+
+Optional Make variables are `OUTPUT=NEW_DIRECTORY`, `MODEL=gpt-6.1-sol` and `MAX_INPUT_TOKENS=16384`. Existing output directories are rejected. The equivalent CLI command is:
+
+```sh
+bun run cli -- split-pr \
+  --pr https://github.com/daphne-proj/pr-review-test/pull/2 \
+  --output ./split-proposal \
+  --model gpt-6.1-sol \
+  --max-input-tokens 16384
+```
+
+Input counts come from the [OpenAI token-counting API](https://developers.openai.com/api/docs/guides/token-counting), including instructions and the final output schema. Each generation allows up to 4,096 output tokens, including reasoning, with a 120-second request deadline. Requests do not accumulate conversation history. The input limit applies per request, not to total spending; a large PR makes more calls. Source pages retain the pager's 64 KiB ceiling and Git's existing blob limits.
+
+Final grouping uses page notes rather than all source text. If those notes exceed the input limit, or a request fails, the command exits 1 and saves completed page analyses with the error. Exit 0 means a proposal was produced and its unit coverage validated. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur only when explicitly running `split-pr`, never in `bun run check`.
 
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |

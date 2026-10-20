@@ -18,6 +18,7 @@ import {
   defaultEvidenceLimits,
   EvidenceInputError,
   EvidenceLimitError,
+  SourceUnavailableError,
 } from '@daphne/review-evidence';
 import type {
   EvidenceSession,
@@ -33,6 +34,7 @@ import {
 } from '@daphne/context-engine';
 import type { ContextEngine, ContextPacket } from '@daphne/context-engine';
 import { ArtifactError, createRunDirectory, writeArtifact } from './output.js';
+import { ModelError } from './openai.js';
 
 const sourceAllowanceBytes = 65_536;
 
@@ -53,7 +55,8 @@ type Stage =
   | 'cleanup'
   | 'assembly'
   | 'context_output'
-  | 'run_output';
+  | 'run_output'
+  | 'split';
 
 interface Failure {
   readonly stage: Stage;
@@ -141,6 +144,14 @@ export function parseContextArgs(args: readonly string[]): {
 }
 
 export function describeFailure(stage: Stage, error: unknown): Failure {
+  if (error instanceof ModelError) {
+    return { stage, code: 'model', message: error.message };
+  }
+
+  if (error instanceof SourceUnavailableError) {
+    return { stage, code: error.reason, message: error.message };
+  }
+
   if (
     error instanceof PullRequestError ||
     error instanceof GitOperationError ||
@@ -177,7 +188,7 @@ export function describeFailure(stage: Stage, error: unknown): Failure {
   return {
     stage,
     code: 'internal',
-    message: 'The inspection could not complete.',
+    message: 'The command could not complete.',
   };
 }
 
