@@ -22,19 +22,28 @@ Logical grouping and spacing apply to all authored code, including documentation
 - Use braces for every control-flow body. Use `if`/`else` or `switch` for multi-way choices; nested ternaries are rejected by ESLint. A simple two-way ternary is fine.
 - Give complex conditions or intermediate results a name when it explains intent. Prefer a plain loop over a dense chain when it makes state changes, error handling, or execution order easier to follow.
 - Keep functions focused on one operation. Extract a helper when it gives a coherent operation a useful name or removes real duplication, not to satisfy an arbitrary line limit. Keep related logic together.
-- Separate logical steps with blank lines using the guidance below. Add concise comments above meaningful code blocks as described under [Comments](#comments).
+- Separate logical steps with blank lines using the guidance below. Use [comments](#comments) to supply context the code does not make clear.
 - Simplification must preserve evaluation order, side effects, cancellation, cleanup, errors, and serialized contracts. Keep necessary boundary validation and domain checks; remove duplicate shape checks inside trusted typed code. Keep compiler strictness intact.
 - Format changed files with Prettier and run `bun run check`. Review the resulting diff for readability; passing formatting and linting alone does not establish clear design.
 
 ### Comments
 
-Write short, plain-language comments immediately above meaningful code blocks to explain what they do and why. Use `/* ... */` in TypeScript and JavaScript, usually one or two short sentences. Include a tiny example when it makes the behavior clearer. Comment logical steps, not every statement, and avoid merely restating the syntax. For languages without block comments, use their native comment syntax.
+Write for a teammate who has not traced the implementation. A useful comment explains the problem being solved, why a choice matters, or what could break if the code changes.
 
-For example:
+- For a non-obvious algorithm, explain its goal first, then the strategy or guarantee the reader needs. Connect technical details to their effect: keeping lines readable, preserving exact bytes, or preventing caller edits during an asynchronous operation.
+- Use natural, complete sentences and concrete terms. Prefer a clear explanation over compressed jargon; add a small example when an indexing or boundary rule is hard to picture. Brevity is useful only while the meaning stays clear.
+- Place comments beside the decision they explain. A function comment gives purpose and important guarantees; comments inside it explain surprising steps. Do not narrate assignments, loops or each branch, or require a comment above every block.
+- Check every claim against the implementation. Update or remove stale comments, and improve unclear names or structure before using comments to compensate for them.
+
+Use `/* ... */` in TypeScript and JavaScript, on one line when it fits naturally and across several lines when the explanation needs space. Other languages use their native comment syntax.
+
+For example, explain why a pager prefers line endings:
 
 ```ts
-/* Capture the selected hunk before I/O so caller edits cannot change this read. */
-const { changeId, hunkIndex } = input;
+/*
+ * Keep complete lines together so each page remains readable.
+ * Split within a long line only when necessary, without breaking a Unicode character.
+ */
 ```
 
 ### Logical spacing for all code

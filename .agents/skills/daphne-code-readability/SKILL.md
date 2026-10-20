@@ -7,7 +7,7 @@ description: Use when writing, editing, reviewing, or presenting code in Daphne,
 
 Apply the [readability policy](../../../docs/agents/typescript-quality.md#readability) whenever authoring or presenting code, not only at implementation completion. Its [logical spacing guidance](../../../docs/agents/typescript-quality.md#logical-spacing-for-all-code) applies across languages; follow language-specific syntax and formatter conventions.
 
-Use [concise block comments](../../../docs/agents/typescript-quality.md#comments) above meaningful code blocks to explain what they do and why. Follow the short example there and use `/* ... */` where the language supports it.
+Follow the [comment policy](../../../docs/agents/typescript-quality.md#comments): explain purpose, constraints and non-obvious choices for a teammate seeing the code for the first time. Use plain sentences with enough detail to make the reasoning clear; add comments where that context is missing from the code, not above every block.
 
 1. Identify the logical steps: setup, validation, work, error handling, cleanup and result. Keep related statements together; use one blank line between distinct steps.
 2. Inspect spacing around declaration groups, guard clauses, cancellation checks, loops, `try` blocks and final results. Separate transitions without inserting blank lines between every statement or expanding short cohesive blocks mechanically.

@@ -11,6 +11,7 @@ This is the TypeScript migration workspace for Daphne. Read `docs/architecture.m
 - The five reasoning workflows in `.agents/skills/README.md` remain explicit-only. Do not load the whole skill collection for every task.
 - Make the smallest complete change. Minimize unnecessary complexity, not line count. Prefer readable, explicit code over compressed expressions. Independently review nontrivial behavior or architecture changes before completion.
 - When writing, editing, reviewing or presenting any code, use `.agents/skills/daphne-code-readability/SKILL.md`. Apply logical spacing to source, scripts, tests, configuration, documentation examples and chat snippets in every language, respecting its syntax and formatter. Check grouping before presenting snippets and before completing edits; keep changes within the task scope.
+- Write comments for a teammate seeing the code for the first time: explain purpose, constraints and non-obvious choices in plain language. Follow the comment guidance in `docs/agents/typescript-quality.md`; clear code does not need a comment above every block.
 
 ## Commands
 
