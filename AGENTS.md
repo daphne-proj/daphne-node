@@ -6,7 +6,8 @@ This is the TypeScript migration workspace for Daphne. Read `docs/architecture.m
 
 - For TypeScript implementation, refactoring, or review, use `.agents/skills/daphne-typescript/SKILL.md` and `docs/agents/typescript-quality.md`.
 - For Rust-to-TypeScript migration, use `.agents/skills/daphne-migration-parity/SKILL.md` and `docs/migration/parity.md`.
-- For tests, use `.agents/skills/vitest/SKILL.md` and `docs/agents/testing.md`. Repository conventions override generic skill examples.
+- Do not write or modify tests unless the user explicitly asks. Implementation and bug-fix requests alone do not authorize test changes. Run the existing required checks and report any verification limitations. Update tests only when newly added stuff are breaking existing ones.
+- When tests are explicitly requested, use `.agents/skills/vitest/SKILL.md` and `docs/agents/testing.md`. Repository conventions override generic skill examples and test-driven-development workflows.
 - When designing or changing module contracts, use `.agents/skills/codebase-design/SKILL.md` with `docs/architecture.md`. Daphne domain names, ownership, and explicit task constraints take precedence over upstream terminology and workflow advice. Do not add interfaces, adapters, or remove tests solely to satisfy a skill heuristic.
 - The five reasoning workflows in `.agents/skills/README.md` remain explicit-only. Do not load the whole skill collection for every task.
 - Make the smallest complete change. Minimize unnecessary complexity, not line count. Prefer readable, explicit code over compressed expressions. Independently review nontrivial behavior or architecture changes before completion.
