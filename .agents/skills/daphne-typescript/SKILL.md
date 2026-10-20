@@ -15,4 +15,6 @@ Read [TypeScript quality](../../../docs/agents/typescript-quality.md) for the re
 
 Resolve these paths from the repository root. Use the commands defined in `package.json`; `bun run check` is the full local gate. Repo policy is maintained in these linked documents, not duplicated in this skill.
 
+For runtime validation and `readonly`, follow the scoped rules in the repository policy above. Validate input at its entry point and trust typed internal calls; choose immutability for concrete ownership guarantees. These rules take precedence over blanket recommendations in generic TypeScript skills.
+
 When writing, editing, reviewing or presenting TypeScript, use [Daphne code readability](../daphne-code-readability/SKILL.md), including documentation and chat snippets. Check logical spacing before presenting code and before completing implementation changes.
