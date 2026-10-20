@@ -138,7 +138,6 @@ export function sourceFromBlob(
   blob: SourceBlob,
   range: ByteRange,
 ): SourceEvidence {
-  validateRange(range);
   const capturedRange = Object.freeze({
     startByte: range.startByte,
     endByte: range.endByte,

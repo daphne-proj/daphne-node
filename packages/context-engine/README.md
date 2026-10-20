@@ -1,6 +1,6 @@
 # Context engine
 
-This package remembers evidence already supplied by a host and assembles selected evidence into a bounded JSON context string. It does not open repositories, fetch PRs, execute tools, choose searches or call a model.
+This package remembers evidence already supplied by a host, assembles selected evidence into a bounded JSON context string, and pages supplied diff text. It does not open repositories, fetch PRs, execute tools, choose searches or call a model.
 
 Its only workspace imports are types from `@daphne/review-evidence/contracts`. Commit, blob, path and range fields are provenance data. They are not Git handles.
 
@@ -56,6 +56,38 @@ Assembly first admits a whole prefix of host-prioritized sources, then a whole p
 `byteCount` measures the exact UTF-8 `renderedContext`, including JSON escaping and bookkeeping. The outer packet metadata is not part of this budget. These bytes are not a model token estimate.
 
 An optional `tokens` input contains `counterId`, `maxTokens` and an asynchronous `countTokens(renderedContext)` function. Supply the relevant tokenizer externally. Counts must be nonnegative safe integers; without a counter, `tokenCount` is null. Inputs are captured before awaiting it. The host owns counter failure, cancellation and latency.
+
+## Page one supplied diff hunk
+
+`paginateDiffContext` yields plain context strings from the exact sources returned by `session.readHunk`. The host supplies the change, zero-based hunk index, `TokenBudget` and page consumer:
+
+```ts
+import { paginateDiffContext } from '@daphne/context-engine';
+
+const sources = await session.readHunk({ changeId: change.id, hunkIndex });
+
+for await (const page of paginateDiffContext({
+  identity: session.identity,
+  change,
+  hunkIndex,
+  sources,
+  tokens,
+})) {
+  await consumePage(page);
+}
+```
+
+Each page fits both the **65,536-byte** context ceiling and `tokens.maxTokens`. The counter receives the exact rendered string, including repeated comparison, change, path, mode and hunk headers. A candidate over the byte ceiling splits before token counting.
+
+A fitting hunk stays in one page. Otherwise the pager separates BASE/HEAD, then divides oversized excerpts near their byte midpoint at a line boundary, falling back to a UTF-8 boundary. Every fragment retains its side and absolute byte range; whitespace, CRLF and final newlines are preserved. BASE and HEAD can produce different numbers of pages. Empty anchors remain explicit sources, while missing file sides are absent.
+
+For a change without readable text hunks, pass `hunkIndex: null` and `sources: []` to produce a metadata-only page. For a whole comparison, follow every `list_changes` cursor and visit every text hunk; this pager has no total-diff source cutoff.
+
+The entry point validates and captures evidence before its first token count. Internal splitting trusts those captured types. Invalid identity, side/path, range, index, budget or count values throw `ContextInputError`. An indivisible fragment or metadata page that cannot fit throws `ContextLimitError`. Counter failures propagate; the host owns counter deadlines.
+
+Calling the function creates an async iterator. Each requested page resumes its work until the next `yield`; pages are produced as the consumer asks for them. Breaking out of `for await` closes the iterator and stops further paging. The pager has no cancellation signal and does not interrupt a pending token count.
+
+Consume the iterator to completion: stopping early or an error leaves delivery unfinished. Successful completion preserves all supplied source bytes. This prepares context only; it does not verify model output or budget instructions, tools, history and output reserves. The host must choose an appropriate context allowance and avoid accumulating every page in one growing conversation. Existing retention and `assembleContext` behavior are unchanged.
 
 ## Identity, errors and limits of the guarantee
 
