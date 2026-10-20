@@ -82,6 +82,23 @@ The host owns the snapshot and must close it when finished. Closing the snapshot
 
 The direct `readSource` method accepts byte ranges and retains the Git blob cap. Use `execute` when the response must obey the separate tool byte/page limits.
 
+## Read one original hunk
+
+Use a change ID from `list_changes` and a zero-based index into its `hunks`:
+
+```ts
+const sources = await session.readHunk({
+  changeId: change.id,
+  hunkIndex: 0,
+});
+```
+
+The session reads the exact hunk spans from its pinned commits and returns existing sides in BASE-then-HEAD order. Each source carries the same provenance as `readSource`. A missing file side is omitted; an existing side with no changed lines returns empty text at its original byte anchor. The two sides may have different lengths.
+
+Unknown changes, invalid indexes and changes without text hunks throw `EvidenceInputError`. Blob-read failures and cancellation propagate; a failed read never returns a partial source array. Like `readSource`, this method uses the session's Git limits rather than tool response/page limits. It prepares source only; it does not paginate context or call a model.
+
+`inspect_change` continues to add three surrounding lines and merge nearby windows. `readHunk` returns only the selected original hunk.
+
 ## Bounded repository tools
 
 The session now also accepts four validated requests: `list_changes`, `inspect_change`, `read_source` and `search_code`. The host chooses requests; the session never invokes a model or a context engine.
