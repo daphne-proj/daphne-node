@@ -4,7 +4,7 @@ export class ModelError extends Error {
 
 export interface ModelRequest {
   instructions: string;
-  input: string;
+  input: string | readonly Record<string, unknown>[];
   text?: {
     format: { type: 'json_schema'; name: string; strict: true; schema: object };
   };
@@ -12,6 +12,7 @@ export interface ModelRequest {
 
 export interface ModelReply {
   text: string;
+  output: readonly Record<string, unknown>[];
   response: Record<string, unknown>;
 }
 
@@ -27,7 +28,7 @@ function object(value: unknown): Record<string, unknown> {
   return value;
 }
 
-/* Keep provider JSON validation here; callers work with counts and text. */
+/* Validate provider JSON here and preserve accepted output items for local replay. */
 export function createOpenAI(
   apiKey: string,
   model: string,
@@ -104,21 +105,42 @@ export function createOpenAI(
         throw new ModelError('OpenAI did not complete the response.');
       }
 
+      const output = response.output.map(object);
       const texts: string[] = [];
 
-      for (const item of response.output) {
-        const output = object(item);
+      for (const item of output) {
+        if (typeof item.id !== 'string' || !item.id) {
+          throw new ModelError('LLM returned an output item without an ID.');
+        }
 
-        if (output.type === 'reasoning') {
+        if (item.type === 'reasoning') {
+          if (
+            !Array.isArray(item.summary) ||
+            !item.summary.every(
+              (part: unknown) =>
+                isObject(part) &&
+                part.type === 'summary_text' &&
+                typeof part.text === 'string',
+            ) ||
+            (item.status !== undefined && item.status !== 'completed')
+          ) {
+            throw new ModelError('LLM returned invalid reasoning output.');
+          }
+
           continue;
         }
 
-        if (output.type !== 'message' || !Array.isArray(output.content)) {
-          throw new ModelError('OpenAI returned unexpected output.');
+        if (
+          item.type !== 'message' ||
+          item.role !== 'assistant' ||
+          item.status !== 'completed' ||
+          !Array.isArray(item.content)
+        ) {
+          throw new ModelError('LLM returned unexpected output.');
         }
 
-        for (const item of output.content) {
-          const content = object(item);
+        for (const part of item.content) {
+          const content = object(part);
 
           if (
             content.type !== 'output_text' ||
@@ -139,7 +161,7 @@ export function createOpenAI(
         throw new ModelError('OpenAI returned no answer text.');
       }
 
-      return { text, response };
+      return { text, output, response };
     },
   };
 }

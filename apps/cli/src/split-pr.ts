@@ -42,7 +42,7 @@ interface SplitOptions {
 }
 
 interface PageAnalysis extends DiffContextPage {
-  analysis: ModelReply | null;
+  analysis: Pick<ModelReply, 'text' | 'response'> | null;
 }
 
 const pageInstructions = `Describe the changed responsibilities and required dependencies in this diff page, retaining every unit ID in your notes, to help propose a PR split later. Be concise.
@@ -86,7 +86,9 @@ const proposalFormat = {
   },
 } satisfies ModelRequest['text'];
 
-function groupingRequest(input: string): ModelRequest {
+function groupingRequest(
+  input: readonly Record<string, unknown>[],
+): ModelRequest {
   return { instructions: groupingInstructions, input, text: proposalFormat };
 }
 
@@ -181,7 +183,7 @@ async function proposeGroups(
 
   if (pages.length === 1 && onlyPage) {
     /* Packing already counted this exact request, including the output schema. */
-    request = groupingRequest(onlyPage.context);
+    request = groupingRequest([{ role: 'user', content: onlyPage.context }]);
   } else {
     const notes = [];
 
@@ -196,21 +198,36 @@ async function proposeGroups(
         throw new ModelError('The page analysis exceeds --max-input-tokens.');
       }
 
-      page.analysis = await model.generate(analysisRequest);
-      notes.push({ unitIds: page.unitIds, notes: page.analysis.text });
-    }
+      const { text, response } = await model.generate(analysisRequest);
 
-    request = groupingRequest(JSON.stringify(notes));
+      page.analysis = { text, response };
+      notes.push({ unitIds: page.unitIds, notes: text });
+    }
 
     /* shortcut: final notes must fit one request; add hierarchical grouping only when needed. */
-    if (
-      Buffer.byteLength(request.input) > defaultContextLimits.maxContextBytes ||
-      (await model.count(request)) > maxInputTokens
-    ) {
-      throw new ModelError(
-        'The grouping input exceeds the context budget; page analyses are saved, but no proposal was generated.',
-      );
-    }
+    request = groupingRequest([
+      { role: 'user', content: JSON.stringify(notes) },
+    ]);
+  }
+
+  if (
+    Buffer.byteLength(JSON.stringify(request.input)) >
+    defaultContextLimits.maxContextBytes
+  ) {
+    throw new ModelError(
+      'The serialized grouping input exceeds the byte budget, including message wrappers and JSON escaping; no proposal was generated.',
+    );
+  }
+
+  const inputTokens =
+    pages.length === 1 && onlyPage
+      ? onlyPage.inputTokens
+      : await model.count(request);
+
+  if (inputTokens > maxInputTokens) {
+    throw new ModelError(
+      'The grouping input exceeds --max-input-tokens; no proposal was generated.',
+    );
   }
 
   const reply = await model.generate(request);
@@ -318,7 +335,8 @@ export async function runSplitPr(
         tokens: {
           counterId: 'openai-responses',
           maxTokens: options.maxInputTokens,
-          countTokens: (context) => model.count(groupingRequest(context)),
+          countTokens: (context) =>
+            model.count(groupingRequest([{ role: 'user', content: context }])),
         },
       })) {
         report.pages.push({ ...page, analysis: null });
