@@ -22,6 +22,7 @@ import type {
   ReviewIdentity,
 } from '@daphne/review-evidence';
 import {
+  ContextInputError,
   defaultContextLimits,
   paginateDiffContext,
 } from '@daphne/context-engine';
@@ -30,6 +31,8 @@ import { CliInputError, describeFailure } from './context.js';
 import { createRunDirectory, writeArtifact } from './output.js';
 import { createOpenAI, ModelError } from './openai.js';
 import type { ModelReply, ModelRequest } from './openai.js';
+import { getExpectedUnitIds, validateProposal } from './split-proposal.js';
+import type { Proposal } from './split-proposal.js';
 
 interface SplitOptions {
   pr: string;
@@ -40,11 +43,6 @@ interface SplitOptions {
 
 interface PageAnalysis extends DiffContextPage {
   analysis: ModelReply | null;
-}
-
-interface Proposal {
-  groups: { title: string; reason: string; unitIds: string[] }[];
-  warnings: string[];
 }
 
 const pageInstructions = `Describe the changed responsibilities and required dependencies in this diff page, retaining every unit ID in your notes, to help propose a PR split later. Be concise.
@@ -152,69 +150,29 @@ async function* readChanges(
   }
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/* Validate model JSON once, including coverage of the host's actual hunk IDs. */
-function parseProposal(text: string, unitIds: Set<string>): Proposal {
-  const value: unknown = JSON.parse(text);
-
-  if (
-    !isObject(value) ||
-    !Array.isArray(value.groups) ||
-    !Array.isArray(value.warnings) ||
-    !value.warnings.every((warning: unknown) => typeof warning === 'string')
-  ) {
-    throw new ModelError('OpenAI returned an invalid split proposal.');
-  }
-
-  const remaining = new Set(unitIds);
-  const groups: Proposal['groups'] = [];
-
-  for (const group of value.groups) {
-    if (
-      !isObject(group) ||
-      typeof group.title !== 'string' ||
-      !group.title.trim() ||
-      typeof group.reason !== 'string' ||
-      !Array.isArray(group.unitIds) ||
-      group.unitIds.length === 0 ||
-      !group.unitIds.every((id: unknown) => typeof id === 'string')
-    ) {
-      throw new ModelError('OpenAI returned an invalid proposal group.');
-    }
-
-    for (const id of group.unitIds) {
-      if (!remaining.delete(id)) {
-        throw new ModelError(
-          'The proposal repeats a hunk or refers to an unknown hunk.',
-        );
-      }
-    }
-
-    groups.push({
-      title: group.title,
-      reason: group.reason,
-      unitIds: group.unitIds,
-    });
-  }
-
-  if (remaining.size > 0) {
-    throw new ModelError('The proposal omitted one or more hunks.');
-  }
-
-  return { groups, warnings: value.warnings };
-}
-
 async function proposeGroups(
+  expectedUnitIds: ReadonlySet<string>,
   pages: PageAnalysis[],
   model: ReturnType<typeof createOpenAI>,
   maxInputTokens: number,
 ) {
-  const unitIds = new Set(pages.flatMap((page) => page.unitIds));
+  const pageUnitIds = new Set(pages.flatMap((page) => page.unitIds));
+  const missingIds = [...expectedUnitIds].filter((id) => !pageUnitIds.has(id));
+  const unknownIds = [...pageUnitIds].filter((id) => !expectedUnitIds.has(id));
 
-  if (unitIds.size === 0) {
+  if (missingIds.length > 0 || unknownIds.length > 0) {
+    throw new ContextInputError(
+      `Diff pages do not match the Git inventory: ${JSON.stringify({ missingIds, unknownIds })}`,
+    );
+  }
+
+  if (expectedUnitIds.size === 0) {
+    if (pages.length > 0) {
+      throw new ContextInputError(
+        'An empty Git inventory requires no diff pages.',
+      );
+    }
+
     return { proposal: { groups: [], warnings: [] }, response: null };
   }
 
@@ -256,9 +214,16 @@ async function proposeGroups(
   }
 
   const reply = await model.generate(request);
+  const validation = validateProposal(reply.text, expectedUnitIds);
+
+  if (validation.status !== 'valid') {
+    throw new ModelError(
+      `LLLM returned an invalid split proposal: ${JSON.stringify(validation)}`,
+    );
+  }
 
   return {
-    proposal: parseProposal(reply.text, unitIds),
+    proposal: validation.proposal,
     response: reply.response,
   };
 }
@@ -345,6 +310,8 @@ export async function runSplitPr(
     }
 
     if (report.errors.length === 0) {
+      const expectedUnitIds = getExpectedUnitIds(report.changes);
+
       for await (const page of paginateDiffContext({
         identity: snapshot.identity,
         hunks: report.hunks,
@@ -361,6 +328,7 @@ export async function runSplitPr(
       }
 
       const result = await proposeGroups(
+        expectedUnitIds,
         report.pages,
         model,
         options.maxInputTokens,
