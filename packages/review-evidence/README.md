@@ -131,6 +131,6 @@ A `complete` result has no continuation or coverage limitation. A `partial` resu
 
 Source pages carry contiguous ranges on UTF-8 boundaries. The byte cap includes all JSON metadata and escaping, so a small budget may leave little room for text. An envelope or indivisible item that cannot fit throws `EvidenceLimitError`. Git output limits, deadlines and cancellation remain operation failures.
 
-Continuation recomputes bounded observations; it does not keep a response cache or a growing cursor registry. Underlying Git search/inventory must finish within their own limits. Pagination bounds delivery, not total query work. The host must supply an overall workflow deadline if needed.
+Continuation recomputes bounded observations; it does not keep a response cache or a growing cursor registry. Git-source reuses a completed, frozen inventory for the same snapshot and blob/output byte limits, so individual hunk reads do not rescan the comparison. Changed byte limits require a fresh inventory; cancelled and closed snapshots still reject reads. Underlying Git search/inventory must finish within their own limits. Pagination bounds delivery, not total query work. The host must supply an overall workflow deadline if needed.
 
 For the wider package boundaries, see [the architecture guide](../../docs/architecture.md) and [the implementation walkthrough](../../docs/context-engine-walkthrough.md).
