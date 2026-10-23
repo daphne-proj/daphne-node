@@ -1,8 +1,27 @@
 # Review evidence
 
-@daphne/review-evidence turns bytes from a pinned Git commit into a source excerpt with a record of where it came from.
+`@daphne/review-evidence` turns pinned Git data into validated evidence with provenance. Its sessions borrow a Git snapshot; the acquiring caller owns cleanup.
 
-It does not decide what the reviewer should inspect, build a code index, or parse code into functions or symbols. A caller asks for a file and byte range. The package checks that the range is safe text and returns the excerpt with its commit and Git blob ID.
+## What belongs here
+
+- Exact source ranges and original hunk spans, with commit, path, blob ID and byte offsets.
+- UTF-8/range validation, source availability errors and evidence data contracts.
+- Bounded repository tools: list changes, inspect changes, read source and search code, including response limits and continuation cursors.
+
+`createEvidenceSession` exposes `readSource`, `readHunk` and `execute`. The `@daphne/review-evidence/contracts` export contains I/O-free data types for consumers that only need supplied evidence.
+
+## Boundaries
+
+| Responsibility                                                      | Owner                                                     |
+| ------------------------------------------------------------------- | --------------------------------------------------------- |
+| PR acquisition, retrieval policy and snapshot cleanup               | `pr-review` or another acquiring caller                   |
+| Git subprocesses, snapshot storage, inventory cache and blob access | `git-source`                                              |
+| Retaining evidence and packing it into model context pages          | `context-engine`                                          |
+| Semantic grouping, coverage decisions and corrections               | `semantic-split`                                          |
+| Model calls and provider responses                                  | `review-agent`                                            |
+| Syntax extraction and code index construction                       | Their dedicated extractor/index packages when implemented |
+
+Repository I/O goes through `git-source`. Evidence returned to the caller remains usable after the snapshot closes. The sections below describe the retrieval interface in more detail.
 
 ## What is a blob?
 
