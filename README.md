@@ -66,7 +66,7 @@ Exhausted corrections, input-budget failures, provider errors, refusals, incompl
 | `bun run test`         | Build, then run Vitest including the compiled CLI smoke test           |
 | `bun run test:watch`   | Build once, then watch tests; rebuild after changing compiled CLI code |
 | `bun run clean`        | Remove TypeScript build outputs                                        |
-| `bun run check`        | Run formatting, lint, typecheck, build, and tests                      |
+| `bun run check`        | Run formatting, typecheck/build, lint, and tests                       |
 
 Use **`bun run test`**, not `bun test`: the latter selects Bun's separate test runner. Do not use `bun --bun` to run the Node tools.
 

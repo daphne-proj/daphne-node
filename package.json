@@ -21,7 +21,7 @@
     "test": "bun run build && vitest run",
     "test:watch": "bun run build && vitest",
     "cli": "node apps/cli/dist/main.js",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test"
+    "check": "bun run format:check && bun run typecheck && bun run lint && bun run test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
