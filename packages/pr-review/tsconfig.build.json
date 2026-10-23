@@ -10,5 +10,19 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../git-source/tsconfig.build.json"
+    },
+    {
+      "path": "../review-evidence/tsconfig.build.json"
+    },
+    {
+      "path": "../context-engine/tsconfig.build.json"
+    },
+    {
+      "path": "../semantic-split/tsconfig.build.json"
+    }
+  ]
 }

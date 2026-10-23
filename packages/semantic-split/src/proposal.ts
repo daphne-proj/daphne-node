@@ -1,4 +1,4 @@
-import type { Change } from '@daphne/review-evidence';
+import type { Change } from '@daphne/review-evidence/contracts';
 
 export interface Proposal {
   groups: { title: string; reason: string; unitIds: string[] }[];

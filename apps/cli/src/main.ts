@@ -1,10 +1,6 @@
 #!/usr/bin/env node
-import {
-  CliInputError,
-  describeFailure,
-  parseContextArgs,
-  runContextInspect,
-} from './context.js';
+import { CliInputError, describeFailure } from './errors.js';
+import { parseContextArgs, runContextInspect } from './context.js';
 import { parseSplitArgs, runSplitPr } from './split-pr.js';
 
 const args = process.argv.slice(2);
