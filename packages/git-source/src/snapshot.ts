@@ -354,7 +354,10 @@ export async function withSnapshot<T>(
   state.active.add(pending);
 
   try {
-    return await pending;
+    const result = await pending;
+    checkCancellation(signal);
+
+    return result;
   } finally {
     state.active.delete(pending);
   }

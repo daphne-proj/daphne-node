@@ -5,7 +5,7 @@ import { parseArgs } from 'node:util';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { splitPullRequest } from '@daphne/pr-review/split';
 import { CliInputError, describeFailure } from './errors.js';
-import { createRunDirectory, writeArtifact } from './output.js';
+import { ArtifactError, createRunDirectory, writeArtifact } from './output.js';
 
 interface SplitOptions {
   pr: string;
@@ -86,7 +86,7 @@ export async function runSplitPr(
   const errors = result.errors.map((error) => describeFailure('split', error));
 
   /* The command owns the versioned file format; the workflow returns typed results. */
-  await writeArtifact(directory, 'run.json', {
+  const report = {
     format: 'daphne-split-pr-v3',
     status: result.status,
     pr: ref.url,
@@ -106,16 +106,37 @@ export async function runSplitPr(
     attempts: result.attempts,
     calls: result.calls,
     errors,
-  });
+  };
+
+  try {
+    await writeArtifact(
+      directory,
+      'run.json',
+      report,
+      report.status === 'complete' ? signal : undefined,
+    );
+  } catch (error) {
+    if (!(error instanceof ArtifactError) || error.code !== 'cancelled') {
+      throw error;
+    }
+
+    /* Preserve completed work in a failed report after cancelled publication. */
+    report.status = 'failed';
+    report.proposal = null;
+    report.response = null;
+    errors.push(describeFailure('run_output', error));
+    await writeArtifact(directory, 'run.json', report);
+  }
+
   process.stdout.write(
     JSON.stringify({
-      status: result.status,
+      status: report.status,
       pages: result.pages.length,
-      groups: result.proposal?.groups.length ?? 0,
+      groups: report.proposal?.groups.length ?? 0,
       output: join(directory, 'run.json'),
       errors,
     }) + '\n',
   );
 
-  return result.status === 'complete' ? 0 : 1;
+  return report.status === 'complete' ? 0 : 1;
 }

@@ -114,6 +114,8 @@ const sources = await session.readHunk({
 
 The session reads the exact hunk spans from its pinned commits and returns existing sides in BASE-then-HEAD order. Each source carries the same provenance as `readSource`. A missing file side is omitted; an existing side with no changed lines returns empty text at its original byte anchor. The two sides may have different lengths.
 
+Sequential hunk reads reuse validated blobs and line offsets for the most recently read change. Each session retains at most that change's two sides; every call still checks cancellation and rejects a closed snapshot.
+
 Unknown changes, invalid indexes and changes without text hunks throw `EvidenceInputError`. Blob-read failures and cancellation propagate; a failed read never returns a partial source array. Like `readSource`, this method uses the session's Git limits rather than tool response/page limits. It prepares source only; it does not paginate context or call a model.
 
 `inspect_change` continues to add three surrounding lines and merge nearby windows. `readHunk` returns only the selected original hunk.

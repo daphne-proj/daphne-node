@@ -151,7 +151,10 @@ export function createOpenAI(
             );
           }
 
-          texts.push(content.text);
+          /* Commentary stays in replay history, but is not part of the answer. */
+          if (item.phase !== 'commentary') {
+            texts.push(content.text);
+          }
         }
       }
 

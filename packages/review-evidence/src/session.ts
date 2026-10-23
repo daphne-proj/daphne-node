@@ -8,7 +8,7 @@ import type {
   ToolResult,
 } from './contracts.js';
 import { readSource } from './source.js';
-import { readHunkSources } from './hunks.js';
+import { createHunkReader } from './hunks.js';
 import { EvidenceInputError } from './errors.js';
 import { resolveEvidenceLimits } from './limits.js';
 import type { EvidenceLimits } from './limits.js';
@@ -55,6 +55,7 @@ export function createEvidenceSession(
 
   const limits = resolveEvidenceLimits(options.limits);
   const execute = createToolExecutor(snapshot, identity, operation, limits);
+  const readHunk = createHunkReader(snapshot, operation);
 
   return Object.freeze({
     identity,
@@ -81,11 +82,13 @@ export function createEvidenceSession(
         throw new EvidenceInputError('A numeric hunk index is required.');
       }
 
-      return readHunkSources(
-        snapshot,
-        { changeId: input.changeId, hunkIndex: input.hunkIndex },
-        operation,
-      );
+      const sources = await readHunk({
+        changeId: input.changeId,
+        hunkIndex: input.hunkIndex,
+      });
+      checkCancellation(operation.signal);
+
+      return sources;
     },
   });
 }

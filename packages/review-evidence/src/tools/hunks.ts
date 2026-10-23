@@ -1,7 +1,7 @@
 import type { ByteRange, Change, Side } from '../contracts.js';
 import { EvidenceInputError } from '../errors.js';
 
-function lineBoundaries(bytes: Buffer): readonly number[] {
+export function lineBoundaries(bytes: Buffer): readonly number[] {
   const offsets = [0];
 
   if (bytes.length === 0) {

@@ -11,6 +11,8 @@
 
 `createOpenAI` returns `count`, `generate` and `calls`. The package also exports `ModelError` and the `ModelRequest`/`ModelReply` types. Credentials, model and cancellation signal are passed explicitly.
 
+Answer text excludes assistant commentary. Complete output items, including commentary and phase metadata, remain available for replay; messages without a phase retain their existing answer behavior.
+
 ## Boundaries
 
 | Responsibility                                                                    | Owner                              |
