@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-case
 
 MODEL ?= gpt-6.1-sol
 MAX_INPUT_TOKENS ?= 16384
@@ -25,7 +25,11 @@ help:
 		'                   Optional: OUTPUT=NEW_DIRECTORY overrides the default' \
 		'make split-pr PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Analyze diff pages with OpenAI and save outputs/split-pr-*/run.json' \
-		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384'
+		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384' \
+		'make split-pr-case PR=https://github.com/OWNER/REPO/pull/123' \
+		'                   Save outputs/pr_123_1/run.json and draft cases/pr_123_1.json' \
+		'                   Increment the suffix when occupied; no labels or suite registration' \
+		'                   Optional: MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384'
 
 install:
 	bun install --frozen-lockfile
@@ -70,3 +74,44 @@ split-pr:
 		OUTPUT="outputs/split-pr-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
 	fi; \
 	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
+
+# Reserve a numbered name across concurrent imports; the CLI creates the run directory.
+split-pr-case:
+	@test -n "$$PR" || { \
+		printf '%s\n' 'Usage: make split-pr-case PR=https://github.com/OWNER/REPO/pull/123 [MODEL=gpt-6.1-sol] [MAX_INPUT_TOKENS=16384]' >&2; \
+		exit 1; \
+	}
+	bun run build
+	@set -eu; \
+	pr_number=$$(cd apps/cli && node --input-type=module -e 'import { parsePullRequestUrl } from "@daphne/pr-review"; process.stdout.write(String(parsePullRequestUrl(process.env.PR ?? "").number));'); \
+	cases=apps/eval/datasets/split-pr/cases; \
+	mkdir -p outputs "$$cases"; \
+	sequence=1; \
+	while :; do \
+		case_id="pr_$${pr_number}_$${sequence}"; \
+		directory="outputs/$$case_id"; \
+		case_file="$$cases/$$case_id.json"; \
+		lock="outputs/.$$case_id.lock"; \
+		if mkdir "$$lock" 2>/dev/null; then \
+			if ! test -e "$$directory" && ! test -L "$$directory" && ! test -e "$$case_file" && ! test -L "$$case_file"; then \
+				break; \
+			fi; \
+			rmdir "$$lock"; \
+		elif ! test -d "$$lock"; then \
+			printf '%s\n' "Cannot reserve $$directory." >&2; \
+			exit 1; \
+		fi; \
+		sequence=$$((sequence + 1)); \
+	done; \
+	trap 'rmdir "$$lock"' 0; \
+	trap 'exit 130' 2; \
+	trap 'exit 143' 15; \
+	printf '%s\n' "Run artifact: $$directory/run.json" "Draft case: $$case_file"; \
+	split_status=0; \
+	bun run cli -- split-pr --pr "$$PR" --output "$$directory" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS" || split_status=$$?; \
+	if ! test -f "$$directory/run.json"; then \
+		printf '%s\n' 'No run artifact was saved; no draft case was imported.' >&2; \
+		exit 1; \
+	fi; \
+	bun run eval -- split-pr import --artifact "$$directory/run.json" --case-id "$$case_id" --output "$$case_file"; \
+	exit "$$split_status"

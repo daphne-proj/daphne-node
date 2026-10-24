@@ -8,6 +8,18 @@ The first case now has 15 pair labels proposed by an isolated LLM judge and expl
 
 ## Add and review a case
 
+To capture a PR and create its draft case, run:
+
+```sh
+make split-pr-case PR=https://github.com/daphne-proj/pr-review-test/pull/2
+```
+
+This runs the splitter with live GitHub/OpenAI access, then imports its evidence locally. It selects matching available names such as `outputs/pr_2_1/run.json` and `apps/eval/datasets/split-pr/cases/pr_2_1.json`; repeated runs increment the suffix. The case has `labels: []` and `review.status: "draft"`. No labels, review approval, suite registration or Langfuse upload happen automatically. Failed splits still attempt import when an artifact exists, while retaining a nonzero exit status; incomplete acquisition is rejected by the importer.
+
+For model-assisted annotation, give a fresh isolated session only this draft case and the rubric below. Do not include the full run artifact, generated proposal or scores. Review the suggested relationships against evidence before looking at the splitter's output. Related captures of the same PR belong to the same partition, not independent holdout samples.
+
+To import an existing artifact instead, use the offline commands below.
+
 From the repository root:
 
 ```sh
