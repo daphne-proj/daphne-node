@@ -1,0 +1,384 @@
+{
+  "format": "daphne-split-case-v1",
+  "id": "pr-review-test-2",
+  "partition": "development",
+  "tags": [],
+  "provenance": {
+    "kind": "artifact",
+    "capturedAt": "2026-10-24T12:22:01.062Z",
+    "artifactSha256": "0ed908eac557994729fd7a337ca7d0a540d5e4845f7e54adba666c4c46dd89b6",
+    "sourcePrUrl": "https://github.com/daphne-proj/pr-review-test/pull/2"
+  },
+  "evidence": {
+    "identity": {
+      "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+      "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+      "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+      "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+      "headCommit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998"
+    },
+    "changes": [
+      {
+        "id": "change-1",
+        "beforePath": "packages/checkout/src/fake-payment.ts",
+        "afterPath": "packages/checkout/src/fake-payment.ts",
+        "beforeMode": "100644",
+        "afterMode": "100644",
+        "status": "modified",
+        "kind": "text",
+        "hunks": [
+          {
+            "beforeStartLine": 1,
+            "beforeLineCount": 42,
+            "afterStartLine": 1,
+            "afterLineCount": 1
+          }
+        ]
+      },
+      {
+        "id": "change-2",
+        "beforePath": null,
+        "afterPath": "packages/checkout/src/payments/fake-payment-gateway.ts",
+        "beforeMode": null,
+        "afterMode": "100644",
+        "status": "added",
+        "kind": "text",
+        "hunks": [
+          {
+            "beforeStartLine": 0,
+            "beforeLineCount": 0,
+            "afterStartLine": 1,
+            "afterLineCount": 42
+          }
+        ]
+      },
+      {
+        "id": "change-3",
+        "beforePath": "packages/checkout/src/pricing.ts",
+        "afterPath": "packages/checkout/src/pricing.ts",
+        "beforeMode": "100644",
+        "afterMode": "100644",
+        "status": "modified",
+        "kind": "text",
+        "hunks": [
+          {
+            "beforeStartLine": 1,
+            "beforeLineCount": 1,
+            "afterStartLine": 1,
+            "afterLineCount": 2
+          },
+          {
+            "beforeStartLine": 19,
+            "beforeLineCount": 1,
+            "afterStartLine": 20,
+            "afterLineCount": 1
+          },
+          {
+            "beforeStartLine": 30,
+            "beforeLineCount": 0,
+            "afterStartLine": 32,
+            "afterLineCount": 2
+          }
+        ]
+      },
+      {
+        "id": "change-4",
+        "beforePath": null,
+        "afterPath": "packages/checkout/src/promotion.ts",
+        "beforeMode": null,
+        "afterMode": "100644",
+        "status": "added",
+        "kind": "text",
+        "hunks": [
+          {
+            "beforeStartLine": 0,
+            "beforeLineCount": 0,
+            "afterStartLine": 1,
+            "afterLineCount": 8
+          }
+        ]
+      }
+    ],
+    "hunks": [
+      {
+        "changeId": "change-1",
+        "hunkIndex": 0,
+        "sources": [
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "base",
+              "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+              "path": "packages/checkout/src/fake-payment.ts",
+              "blobId": "7355a33f8750f55ea7cbee30a2a07eb9a17f411e",
+              "range": {
+                "startByte": 0,
+                "endByte": 1546
+              }
+            },
+            "text": "import { Cents, PaymentId } from '../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from './payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+          },
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "head",
+              "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+              "path": "packages/checkout/src/fake-payment.ts",
+              "blobId": "c04287b2220866114286a3e0d983dd21b0106381",
+              "range": {
+                "startByte": 0,
+                "endByte": 70
+              }
+            },
+            "text": "export { FakePaymentGateway } from './payments/fake-payment-gateway';\n"
+          }
+        ]
+      },
+      {
+        "changeId": "change-2",
+        "hunkIndex": 0,
+        "sources": [
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "head",
+              "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+              "path": "packages/checkout/src/payments/fake-payment-gateway.ts",
+              "blobId": "f1cef2a0b05a7bbbdc58cb850ebd08852229ba85",
+              "range": {
+                "startByte": 0,
+                "endByte": 1550
+              }
+            },
+            "text": "import { Cents, PaymentId } from '../../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from '../payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+          }
+        ]
+      },
+      {
+        "changeId": "change-3",
+        "hunkIndex": 0,
+        "sources": [
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "base",
+              "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+              "path": "packages/checkout/src/pricing.ts",
+              "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+              "range": {
+                "startByte": 0,
+                "endByte": 83
+              }
+            },
+            "text": "import { Cents, assertCents, discountCents, multiplyCents } from '../../core/src';\n"
+          },
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "head",
+              "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+              "path": "packages/checkout/src/pricing.ts",
+              "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+              "range": {
+                "startByte": 0,
+                "endByte": 113
+              }
+            },
+            "text": "import { Cents, assertCents, multiplyCents } from '../../core/src';\nimport { discountCents } from './promotion';\n"
+          }
+        ]
+      },
+      {
+        "changeId": "change-3",
+        "hunkIndex": 1,
+        "sources": [
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "base",
+              "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+              "path": "packages/checkout/src/pricing.ts",
+              "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+              "range": {
+                "startByte": 382,
+                "endByte": 441
+              }
+            },
+            "text": "export function price(input: PriceInput): PriceBreakdown {\n"
+          },
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "head",
+              "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+              "path": "packages/checkout/src/pricing.ts",
+              "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+              "range": {
+                "startByte": 412,
+                "endByte": 480
+              }
+            },
+            "text": "export function calculatePrice(input: PriceInput): PriceBreakdown {\n"
+          }
+        ]
+      },
+      {
+        "changeId": "change-3",
+        "hunkIndex": 2,
+        "sources": [
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "base",
+              "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+              "path": "packages/checkout/src/pricing.ts",
+              "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+              "range": {
+                "startByte": 883,
+                "endByte": 883
+              }
+            },
+            "text": ""
+          },
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "head",
+              "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+              "path": "packages/checkout/src/pricing.ts",
+              "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+              "range": {
+                "startByte": 922,
+                "endByte": 959
+              }
+            },
+            "text": "\nexport { calculatePrice as price };\n"
+          }
+        ]
+      },
+      {
+        "changeId": "change-4",
+        "hunkIndex": 0,
+        "sources": [
+          {
+            "ref": {
+              "sessionId": "4281d4b3-5489-4f8d-a059-c23a6621f958",
+              "side": "head",
+              "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+              "path": "packages/checkout/src/promotion.ts",
+              "blobId": "9cc23734a0a9aba9f9db099491af4b6cdbb628bc",
+              "range": {
+                "startByte": 0,
+                "endByte": 310
+              }
+            },
+            "text": "import type { Cents } from '../../core/src';\n\nexport function discountCents(subtotal: Cents, basisPoints: number): Cents {\n  if (!Number.isInteger(basisPoints) || basisPoints < 0 || basisPoints > 10_000) {\n    throw new Error('invalid promotion');\n  }\n  return Math.floor((subtotal * basisPoints) / 10_000);\n}\n"
+          }
+        ]
+      }
+    ]
+  },
+  "labels": [
+    {
+      "leftUnitId": "change-1:0",
+      "rightUnitId": "change-2:0",
+      "relation": "together",
+      "reason": "The replacement re-export names the newly added gateway module, whose class preserves the removed implementation with adjusted import paths."
+    },
+    {
+      "leftUnitId": "change-1:0",
+      "rightUnitId": "change-3:0",
+      "relation": "separate",
+      "reason": "The gateway compatibility re-export and the change to pricing's discount provider address distinct review responsibilities."
+    },
+    {
+      "leftUnitId": "change-1:0",
+      "rightUnitId": "change-3:1",
+      "relation": "separate",
+      "reason": "Relocating the gateway behind its existing export path is independent of renaming the pricing function."
+    },
+    {
+      "leftUnitId": "change-1:0",
+      "rightUnitId": "change-3:2",
+      "relation": "separate",
+      "reason": "The gateway re-export preserves a module path, while the pricing alias preserves a different symbol's exported name."
+    },
+    {
+      "leftUnitId": "change-1:0",
+      "rightUnitId": "change-4:0",
+      "relation": "separate",
+      "reason": "The gateway relocation shim and the new promotion discount calculation concern distinct functionality."
+    },
+    {
+      "leftUnitId": "change-2:0",
+      "rightUnitId": "change-3:0",
+      "relation": "separate",
+      "reason": "The relocated gateway handles charges and refunds; changing the discount import selects a pricing calculation provider."
+    },
+    {
+      "leftUnitId": "change-2:0",
+      "rightUnitId": "change-3:1",
+      "relation": "separate",
+      "reason": "The gateway implementation move and the pricing function's name change have distinct review responsibilities."
+    },
+    {
+      "leftUnitId": "change-2:0",
+      "rightUnitId": "change-3:2",
+      "relation": "separate",
+      "reason": "Adding the relocated gateway implementation does not participate in the alias from calculatePrice to price."
+    },
+    {
+      "leftUnitId": "change-2:0",
+      "rightUnitId": "change-4:0",
+      "relation": "separate",
+      "reason": "The shown gateway implementation manages payment attempts and refunds, while the promotion helper validates basis points and calculates a discount."
+    },
+    {
+      "leftUnitId": "change-3:0",
+      "rightUnitId": "change-3:1",
+      "relation": "separate",
+      "reason": "Selecting the discount implementation and renaming the pricing entry point are distinct changes; the import retains the local name discountCents."
+    },
+    {
+      "leftUnitId": "change-3:0",
+      "rightUnitId": "change-3:2",
+      "relation": "separate",
+      "reason": "The discount import changes its source module, while the alias concerns the exported pricing name and references calculatePrice."
+    },
+    {
+      "leftUnitId": "change-3:0",
+      "rightUnitId": "change-4:0",
+      "relation": "together",
+      "reason": "Pricing now imports discountCents from './promotion', and the added promotion module supplies that exact export."
+    },
+    {
+      "leftUnitId": "change-3:1",
+      "rightUnitId": "change-3:2",
+      "relation": "together",
+      "reason": "The alias references the newly named calculatePrice function and preserves its previous exported name price."
+    },
+    {
+      "leftUnitId": "change-3:1",
+      "rightUnitId": "change-4:0",
+      "relation": "separate",
+      "reason": "The pricing declaration changes its name while retaining its signature; the promotion module introduces discount validation and arithmetic."
+    },
+    {
+      "leftUnitId": "change-3:2",
+      "rightUnitId": "change-4:0",
+      "relation": "separate",
+      "reason": "Preserving the price export through an alias is independent of providing the discountCents implementation."
+    }
+  ],
+  "notes": [
+    "All 15 labels were proposed by an isolated Codex LLM judge on 2026-10-24 using only the frozen evidence, without the original model proposal. The user explicitly approved all 15 proposed labels in this chat.",
+    "The pricing function body and its callers are absent, so their behavior and compatibility cannot be assessed beyond the shown declaration and alias.",
+    "The previous core discountCents implementation is absent, so equivalence with the new promotion implementation cannot be established.",
+    "Only the supplied excerpts were inspected; execution and buildability were not checked."
+  ],
+  "review": {
+    "status": "reviewed",
+    "reviewer": "user (explicit approval in this chat)",
+    "reviewedAt": "2026-10-24T12:48:34.494Z"
+  }
+}
