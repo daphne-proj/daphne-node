@@ -24,7 +24,7 @@ help:
 		'                   Build and inspect into a new ignored outputs/context-* directory' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY overrides the default' \
 		'make split-pr PR=https://github.com/OWNER/REPO/pull/123' \
-		'                   Analyze diff pages with OpenAI and save outputs/split-pr-*/run.json' \
+		'                   Analyze diff pages with OpenAI and save outputs/split_pr_<pr_number>_<count>/run.json' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384' \
 		'make split-pr-case PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Save outputs/pr_123_1/run.json and draft cases/pr_123_1.json' \
@@ -70,8 +70,14 @@ split-pr:
 	}
 	bun run build
 	@if test -z "$$OUTPUT"; then \
+		pr_number=$$(cd apps/cli && node --input-type=module -e 'import { parsePullRequestUrl } from "@daphne/pr-review"; process.stdout.write(String(parsePullRequestUrl(process.env.PR ?? "").number));') || exit 1; \
 		mkdir -p outputs || exit 1; \
-		OUTPUT="outputs/split-pr-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
+		count=1; \
+		OUTPUT="outputs/split_pr_$${pr_number}_$${count}"; \
+		while test -e "$$OUTPUT" || test -L "$$OUTPUT"; do \
+			count=$$((count + 1)); \
+			OUTPUT="outputs/split_pr_$${pr_number}_$${count}"; \
+		done; \
 	fi; \
 	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
 
