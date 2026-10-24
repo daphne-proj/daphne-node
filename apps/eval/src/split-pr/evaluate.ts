@@ -1,12 +1,14 @@
+import { resolve } from 'node:path';
 import { getExpectedUnitIds, validateProposal } from '@daphne/semantic-split';
 import type {
   PreparedSplitCase,
   SplitArtifactEvaluation,
   SplitScoreInput,
 } from './contracts.js';
-import { loadSplitSuite } from './dataset.js';
+import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { parseSplitEvidence } from './evidence.js';
 import { scoreSplitResult, splitScorerVersion } from './score.js';
+import { summarizeSplitCase } from './validation.js';
 import * as parse from './parse.js';
 
 function artifactResult(
@@ -26,7 +28,21 @@ function artifactResult(
     hunks: input.hunks,
   });
 
-  if (parse.sha256(JSON.stringify(evidence)) !== prepared.inputHash) {
+  /* Fresh captures have new session IDs; compare validated evidence in the case's session. */
+  const sessionId = prepared.definition.evidence.identity.sessionId;
+  const comparisonEvidence = {
+    ...evidence,
+    identity: { ...evidence.identity, sessionId },
+    hunks: evidence.hunks.map((hunk) => ({
+      ...hunk,
+      sources: hunk.sources.map((source) => ({
+        ...source,
+        ref: { ...source.ref, sessionId },
+      })),
+    })),
+  };
+
+  if (parse.sha256(JSON.stringify(comparisonEvidence)) !== prepared.inputHash) {
     throw new parse.SplitDatasetError(
       'artifact: evidence does not match the selected case input hash.',
     );
@@ -89,25 +105,20 @@ function artifactResult(
   return { status, attemptTexts, proposalText };
 }
 
-export async function evaluateSplitArtifact(
-  suitePath: string,
-  caseId: string,
+async function scoreArtifact(
+  prepared: PreparedSplitCase,
   artifactPath: string,
-): Promise<SplitArtifactEvaluation> {
-  const suite = await loadSplitSuite(suitePath);
-  const prepared = suite.cases.find(
-    ({ definition }) => definition.id === caseId,
-  );
-
-  if (!prepared) {
-    throw new parse.SplitDatasetError(`suite: unknown case ID ${caseId}.`);
-  }
-
+  reviewPolicy: 'reviewed' | 'allow-draft',
+) {
   const { bytes, value: scores } = await parse.readJson(
     artifactPath,
     (value) => {
       const result = artifactResult(value, prepared);
-      const scores = scoreSplitResult(prepared.definition, result);
+      const scores = scoreSplitResult(
+        prepared.definition,
+        result,
+        reviewPolicy,
+      );
       const lastText = result.attemptTexts.at(-1);
 
       /* A valid top-level copy cannot conceal a different or invalid final reply. */
@@ -132,6 +143,25 @@ export async function evaluateSplitArtifact(
     },
   );
 
+  return { artifactSha256: parse.sha256(bytes), scores };
+}
+
+export async function evaluateSplitArtifact(
+  suitePath: string,
+  caseId: string,
+  artifactPath: string,
+): Promise<SplitArtifactEvaluation> {
+  const suite = await loadSplitSuite(suitePath);
+  const prepared = suite.cases.find(
+    ({ definition }) => definition.id === caseId,
+  );
+
+  if (!prepared) {
+    throw new parse.SplitDatasetError(`suite: unknown case ID ${caseId}.`);
+  }
+
+  const scored = await scoreArtifact(prepared, artifactPath, 'reviewed');
+
   return {
     format: 'daphne-split-score-v1',
     scorerVersion: splitScorerVersion,
@@ -140,7 +170,33 @@ export async function evaluateSplitArtifact(
     caseId,
     caseHash: prepared.caseHash,
     inputHash: prepared.inputHash,
-    artifactSha256: parse.sha256(bytes),
-    scores,
+    ...scored,
+  };
+}
+
+export async function evaluateSplitCaseArtifact(
+  casePath: string,
+  artifactPath: string,
+) {
+  const prepared = await loadSplitCase(casePath);
+  const scored = await scoreArtifact(prepared, artifactPath, 'allow-draft');
+  let status: 'complete' | 'failed_run' | 'invalid_output' = 'complete';
+
+  if (!scored.scores.completed) {
+    status = 'failed_run';
+  } else if (!scored.scores.accepted) {
+    status = 'invalid_output';
+  }
+
+  return {
+    format: 'daphne-split-case-eval-v1',
+    scorerVersion: splitScorerVersion,
+    status,
+    casePath: resolve(casePath),
+    artifactPath: resolve(artifactPath),
+    reference: summarizeSplitCase(prepared),
+    review: prepared.definition.review,
+    provisional: prepared.definition.review.status === 'draft',
+    ...scored,
   };
 }

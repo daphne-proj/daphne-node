@@ -1,10 +1,10 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-case split-pr-validate
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-case split-pr-validate split-pr-eval
 
 MODEL ?= gpt-6.1-sol
 MAX_INPUT_TOKENS ?= 16384
-export PR OUTPUT MODEL MAX_INPUT_TOKENS CASE
+export PR OUTPUT MODEL MAX_INPUT_TOKENS CASE ARTIFACT
 
 help:
 	@printf '%s\n' \
@@ -31,7 +31,10 @@ help:
 		'                   Increment the suffix when occupied; no labels or suite registration' \
 		'                   Optional: MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384' \
 		'make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_2_1.json' \
-		'                   Validate a case and report label coverage offline; preserve review status'
+		'                   Validate a case and report label coverage offline; preserve review status' \
+		'make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json ARTIFACT=outputs/pr_1_1/run.json' \
+		'                   Compare saved groups with labels offline; drafts are provisional' \
+		'                   Save a new report beside ARTIFACT; optional OUTPUT=NEW_FILE'
 
 install:
 	bun install --frozen-lockfile
@@ -141,3 +144,14 @@ split-pr-validate:
 	}
 	bun run build
 	bun run eval -- split-pr validate --case "$$CASE"
+
+split-pr-eval:
+	@test -n "$$CASE" && test -n "$$ARTIFACT" || { \
+		printf '%s\n' 'Usage: make split-pr-eval CASE=PATH ARTIFACT=PATH [OUTPUT=NEW_FILE]' >&2; \
+		exit 1; \
+	}
+	@bun run --silent build
+	@if test -z "$$OUTPUT"; then \
+		OUTPUT="$${ARTIFACT%.json}.eval-$$(date +%Y%m%d-%H%M%S)-$$$$.json"; \
+	fi; \
+	bun run --silent eval -- split-pr eval --case "$$CASE" --artifact "$$ARTIFACT" --output "$$OUTPUT"

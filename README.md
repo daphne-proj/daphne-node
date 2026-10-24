@@ -74,6 +74,14 @@ For annotation, give a fresh Codex session only the draft case and the rubric in
 
 After adding labels, check the case offline with `make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json`. It reports structural validity, label counts and coverage without changing the case or its review status. Human review of label meaning remains required.
 
+Compare the saved splitter output against those labels in one offline command:
+
+```sh
+make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json ARTIFACT=outputs/pr_1_1/run.json
+```
+
+This validates matching frozen evidence and predicted unit coverage, prints a compact score summary, and saves together/separate agreement and violations with label reasons in a new JSON report beside the artifact. Draft comparisons remain marked `Labels draft` and do not approve or modify the case. Unknown and unlabeled pairs are unscored; structural validity and annotation coverage are not quality scores. Suite registration is unnecessary. See [saved-run evaluation](apps/eval/README.md#compare-a-saved-split-pr-run) for report and exit semantics.
+
 ## Verify Langfuse setup
 
 Configure the three `LANGFUSE_*` variables listed in [.env.example](.env.example), preserving any existing `.env` values, then run:

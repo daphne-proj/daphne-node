@@ -1,14 +1,19 @@
 import { parseArgs } from 'node:util';
+import { resolve } from 'node:path';
 import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { summarizeSplitCase } from './validation.js';
 import { importSplitCase } from './import.js';
-import { evaluateSplitArtifact } from './evaluate.js';
+import {
+  evaluateSplitArtifact,
+  evaluateSplitCaseArtifact,
+} from './evaluate.js';
+import { formatSplitEvaluation } from './evaluation-summary.js';
 import { writeJsonArtifact } from './report.js';
 import { SplitDatasetError, text, choice } from './parse.js';
 import { runSplitEvaluation } from './run.js';
 
 const usage =
-  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --case PATH | --suite PATH\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
+  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --case PATH | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH --output NEW_FILE\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
 
 function options(
   args: string[],
@@ -117,6 +122,19 @@ export async function runSplitCommand(
           cases: suite.cases.map(summarizeSplitCase),
         }) + '\n',
       );
+    } else if (command === 'eval') {
+      const values = options(rest, ['case', 'artifact', 'output']);
+      const report = await evaluateSplitCaseArtifact(
+        text(values.case, '--case'),
+        text(values.artifact, '--artifact'),
+      );
+      const outputPath = resolve(text(values.output, '--output'));
+      signal.throwIfAborted();
+      await writeJsonArtifact(outputPath, report);
+      signal.throwIfAborted();
+      process.stdout.write(formatSplitEvaluation(report, outputPath));
+
+      return report.status === 'complete' ? 0 : 1;
     } else if (command === 'score') {
       const values = options(rest, ['suite', 'case-id', 'artifact', 'output']);
       const report = await evaluateSplitArtifact(

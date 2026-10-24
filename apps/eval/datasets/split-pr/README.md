@@ -46,6 +46,14 @@ make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json
 
 This offline check prints structural validation and explicit label coverage, including unknown/unlabeled pairs and units without any together/separate labels. It preserves the file and its review status. A valid result does not establish that the labels are semantically correct; see the [coverage definitions](../../README.md#import-and-validate-split-pr-cases).
 
+To compare the splitter's saved groups with these labels:
+
+```sh
+make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json ARTIFACT=outputs/pr_1_1/run.json
+```
+
+This offline comparison validates matching evidence and exact unit coverage, prints a compact score summary, and saves together/separate agreement and violated pairs with reasons in a new report beside the artifact. Draft results remain marked `Labels draft`; case bytes and review status remain unchanged. Unknown/unlabeled pairs are unscored, and zero label support has no agreement rate. Poor scores still complete successfully; invalid inputs, failed saved runs and invalid predictions exit nonzero. See [report details](../../README.md#compare-a-saved-split-pr-run). Structural acceptance and annotation coverage do not measure quality.
+
 After human review, replace the review object with `status: "reviewed"`, a nonblank `reviewer` and an ISO UTC `reviewedAt`. Assign the partition deliberately; related revisions belong to the same partition. Synthetic cases use provenance kind `synthetic`, `capturedAt` and a nonblank `constructionSource`. Do not fabricate reviewer approval.
 
 ## Validation and provenance
@@ -54,4 +62,4 @@ Validation checks schema versions, pinned Git IDs, inventory coverage, source me
 
 Artifact provenance records its original byte SHA-256, PR URL and the time its evidence was frozen by import (`capturedAt`). `caseHash` covers exact saved case bytes; `inputHash` covers a fixed-order projection of evidence only; `datasetHash` covers suite bytes and the ordered case IDs/hashes. Editing labels changes the case/dataset hashes without changing the input hash. Validation prints those hashes, partition/review counts, tags, unit counts and label support.
 
-Validation establishes internal consistency. It does not authenticate excerpts against Git blobs, judge semantic quality, or upload anything to Langfuse. Use the evaluation app's [saved-run scoring command](../../README.md#score-a-saved-split-pr-run) to compare an output with reviewed labels without another model call.
+Validation establishes internal consistency. It does not authenticate excerpts against Git blobs, judge semantic quality, or upload anything to Langfuse. Use the evaluation app's [saved-run comparison command](../../README.md#compare-a-saved-split-pr-run) to compare an output with labels without another model call; draft comparisons remain provisional.

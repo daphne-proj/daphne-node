@@ -10,7 +10,7 @@ import type {
 } from './contracts.js';
 import { SplitDatasetError } from './parse.js';
 
-export const splitScorerVersion = 'split-pairs-v1';
+export const splitScorerVersion = 'split-pairs-v2';
 
 export function scoreSplitTrial(
   caseData: PreparedSplitCase,
@@ -55,12 +55,13 @@ function pairRate(
   return { satisfied, total, rate: total === 0 ? null : satisfied / total };
 }
 
-/* Score reviewed constraints against freshly validated output, without model calls. */
+/* Draft labels are allowed only when a caller explicitly requests provisional scoring. */
 export function scoreSplitResult(
   definition: SplitCase,
   result: SplitScoreInput,
+  reviewPolicy: 'reviewed' | 'allow-draft' = 'reviewed',
 ): SplitScores {
-  if (definition.review.status !== 'reviewed') {
+  if (definition.review.status !== 'reviewed' && reviewPolicy === 'reviewed') {
     throw new SplitDatasetError('Scoring requires a reviewed case.');
   }
 
@@ -121,7 +122,10 @@ export function scoreSplitResult(
   return {
     completed,
     accepted,
-    constraintsPassed: accepted && violatedPairs.length === 0,
+    constraintsPassed:
+      accepted &&
+      pairs.some(({ score }) => score !== null) &&
+      violatedPairs.length === 0,
     firstReply,
     recovered: firstReply === 'invalid' && accepted,
     attempts: result.attemptTexts.length,
