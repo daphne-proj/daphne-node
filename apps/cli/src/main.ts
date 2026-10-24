@@ -2,6 +2,7 @@
 import { CliInputError, describeFailure } from './errors.js';
 import { parseContextArgs, runContextInspect } from './context.js';
 import { parseSplitArgs, runSplitPr } from './split-pr.js';
+import { formatCommandOutput } from './command-output.js';
 
 const args = process.argv.slice(2);
 
@@ -34,15 +35,26 @@ if (args.length === 0) {
       );
     } else {
       throw new CliInputError(
-        'Expected context inspect or split-pr --pr URL --output NEW_DIRECTORY.',
+        'Expected context inspect or split-pr --pr URL --output DIRECTORY.',
       );
     }
   } catch (error) {
     const failure = describeFailure('arguments', error);
-    process.stdout.write(
-      JSON.stringify({ status: 'failed', errors: [failure] }) + '\n',
-    );
-    process.stderr.write(failure.message + '\n');
+
+    if (args[0] === 'split-pr' && process.stdout.isTTY) {
+      process.stdout.write(
+        formatCommandOutput('Split failed', [
+          { label: 'Status', value: 'failed', tone: 'error' },
+          { label: 'Error', value: failure.message },
+        ]) + '\n',
+      );
+    } else {
+      process.stdout.write(
+        JSON.stringify({ status: 'failed', errors: [failure] }) + '\n',
+      );
+      process.stderr.write(failure.message + '\n');
+    }
+
     process.exitCode = 1;
   } finally {
     process.removeListener('SIGINT', cancel);

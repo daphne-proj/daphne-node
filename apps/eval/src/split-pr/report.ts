@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { link, open, unlink } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
+import { isGoldenDatasetPath } from '@daphne/cli/output-path';
 import { SplitDatasetError } from './parse.js';
 
 /* Publish a complete file with a hard link so an existing destination is never replaced. */
@@ -9,6 +10,13 @@ export async function writeJsonArtifact(
   value: unknown,
 ): Promise<void> {
   const destination = resolve(path);
+
+  if (await isGoldenDatasetPath(destination)) {
+    throw new SplitDatasetError(
+      'The golden dataset is read-only; choose an output outside its cases directory.',
+    );
+  }
+
   const temporary = join(
     dirname(destination),
     `.${basename(destination)}.${randomUUID()}`,

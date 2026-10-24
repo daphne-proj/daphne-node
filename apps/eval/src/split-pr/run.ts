@@ -1,9 +1,10 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, rename } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { promisify } from 'node:util';
+import { isGoldenDatasetPath } from '@daphne/cli/output-path';
 import {
   correctionInstructions,
   groupingInstructions,
@@ -46,6 +47,13 @@ export async function runSplitEvaluation(
   positiveInteger(options.trials, '--trials');
   positiveInteger(options.concurrency, '--concurrency');
   positiveInteger(options.maxInputTokens, '--max-input-tokens');
+  const outputDirectory = resolve(options.outputDirectory);
+
+  if (await isGoldenDatasetPath(outputDirectory)) {
+    throw new SplitDatasetError(
+      'The golden dataset is read-only; choose an output outside its cases directory.',
+    );
+  }
 
   const suite = await loadSplitSuite(options.suitePath);
   const cases = suite.cases.filter(
@@ -65,7 +73,7 @@ export async function runSplitEvaluation(
   const git = await gitState();
 
   try {
-    await mkdir(options.outputDirectory, { mode: 0o700 });
+    await mkdir(outputDirectory, { mode: 0o700 });
   } catch {
     throw new SplitDatasetError(
       '--output must be a new directory in an existing parent.',
@@ -113,10 +121,7 @@ export async function runSplitEvaluation(
 
   try {
     /* A separate initial schedule survives interruption without overwriting any artifact. */
-    await writeJsonArtifact(
-      join(options.outputDirectory, 'scheduled.json'),
-      manifest,
-    );
+    await writeJsonArtifact(join(outputDirectory, 'scheduled.json'), manifest);
 
     if (existsSync('.env')) {
       loadEnvFile('.env');
@@ -144,7 +149,7 @@ export async function runSplitEvaluation(
           cases,
           manifest,
           trialNumber,
-          options.outputDirectory,
+          outputDirectory,
           apiKey,
           signal,
         );
@@ -181,7 +186,7 @@ export async function runSplitEvaluation(
     manifest.cases.some((entry) => entry.issues.length > 0) ||
     manifest.experiments.some((experiment) => experiment.issues.length > 0);
   manifest.status = incomplete ? 'incomplete' : 'complete';
-  const manifestFile = join(options.outputDirectory, 'manifest.json');
+  const manifestFile = join(outputDirectory, 'manifest.json');
 
   try {
     await writeJsonArtifact(manifestFile, manifest);
@@ -189,10 +194,7 @@ export async function runSplitEvaluation(
     if (signal.aborted && !manifest.issues.includes('Command cancelled.')) {
       manifest.status = 'incomplete';
       manifest.issues.push('Command cancelled.');
-      const cancelledFile = join(
-        options.outputDirectory,
-        '.cancelled-manifest.json',
-      );
+      const cancelledFile = join(outputDirectory, '.cancelled-manifest.json');
 
       /* Replace only this run's own manifest if cancellation arrived during its save. */
       await writeJsonArtifact(cancelledFile, manifest);
