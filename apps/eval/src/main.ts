@@ -1,5 +1,5 @@
 /*
- * Dispatches offline dataset commands and the live smoke experiment.
+ * Dispatches offline dataset commands and explicit live experiments.
  * Example: `bun run eval langfuse-smoke` checks the Langfuse setup.
  * A failed or cancelled run makes the command exit with an error.
  */
@@ -68,7 +68,7 @@ async function main(): Promise<number> {
     (args.length !== 1 || args[0] !== 'langfuse-smoke')
   ) {
     process.stderr.write(
-      'Usage: eval langfuse-smoke | split-pr import|validate|score ...\n',
+      'Usage: eval langfuse-smoke | split-pr import|validate|score|run ...\n',
     );
     return 1;
   }

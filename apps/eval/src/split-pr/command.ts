@@ -4,12 +4,17 @@ import { loadSplitSuite } from './dataset.js';
 import { importSplitCase } from './import.js';
 import { evaluateSplitArtifact } from './evaluate.js';
 import { writeJsonArtifact } from './report.js';
-import { SplitDatasetError, text } from './parse.js';
+import { SplitDatasetError, text, choice } from './parse.js';
+import { runSplitEvaluation } from './run.js';
 
 const usage =
-  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --suite PATH\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE';
+  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --suite PATH\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
 
-function options(args: string[], names: string[]): Record<string, string> {
+function options(
+  args: string[],
+  names: string[],
+  defaults: Record<string, string> = {},
+): Record<string, string> {
   try {
     const { values, tokens } = parseArgs({
       args,
@@ -29,7 +34,10 @@ function options(args: string[], names: string[]): Record<string, string> {
     }
 
     return Object.fromEntries(
-      names.map((name) => [name, text(values[name], `--${name}`)]),
+      names.map((name) => [
+        name,
+        text(values[name] ?? defaults[name], `--${name}`),
+      ]),
     );
   } catch {
     throw new SplitDatasetError(usage);
@@ -109,6 +117,35 @@ export async function runSplitCommand(
       await writeJsonArtifact(text(values.output, '--output'), report);
       signal.throwIfAborted();
       process.stdout.write(JSON.stringify(report) + '\n');
+    } else if (command === 'run') {
+      const defaults = {
+        model: 'gpt-6.1-sol',
+        'max-input-tokens': '16384',
+        trials: '3',
+        concurrency: '2',
+      };
+      const values = options(
+        rest,
+        ['suite', 'partition', 'output', ...Object.keys(defaults)],
+        defaults,
+      );
+
+      return await runSplitEvaluation(
+        {
+          suitePath: text(values.suite, '--suite'),
+          partition: choice(
+            values.partition,
+            ['development', 'holdout'],
+            '--partition',
+          ),
+          outputDirectory: text(values.output, '--output'),
+          model: text(values.model, '--model'),
+          maxInputTokens: Number(values['max-input-tokens']),
+          trials: Number(values.trials),
+          concurrency: Number(values.concurrency),
+        },
+        signal,
+      );
     } else {
       throw new SplitDatasetError(usage);
     }

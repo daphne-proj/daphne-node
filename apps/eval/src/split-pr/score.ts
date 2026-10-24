@@ -5,10 +5,38 @@ import type {
   SplitCase,
   SplitScoreInput,
   SplitScores,
+  PreparedSplitCase,
+  SplitTrial,
 } from './contracts.js';
 import { SplitDatasetError } from './parse.js';
 
 export const splitScorerVersion = 'split-pairs-v1';
+
+export function scoreSplitTrial(
+  caseData: PreparedSplitCase,
+  trial: SplitTrial,
+): SplitScores {
+  if (
+    trial.caseId !== caseData.definition.id ||
+    trial.inputHash !== caseData.inputHash
+  ) {
+    throw new SplitDatasetError(
+      'Trial identity or frozen evidence does not match the reviewed case.',
+    );
+  }
+
+  const attemptTexts = trial.result.attempts.map(({ text }) => text);
+  return scoreSplitResult(
+    caseData.definition,
+    trial.result.status === 'complete'
+      ? {
+          status: 'complete',
+          proposalText: JSON.stringify(trial.result.proposal),
+          attemptTexts,
+        }
+      : { status: 'failed', attemptTexts },
+  );
+}
 
 function pairRate(
   pairs: PairScore[],

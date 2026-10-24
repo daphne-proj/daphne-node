@@ -3,7 +3,11 @@ import type {
   Change,
   ReviewIdentity,
 } from '@daphne/review-evidence/contracts';
-import type { ProposalValidation } from '@daphne/semantic-split';
+import type {
+  Proposal,
+  ProposalValidation,
+  SemanticSplitResult,
+} from '@daphne/semantic-split';
 
 export interface FrozenSplitEvidence {
   identity: ReviewIdentity;
@@ -90,4 +94,84 @@ export interface SplitArtifactEvaluation {
   inputHash: string;
   artifactSha256: string;
   scores: SplitScores;
+}
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number | null;
+  reasoningOutputTokens: number | null;
+}
+
+export interface RecordedModelCall {
+  kind: 'count' | 'generate';
+  number: number;
+  model: string;
+  startedAt: string;
+  endedAt: string;
+  elapsedMs: number;
+  status: 'complete' | 'failed';
+  usage: TokenUsage | null;
+}
+
+export interface SplitTrial {
+  format: 'daphne-split-trial-v1';
+  caseId: string;
+  inputHash: string;
+  caseHash: string;
+  trialNumber: number;
+  modelConfig: { model: string; maxInputTokens: number };
+  elapsedMs: number;
+  modelCalls: RecordedModelCall[];
+  result:
+    | Extract<SemanticSplitResult, { status: 'complete' }>
+    | (Omit<Extract<SemanticSplitResult, { status: 'failed' }>, 'error'> & {
+        error: { name: string; message: string };
+      });
+}
+
+export type SplitExperimentOutput =
+  | { status: 'complete'; proposal: Proposal }
+  | { status: 'failed'; error: { name: string; message: string } };
+
+export interface SplitRunOptions {
+  suitePath: string;
+  partition: SplitCase['partition'];
+  outputDirectory: string;
+  model: string;
+  maxInputTokens: number;
+  trials: number;
+  concurrency: number;
+}
+
+export interface SplitRunManifest {
+  format: 'daphne-split-eval-run-v1';
+  suiteId: string;
+  datasetHash: string;
+  partition: SplitCase['partition'];
+  modelConfig: SplitTrial['modelConfig'];
+  scorerVersion: string;
+  promptHash: string;
+  sdkVersion: string;
+  git: { commit: string; dirty: boolean };
+  startedAt: string;
+  trials: number;
+  concurrency: number;
+  status: 'complete' | 'incomplete';
+  cases: {
+    caseId: string;
+    inputHash: string;
+    caseHash: string;
+    trialNumber: number;
+    trialFile: string | null;
+    scores: SplitScores | null;
+    issues: string[];
+  }[];
+  experiments: {
+    trialNumber: number;
+    id: string | null;
+    url: string | null;
+    issues: string[];
+  }[];
+  issues: string[];
 }

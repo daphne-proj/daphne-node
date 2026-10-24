@@ -12,6 +12,7 @@
   },
   "include": ["src/**/*.ts", "tests/smoke/**/*.ts"],
   "references": [
+    { "path": "../../packages/review-agent/tsconfig.build.json" },
     {
       "path": "../../packages/semantic-split/tsconfig.build.json"
     },
