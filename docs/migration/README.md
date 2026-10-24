@@ -10,6 +10,8 @@ This foundation does not establish Rust behavior parity. The experimental `split
 
 Offline Vitest tests now cover proposal validation, bounded corrections, replay, budget failures, cancellation and CLI artifact preservation. They use controlled model replies and real artifact writes; they do not establish live provider compatibility, semantic quality or Rust parity.
 
+`apps/eval` now provides a synthetic Langfuse smoke experiment with explicit configuration, score/case completeness checks and clean telemetry finalization. It makes no model calls. This is new infrastructure, not a port of Rust evaluation or evidence of split quality; domain datasets, scorers and benchmark comparisons remain separate work.
+
 ## Later Rust migration sequence
 
 1. **Capture the baseline.** Pin the Rust reference, run its relevant tests, inventory CLI/JSON/error contracts, and collect sanitized representative fixtures. Record environment, extractor versions, and timing/memory measurements. Resolve uncommitted source changes explicitly.

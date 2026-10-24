@@ -1,6 +1,6 @@
 # Daphne — TypeScript workspace
 
-Foundation for migrating [Daphne](https://github.com/daphne-proj/daphne) to TypeScript. This repository includes tooling, agent guidance, bounded PR context inspection and an experimental LLM split proposal command. The commands connect PR metadata, pinned Git source, evidence retrieval and context assembly. Rust workflow parity, extraction, graph, lifecycle and evaluation logic remain future work.
+Foundation for migrating [Daphne](https://github.com/daphne-proj/daphne) to TypeScript. This repository includes tooling, agent guidance, bounded PR context inspection and an experimental LLM split proposal command. The commands connect PR metadata, pinned Git source, evidence retrieval and context assembly. Rust workflow parity, extraction, graph, lifecycle and domain evaluation logic remain future work.
 
 ## Getting started
 
@@ -60,6 +60,17 @@ Each generation uses `store: false`, allows up to 4,096 output tokens including 
 
 Exhausted corrections, input-budget failures, provider errors, refusals, incomplete responses, counting failures, timeouts and cancellation stop the command with exit 1. Transport failures are not retried. Handled failures save collected evidence, completed analyses and completed grouping attempts, leaving top-level `proposal` and `response` null. Exit 0 means inventory coverage was validated; only then are top-level results accepted. Artifacts are written when the command finalizes, without crash recovery or resume. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur when a caller runs a model operation, never in `bun run check`.
 
+## Verify Langfuse setup
+
+Configure the three `LANGFUSE_*` variables listed in [.env.example](.env.example), preserving any existing `.env` values, then run:
+
+```sh
+bun run build
+bun run eval -- langfuse-smoke
+```
+
+This explicitly sends two synthetic arithmetic cases and their scores to your configured Langfuse instance, with no model calls. The JSON result links to the experiment. See [the smoke check](apps/eval/tests/smoke/README.md) for its purpose and the official Langfuse references, and [the evaluation app](apps/eval/README.md) for configuration and failure behavior. Normal checks remain offline.
+
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `bun run build`        | Compile workspace projects in dependency order                         |
@@ -79,7 +90,7 @@ Use **`bun run test`**, not `bun test`: the latter selects Bun's separate test r
 ```text
 apps/
   cli/                 Node CLI entry point; src/ and tests/
-  eval/                Planned evaluation app; ownership documentation only
+  eval/                Node evaluation app; synthetic Langfuse smoke command
 packages/              PR acquisition, Git source, evidence and context libraries
 docs/
   adr/                 Accepted architecture decisions
