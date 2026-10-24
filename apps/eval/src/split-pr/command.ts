@@ -2,10 +2,12 @@ import { parseArgs } from 'node:util';
 import { getExpectedUnitIds } from '@daphne/semantic-split';
 import { loadSplitSuite } from './dataset.js';
 import { importSplitCase } from './import.js';
+import { evaluateSplitArtifact } from './evaluate.js';
+import { writeJsonArtifact } from './report.js';
 import { SplitDatasetError, text } from './parse.js';
 
 const usage =
-  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --suite PATH';
+  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --suite PATH\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE';
 
 function options(args: string[], names: string[]): Record<string, string> {
   try {
@@ -96,6 +98,17 @@ export async function runSplitCommand(
           })),
         }) + '\n',
       );
+    } else if (command === 'score') {
+      const values = options(rest, ['suite', 'case-id', 'artifact', 'output']);
+      const report = await evaluateSplitArtifact(
+        text(values.suite, '--suite'),
+        text(values['case-id'], '--case-id'),
+        text(values.artifact, '--artifact'),
+      );
+      signal.throwIfAborted();
+      await writeJsonArtifact(text(values.output, '--output'), report);
+      signal.throwIfAborted();
+      process.stdout.write(JSON.stringify(report) + '\n');
     } else {
       throw new SplitDatasetError(usage);
     }

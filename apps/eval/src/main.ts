@@ -68,7 +68,7 @@ async function main(): Promise<number> {
     (args.length !== 1 || args[0] !== 'langfuse-smoke')
   ) {
     process.stderr.write(
-      'Usage: eval langfuse-smoke | split-pr import|validate ...\n',
+      'Usage: eval langfuse-smoke | split-pr import|validate|score ...\n',
     );
     return 1;
   }

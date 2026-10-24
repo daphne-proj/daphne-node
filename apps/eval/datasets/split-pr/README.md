@@ -34,4 +34,4 @@ Validation checks schema versions, pinned Git IDs, inventory coverage, source me
 
 Artifact provenance records its original byte SHA-256, PR URL and the time its evidence was frozen by import (`capturedAt`). `caseHash` covers exact saved case bytes; `inputHash` covers a fixed-order projection of evidence only; `datasetHash` covers suite bytes and the ordered case IDs/hashes. Editing labels changes the case/dataset hashes without changing the input hash. Validation prints those hashes, partition/review counts, tags, unit counts and label support.
 
-Validation establishes internal consistency. It does not authenticate excerpts against Git blobs, judge semantic quality, or upload anything to Langfuse.
+Validation establishes internal consistency. It does not authenticate excerpts against Git blobs, judge semantic quality, or upload anything to Langfuse. Use the evaluation app's [saved-run scoring command](../../README.md#score-a-saved-split-pr-run) to compare an output with reviewed labels without another model call.
