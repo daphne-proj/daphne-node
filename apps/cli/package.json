@@ -17,6 +17,7 @@
     "@daphne/pr-review": "workspace:*",
     "@daphne/git-source": "workspace:*",
     "@daphne/review-evidence": "workspace:*",
-    "@daphne/context-engine": "workspace:*"
+    "@daphne/context-engine": "workspace:*",
+    "@daphne/review-agent": "workspace:*"
   }
 }

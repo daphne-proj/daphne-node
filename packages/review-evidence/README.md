@@ -1,8 +1,27 @@
 # Review evidence
 
-@daphne/review-evidence turns bytes from a pinned Git commit into a source excerpt with a record of where it came from.
+`@daphne/review-evidence` turns pinned Git data into validated evidence with provenance. Its sessions borrow a Git snapshot; the acquiring caller owns cleanup.
 
-It does not decide what the reviewer should inspect, build a code index, or parse code into functions or symbols. A caller asks for a file and byte range. The package checks that the range is safe text and returns the excerpt with its commit and Git blob ID.
+## What belongs here
+
+- Exact source ranges and original hunk spans, with commit, path, blob ID and byte offsets.
+- UTF-8/range validation, source availability errors and evidence data contracts.
+- Bounded repository tools: list changes, inspect changes, read source and search code, including response limits and continuation cursors.
+
+`createEvidenceSession` exposes `readSource`, `readHunk` and `execute`. The `@daphne/review-evidence/contracts` export contains I/O-free data types for consumers that only need supplied evidence.
+
+## Boundaries
+
+| Responsibility                                                      | Owner                                                     |
+| ------------------------------------------------------------------- | --------------------------------------------------------- |
+| PR acquisition, retrieval policy and snapshot cleanup               | `pr-review` or another acquiring caller                   |
+| Git subprocesses, snapshot storage, inventory cache and blob access | `git-source`                                              |
+| Retaining evidence and packing it into model context pages          | `context-engine`                                          |
+| Semantic grouping, coverage decisions and corrections               | `semantic-split`                                          |
+| Model calls and provider responses                                  | `review-agent`                                            |
+| Syntax extraction and code index construction                       | Their dedicated extractor/index packages when implemented |
+
+Repository I/O goes through `git-source`. Evidence returned to the caller remains usable after the snapshot closes. The sections below describe the retrieval interface in more detail.
 
 ## What is a blob?
 
@@ -82,6 +101,27 @@ The host owns the snapshot and must close it when finished. Closing the snapshot
 
 The direct `readSource` method accepts byte ranges and retains the Git blob cap. Use `execute` when the response must obey the separate tool byte/page limits.
 
+## Read one original hunk
+
+Use a change ID from `list_changes` and a zero-based index into its `hunks`:
+
+```ts
+const sources = await session.readHunk({
+  changeId: change.id,
+  hunkIndex: 0,
+});
+```
+
+The session reads the exact hunk spans from its pinned commits and returns existing sides in BASE-then-HEAD order. Each source carries the same provenance as `readSource`. A missing file side is omitted; an existing side with no changed lines returns empty text at its original byte anchor. The two sides may have different lengths.
+
+Sequential hunk reads reuse validated blobs and line offsets for the most recently read change. Each session retains at most that change's two sides; every call still checks cancellation and rejects a closed snapshot.
+
+Unknown changes, invalid indexes and changes without text hunks throw `EvidenceInputError`. Blob-read failures and cancellation propagate; a failed read never returns a partial source array. Like `readSource`, this method uses the session's Git limits rather than tool response/page limits. It prepares source only; it does not paginate context or call a model.
+
+`inspect_change` continues to add three surrounding lines and merge nearby windows. `readHunk` returns only the selected original hunk.
+
+The host can collect these sources with their original change/hunk indexes and pass the entries with the session identity to [`paginateDiffContext`](../context-engine/README.md#page-supplied-diff-hunks) in `@daphne/context-engine`. The pager packs supplied hunks together and splits oversized evidence. Consume its pages completely and follow every inventory cursor for a whole comparison. Changes without readable text hunks use a metadata-only entry; a failed source read must still be reported as unfinished work.
+
 ## Bounded repository tools
 
 The session now also accepts four validated requests: `list_changes`, `inspect_change`, `read_source` and `search_code`. The host chooses requests; the session never invokes a model or a context engine.
@@ -112,6 +152,6 @@ A `complete` result has no continuation or coverage limitation. A `partial` resu
 
 Source pages carry contiguous ranges on UTF-8 boundaries. The byte cap includes all JSON metadata and escaping, so a small budget may leave little room for text. An envelope or indivisible item that cannot fit throws `EvidenceLimitError`. Git output limits, deadlines and cancellation remain operation failures.
 
-Continuation recomputes bounded observations; it does not keep a response cache or a growing cursor registry. Underlying Git search/inventory must finish within their own limits. Pagination bounds delivery, not total query work. The host must supply an overall workflow deadline if needed.
+Continuation recomputes bounded observations; it does not keep a response cache or a growing cursor registry. Git-source reuses a completed, frozen inventory for the same snapshot and blob/output byte limits, so individual hunk reads do not rescan the comparison. Changed byte limits require a fresh inventory; cancelled and closed snapshots still reject reads. Underlying Git search/inventory must finish within their own limits. Pagination bounds delivery, not total query work. The host must supply an overall workflow deadline if needed.
 
 For the wider package boundaries, see [the architecture guide](../../docs/architecture.md) and [the implementation walkthrough](../../docs/context-engine-walkthrough.md).

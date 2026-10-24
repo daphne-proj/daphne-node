@@ -3,21 +3,12 @@ import { join } from 'node:path';
 import {
   defaultPullRequestLimits,
   parsePullRequestUrl,
-  PullRequestError,
-  PullRequestInputError,
   resolvePullRequest,
 } from '@daphne/pr-review';
-import {
-  acquireSnapshot,
-  defaultGitLimits,
-  GitInputError,
-  GitOperationError,
-} from '@daphne/git-source';
+import { acquireSnapshot, defaultGitLimits } from '@daphne/git-source';
 import {
   createEvidenceSession,
   defaultEvidenceLimits,
-  EvidenceInputError,
-  EvidenceLimitError,
 } from '@daphne/review-evidence';
 import type {
   EvidenceSession,
@@ -25,42 +16,21 @@ import type {
   ToolResult,
 } from '@daphne/review-evidence';
 import {
-  ContextConflictError,
-  ContextInputError,
-  ContextLimitError,
   createContextEngine,
   defaultContextLimits,
 } from '@daphne/context-engine';
 import type { ContextEngine, ContextPacket } from '@daphne/context-engine';
 import { ArtifactError, createRunDirectory, writeArtifact } from './output.js';
+import {
+  CliInputError,
+  InspectionCancelledError,
+  describeFailure,
+} from './errors.js';
+import type { Stage, Failure } from './errors.js';
 
 const sourceAllowanceBytes = 65_536;
 
-export class CliInputError extends Error {
-  override readonly name = 'CliInputError';
-}
-
-class InspectionCancelledError extends Error {
-  override readonly name = 'InspectionCancelledError';
-}
-
 type Progress = 'unstarted' | 'open' | 'complete' | 'partial' | 'unavailable';
-type Stage =
-  | 'arguments'
-  | 'metadata'
-  | 'acquisition'
-  | 'inspection'
-  | 'cleanup'
-  | 'assembly'
-  | 'context_output'
-  | 'run_output';
-
-interface Failure {
-  readonly stage: Stage;
-  readonly code: string;
-  readonly message: string;
-}
-
 interface ChangeProgress {
   readonly changeId: string;
   status: Progress;
@@ -138,47 +108,6 @@ export function parseContextArgs(args: readonly string[]): {
       'Usage: context inspect --pr https://github.com/OWNER/REPO/pull/NUMBER --output NEW_DIRECTORY',
     );
   }
-}
-
-export function describeFailure(stage: Stage, error: unknown): Failure {
-  if (
-    error instanceof PullRequestError ||
-    error instanceof GitOperationError ||
-    error instanceof ArtifactError
-  ) {
-    return { stage, code: error.code, message: error.message };
-  }
-
-  if (
-    error instanceof CliInputError ||
-    error instanceof PullRequestInputError ||
-    error instanceof GitInputError ||
-    error instanceof EvidenceInputError ||
-    error instanceof ContextInputError
-  ) {
-    return { stage, code: 'invalid_input', message: error.message };
-  }
-
-  if (
-    error instanceof EvidenceLimitError ||
-    error instanceof ContextLimitError
-  ) {
-    return { stage, code: 'limit', message: error.message };
-  }
-
-  if (error instanceof ContextConflictError) {
-    return { stage, code: 'conflict', message: error.message };
-  }
-
-  if (error instanceof InspectionCancelledError) {
-    return { stage, code: 'cancelled', message: 'Inspection was cancelled.' };
-  }
-
-  return {
-    stage,
-    code: 'internal',
-    message: 'The inspection could not complete.',
-  };
 }
 
 function checkCancellation(signal: AbortSignal): void {

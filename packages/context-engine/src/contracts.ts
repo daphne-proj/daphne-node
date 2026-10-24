@@ -1,4 +1,5 @@
 import type {
+  Change,
   ContextNotice,
   ReviewIdentity,
   SourceEvidence,
@@ -42,6 +43,18 @@ export interface TokenBudget {
   readonly counterId: string;
   readonly maxTokens: number;
   readonly countTokens: (renderedContext: string) => Promise<number>;
+}
+
+export interface DiffContextHunk {
+  readonly change: Change;
+  readonly hunkIndex: number | null;
+  readonly sources: readonly SourceEvidence[];
+}
+
+export interface DiffContextPage {
+  readonly unitIds: readonly string[];
+  readonly context: string;
+  readonly inputTokens: number;
 }
 
 export interface AssembleInput {

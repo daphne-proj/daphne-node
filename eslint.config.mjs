@@ -55,6 +55,14 @@ const downstreamImportRestriction = {
     '@daphne/review-evidence/**',
     '**/review-evidence',
     '**/review-evidence/**',
+    '@daphne/review-agent',
+    '@daphne/review-agent/**',
+    '**/review-agent',
+    '**/review-agent/**',
+    '@daphne/semantic-split',
+    '@daphne/semantic-split/**',
+    '**/semantic-split',
+    '**/semantic-split/**',
   ],
   message:
     'Acquisition packages must not depend on evidence retrieval or context assembly.',
@@ -113,7 +121,10 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/pr-review/src/**/*.ts'],
+    files: [
+      'packages/pr-review/src/acquisition/**/*.ts',
+      'packages/pr-review/src/index.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -122,9 +133,33 @@ export default defineConfig(
             ...libraryImportRestrictions,
             gitSourceImportRestriction,
             downstreamImportRestriction,
+            {
+              group: ['@daphne/pr-review/split', './split.js', '../split.js'],
+              message: 'Metadata acquisition must not load PR workflows.',
+            },
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['packages/pr-review/src/split.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              regex:
+                '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
+              message:
+                'Compose the existing acquisition and model adapters; the caller owns process configuration and artifacts.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
     },
   },
   {
@@ -242,7 +277,15 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/context-engine/src/**/*.ts'],
+    files: [
+      'packages/context-engine/src/**/*.ts',
+      'packages/semantic-split/src/**/*.ts',
+    ],
+    ignores: [
+      'packages/semantic-split/src/index.ts',
+      'packages/semantic-split/src/workflow.ts',
+      'packages/semantic-split/src/contracts.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -252,24 +295,111 @@ export default defineConfig(
             {
               regex: '^@daphne/(?!review-evidence/contracts$)',
               message:
-                'Context may import only evidence data contracts from other workspaces.',
+                'Pure evidence consumers may import only evidence data contracts from other workspaces.',
+            },
+            {
+              group: ['./workflow.js', './index.js'],
+              message: 'Pure processing modules must not load workflows.',
             },
             {
               group: ['@daphne/review-evidence/contracts'],
               allowTypeImports: true,
               message:
-                'Evidence contracts are a type-only dependency; context must not load retrieval.',
+                'Evidence contracts are a type-only dependency; do not load retrieval.',
             },
             {
               regex:
                 '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
               message:
-                'Context retains supplied data and assembles it without repository or network I/O.',
+                'Keep supplied-evidence processing independent of repository and network I/O.',
             },
           ],
         },
       ],
       'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
+    },
+  },
+  {
+    files: ['packages/semantic-split/src/contracts.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              regex:
+                '^(?!@daphne/(?:context-engine|review-agent|review-evidence/contracts)$|\\./proposal\\.js$)',
+              message:
+                'Split contracts may reference only context, model, evidence and proposal types.',
+            },
+            {
+              group: ['**'],
+              allowTypeImports: true,
+              message: 'Split contracts must not load runtime dependencies.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
+    },
+  },
+  {
+    files: [
+      'packages/semantic-split/src/index.ts',
+      'packages/semantic-split/src/workflow.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              regex:
+                '^@daphne/(?!(?:context-engine|review-agent|review-evidence/contracts)$)',
+              message:
+                'Split orchestration uses supplied evidence, context paging and model calls.',
+            },
+            {
+              group: ['@daphne/review-evidence/contracts'],
+              allowTypeImports: true,
+              message: 'Evidence contracts are a type-only dependency.',
+            },
+            {
+              regex:
+                '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
+              message:
+                'The caller owns Git and artifacts; model I/O belongs to review-agent.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
+    },
+  },
+  {
+    files: ['packages/review-agent/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              group: ['@daphne/**'],
+              message:
+                'Model calls must not depend on PR, evidence, context or split policy.',
+            },
+            {
+              regex: '^(?:node:)?(?:fs|child_process|process)(?:/|$)',
+              message:
+                'The caller owns environment loading, Git and local artifacts.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'process', 'console'],
     },
   },
 );

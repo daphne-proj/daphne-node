@@ -44,6 +44,16 @@ interface RawChange {
   readonly status: GitChange['status'];
 }
 
+/* Pinned snapshots can reuse a completed inventory when its byte limits match. */
+const inventories = new WeakMap<
+  GitSnapshot,
+  {
+    maxBlobBytes: number;
+    maxGitOutputBytes: number;
+    changes: readonly GitChange[];
+  }
+>();
+
 /**
  * Makes malformed Git output an explicit failure rather than a plausible empty result.
  * Example: a raw record missing its second blob ID cannot become a valid change.
@@ -288,6 +298,17 @@ export async function listSnapshotChanges(
   options: GitOperationOptions,
 ): Promise<readonly GitChange[]> {
   return withSnapshot(snapshot, options, async (directory, operation) => {
+    const { maxBlobBytes, maxGitOutputBytes } = operation.limits;
+    const cached = inventories.get(snapshot);
+
+    /* Keep this inside the lease so cache hits still reject closed or cancelled snapshots. */
+    if (
+      cached?.maxBlobBytes === maxBlobBytes &&
+      cached.maxGitOutputBytes === maxGitOutputBytes
+    ) {
+      return cached.changes;
+    }
+
     const raw = await runGit(
       [
         'diff',
@@ -357,6 +378,13 @@ export async function listSnapshotChanges(
 
     checkCancellation(operation.signal);
 
-    return Object.freeze(changes);
+    const inventory = Object.freeze(changes);
+    inventories.set(snapshot, {
+      maxBlobBytes,
+      maxGitOutputBytes,
+      changes: inventory,
+    });
+
+    return inventory;
   });
 }

@@ -6,11 +6,15 @@ This is the TypeScript migration workspace for Daphne. Read `docs/architecture.m
 
 - For TypeScript implementation, refactoring, or review, use `.agents/skills/daphne-typescript/SKILL.md` and `docs/agents/typescript-quality.md`.
 - For Rust-to-TypeScript migration, use `.agents/skills/daphne-migration-parity/SKILL.md` and `docs/migration/parity.md`.
-- For tests, use `.agents/skills/vitest/SKILL.md` and `docs/agents/testing.md`. Repository conventions override generic skill examples.
+- Do not write or modify tests unless the user explicitly asks. Implementation and bug-fix requests alone do not authorize test changes. Run the existing required checks and report any verification limitations. Update tests only when newly added stuff are breaking existing ones.
+- When tests are explicitly requested, use `.agents/skills/vitest/SKILL.md` and `docs/agents/testing.md`. Repository conventions override generic skill examples and test-driven-development workflows.
 - When designing or changing module contracts, use `.agents/skills/codebase-design/SKILL.md` with `docs/architecture.md`. Daphne domain names, ownership, and explicit task constraints take precedence over upstream terminology and workflow advice. Do not add interfaces, adapters, or remove tests solely to satisfy a skill heuristic.
 - The five reasoning workflows in `.agents/skills/README.md` remain explicit-only. Do not load the whole skill collection for every task.
 - Make the smallest complete change. Minimize unnecessary complexity, not line count. Prefer readable, explicit code over compressed expressions. Independently review nontrivial behavior or architecture changes before completion.
+- Prefer small, focused files when separation makes code easier to read or navigate. Extract cohesive helpers into clearly named files even when only one caller uses them, if that keeps the main logic clearer. Keep related files together and preserve module boundaries.
+- In tests, move substantial setup, fixture builders, and test doubles into nearby `*.helpers.ts` files; reserve `*.test.ts` for test scenarios and assertions. Avoid generic utility files and unnecessary splitting of short, cohesive code.
 - When writing, editing, reviewing or presenting any code, use `.agents/skills/daphne-code-readability/SKILL.md`. Apply logical spacing to source, scripts, tests, configuration, documentation examples and chat snippets in every language, respecting its syntax and formatter. Check grouping before presenting snippets and before completing edits; keep changes within the task scope.
+- Write comments for a teammate seeing the code for the first time: explain purpose, constraints and non-obvious choices in plain language. Follow the comment guidance in `docs/agents/typescript-quality.md`; clear code does not need a comment above every block.
 
 ## Commands
 

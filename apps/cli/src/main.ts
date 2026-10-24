@@ -1,10 +1,7 @@
 #!/usr/bin/env node
-import {
-  CliInputError,
-  describeFailure,
-  parseContextArgs,
-  runContextInspect,
-} from './context.js';
+import { CliInputError, describeFailure } from './errors.js';
+import { parseContextArgs, runContextInspect } from './context.js';
+import { parseSplitArgs, runSplitPr } from './split-pr.js';
 
 const args = process.argv.slice(2);
 
@@ -25,16 +22,21 @@ if (args.length === 0) {
   process.on('SIGTERM', cancel);
 
   try {
-    if (args[0] !== 'context' || args[1] !== 'inspect') {
+    if (args[0] === 'split-pr') {
+      process.exitCode = await runSplitPr(
+        parseSplitArgs(args.slice(1)),
+        controller.signal,
+      );
+    } else if (args[0] === 'context' && args[1] === 'inspect') {
+      process.exitCode = await runContextInspect(
+        parseContextArgs(args.slice(2)),
+        controller.signal,
+      );
+    } else {
       throw new CliInputError(
-        'Expected context inspect --pr URL --output NEW_DIRECTORY.',
+        'Expected context inspect or split-pr --pr URL --output NEW_DIRECTORY.',
       );
     }
-
-    process.exitCode = await runContextInspect(
-      parseContextArgs(args.slice(2)),
-      controller.signal,
-    );
   } catch (error) {
     const failure = describeFailure('arguments', error);
     process.stdout.write(

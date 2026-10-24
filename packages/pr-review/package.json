@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./split": {
+      "types": "./dist/split.d.ts",
+      "import": "./dist/split.js"
     }
   },
   "scripts": {
@@ -16,5 +20,11 @@
   "devDependencies": {
     "@types/node": "24.19.2",
     "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "@daphne/git-source": "workspace:*",
+    "@daphne/review-evidence": "workspace:*",
+    "@daphne/context-engine": "workspace:*",
+    "@daphne/semantic-split": "workspace:*"
   }
 }

@@ -21,6 +21,7 @@
         "@daphne/context-engine": "workspace:*",
         "@daphne/git-source": "workspace:*",
         "@daphne/pr-review": "workspace:*",
+        "@daphne/review-agent": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
       },
       "devDependencies": {
@@ -51,9 +52,24 @@
     "packages/pr-review": {
       "name": "@daphne/pr-review",
       "version": "0.0.0",
+      "dependencies": {
+        "@daphne/context-engine": "workspace:*",
+        "@daphne/git-source": "workspace:*",
+        "@daphne/review-evidence": "workspace:*",
+        "@daphne/semantic-split": "workspace:*",
+      },
       "devDependencies": {
         "@types/node": "24.19.2",
         "typescript": "6.0.3",
+      },
+    },
+    "packages/review-agent": {
+      "name": "@daphne/review-agent",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/node": "24.19.2",
+        "typescript": "6.0.3",
+        "vitest": "5.0.5",
       },
     },
     "packages/review-evidence": {
@@ -65,6 +81,20 @@
       "devDependencies": {
         "@types/node": "24.19.2",
         "typescript": "6.0.3",
+      },
+    },
+    "packages/semantic-split": {
+      "name": "@daphne/semantic-split",
+      "version": "0.0.0",
+      "dependencies": {
+        "@daphne/context-engine": "workspace:*",
+        "@daphne/review-agent": "workspace:*",
+        "@daphne/review-evidence": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "24.19.2",
+        "typescript": "6.0.3",
+        "vitest": "5.0.5",
       },
     },
   },
@@ -81,7 +111,11 @@
 
     "@daphne/pr-review": ["@daphne/pr-review@workspace:packages/pr-review"],
 
+    "@daphne/review-agent": ["@daphne/review-agent@workspace:packages/review-agent"],
+
     "@daphne/review-evidence": ["@daphne/review-evidence@workspace:packages/review-evidence"],
+
+    "@daphne/semantic-split": ["@daphne/semantic-split@workspace:packages/semantic-split"],
 
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.10.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg=="],
 

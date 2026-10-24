@@ -172,7 +172,7 @@ export function request(value: unknown): ToolRequest {
   }
 }
 
-function change(value: unknown): Change {
+export function change(value: unknown): Change {
   const input = object(value);
   const { status, kind } = input;
 

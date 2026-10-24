@@ -15,6 +15,12 @@
     },
     {
       "path": "./packages/context-engine/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/semantic-split/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/review-agent/tsconfig.build.json"
     }
   ]
 }
