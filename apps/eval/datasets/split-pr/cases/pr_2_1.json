@@ -283,102 +283,99 @@
       "leftUnitId": "change-1:0",
       "rightUnitId": "change-2:0",
       "relation": "together",
-      "reason": "The replacement re-export names the newly added gateway module, whose class preserves the removed implementation with adjusted import paths."
+      "reason": "packages/checkout/src/fake-payment.ts replaces its FakePaymentGateway implementation with a re-export from './payments/fake-payment-gateway', and packages/checkout/src/payments/fake-payment-gateway.ts supplies that same class with adjusted relative imports. The forwarding export requires the new module, and both units form one relocation preserving the original import path."
     },
     {
       "leftUnitId": "change-1:0",
       "rightUnitId": "change-3:0",
       "relation": "separate",
-      "reason": "The gateway compatibility re-export and the change to pricing's discount provider address distinct review responsibilities."
+      "reason": "The FakePaymentGateway forwarding export in packages/checkout/src/fake-payment.ts concerns the gateway's module location. The discountCents import change in packages/checkout/src/pricing.ts selects './promotion' as a discount-helper dependency; neither shown edit references the other's symbol or module."
     },
     {
       "leftUnitId": "change-1:0",
       "rightUnitId": "change-3:1",
       "relation": "separate",
-      "reason": "Relocating the gateway behind its existing export path is independent of renaming the pricing function."
+      "reason": "packages/checkout/src/fake-payment.ts preserves the FakePaymentGateway import path through a re-export, while packages/checkout/src/pricing.ts renames the price declaration to calculatePrice. Gateway relocation and pricing-function naming are independent review responsibilities in the supplied evidence."
     },
     {
       "leftUnitId": "change-1:0",
       "rightUnitId": "change-3:2",
       "relation": "separate",
-      "reason": "The gateway re-export preserves a module path, while the pricing alias preserves a different symbol's exported name."
+      "reason": "The re-export in packages/checkout/src/fake-payment.ts forwards FakePaymentGateway from its new module, whereas 'export { calculatePrice as price }' in packages/checkout/src/pricing.ts preserves the pricing export name. These compatibility exports target different symbols and have separate dependencies."
     },
     {
       "leftUnitId": "change-1:0",
       "rightUnitId": "change-4:0",
       "relation": "separate",
-      "reason": "The gateway relocation shim and the new promotion discount calculation concern distinct functionality."
+      "reason": "packages/checkout/src/fake-payment.ts forwards FakePaymentGateway to its relocated implementation. packages/checkout/src/promotion.ts defines discountCents with basisPoints validation and Math.floor rounding. The gateway forwarding change and discount calculation have no visible dependency on each other."
     },
     {
       "leftUnitId": "change-2:0",
       "rightUnitId": "change-3:0",
       "relation": "separate",
-      "reason": "The relocated gateway handles charges and refunds; changing the discount import selects a pricing calculation provider."
+      "reason": "packages/checkout/src/payments/fake-payment-gateway.ts relocates FakePaymentGateway's charge, refund, and attempt-recording implementation. packages/checkout/src/pricing.ts changes the source of its discountCents import to './promotion'; the shown gateway implementation neither imports nor calls discountCents."
     },
     {
       "leftUnitId": "change-2:0",
       "rightUnitId": "change-3:1",
       "relation": "separate",
-      "reason": "The gateway implementation move and the pricing function's name change have distinct review responsibilities."
+      "reason": "The added FakePaymentGateway class in packages/checkout/src/payments/fake-payment-gateway.ts manages payment attempts and refunds, while the declaration change in packages/checkout/src/pricing.ts renames price to calculatePrice. The supplied gateway implementation has no reference to either pricing-function name."
     },
     {
       "leftUnitId": "change-2:0",
       "rightUnitId": "change-3:2",
       "relation": "separate",
-      "reason": "Adding the relocated gateway implementation does not participate in the alias from calculatePrice to price."
+      "reason": "packages/checkout/src/payments/fake-payment-gateway.ts supplies the relocated FakePaymentGateway class, while packages/checkout/src/pricing.ts adds a calculatePrice-as-price export alias. The alias depends on the pricing declaration, not on the gateway implementation, which contains no pricing reference."
     },
     {
       "leftUnitId": "change-2:0",
       "rightUnitId": "change-4:0",
       "relation": "separate",
-      "reason": "The shown gateway implementation manages payment attempts and refunds, while the promotion helper validates basis points and calculates a discount."
+      "reason": "FakePaymentGateway in packages/checkout/src/payments/fake-payment-gateway.ts records captures, rejections, and refunds. discountCents in packages/checkout/src/promotion.ts validates basisPoints and computes a rounded discount. Neither supplied implementation references the other; their shared Cents type does not require combining these responsibilities."
     },
     {
       "leftUnitId": "change-3:0",
       "rightUnitId": "change-3:1",
       "relation": "separate",
-      "reason": "Selecting the discount implementation and renaming the pricing entry point are distinct changes; the import retains the local name discountCents."
+      "reason": "Within packages/checkout/src/pricing.ts, changing the discountCents import from '../../core/src' to './promotion' preserves its local binding name, while renaming price to calculatePrice changes the exported function declaration. The shown import migration does not require the function rename."
     },
     {
       "leftUnitId": "change-3:0",
       "rightUnitId": "change-3:2",
       "relation": "separate",
-      "reason": "The discount import changes its source module, while the alias concerns the exported pricing name and references calculatePrice."
+      "reason": "In packages/checkout/src/pricing.ts, the discountCents import selects a helper implementation, whereas 'export { calculatePrice as price }' preserves a public function name. The alias does not reference discountCents or './promotion', so these belong to separate dependency-migration and export-compatibility responsibilities."
     },
     {
       "leftUnitId": "change-3:0",
       "rightUnitId": "change-4:0",
       "relation": "together",
-      "reason": "Pricing now imports discountCents from './promotion', and the added promotion module supplies that exact export."
+      "reason": "packages/checkout/src/pricing.ts changes its discountCents import to './promotion', and the newly added packages/checkout/src/promotion.ts supplies that exact export. The import requires the new module, and selecting the helper and reviewing its validation and rounding form one discount-helper migration responsibility."
     },
     {
       "leftUnitId": "change-3:1",
       "rightUnitId": "change-3:2",
       "relation": "together",
-      "reason": "The alias references the newly named calculatePrice function and preserves its previous exported name price."
+      "reason": "packages/checkout/src/pricing.ts renames the exported declaration from price to calculatePrice and adds 'export { calculatePrice as price }'. The alias references the new declaration name and retains the previous public export, so the rename and compatibility alias must be reviewed together."
     },
     {
       "leftUnitId": "change-3:1",
       "rightUnitId": "change-4:0",
       "relation": "separate",
-      "reason": "The pricing declaration changes its name while retaining its signature; the promotion module introduces discount validation and arithmetic."
+      "reason": "Renaming price to calculatePrice in packages/checkout/src/pricing.ts changes the function's declaration name. The new discountCents implementation in packages/checkout/src/promotion.ts depends on Cents and its subtotal and basisPoints arguments, with no reference to either pricing-function name; its implementation is a separate responsibility."
     },
     {
       "leftUnitId": "change-3:2",
       "rightUnitId": "change-4:0",
       "relation": "separate",
-      "reason": "Preserving the price export through an alias is independent of providing the discountCents implementation."
+      "reason": "The calculatePrice-as-price alias in packages/checkout/src/pricing.ts preserves the existing pricing export name. The discountCents definition in packages/checkout/src/promotion.ts introduces discount validation and arithmetic without referencing that alias. Export compatibility and the discount-helper implementation can be reviewed separately."
     }
   ],
   "notes": [
-    "All 15 labels were proposed by an isolated Codex LLM judge on 2026-10-24 using only the frozen evidence, without the original model proposal. The user explicitly approved all 15 proposed labels in this chat.",
-    "The pricing function body and its callers are absent, so their behavior and compatibility cannot be assessed beyond the shown declaration and alias.",
-    "The previous core discountCents implementation is absent, so equivalence with the new promotion implementation cannot be established.",
-    "Only the supplied excerpts were inspected; execution and buildability were not checked."
+    "The frozen evidence omits the body of the pricing function in packages/checkout/src/pricing.ts, so its use of discountCents and any internal references to price or calculatePrice cannot be checked.",
+    "The previous discountCents implementation imported from '../../core/src' is not included, so behavioral equivalence with packages/checkout/src/promotion.ts cannot be established, including validation and rounding behavior.",
+    "Caller code, dependency definitions, build configuration, and tests are not included. Repository-wide module resolution, type correctness, and compatibility remain unverified; the pair labels describe the review responsibilities supported by the supplied hunks."
   ],
   "review": {
-    "status": "reviewed",
-    "reviewer": "user (explicit approval in this chat)",
-    "reviewedAt": "2026-10-24T12:48:34.494Z"
+    "status": "draft"
   }
 }

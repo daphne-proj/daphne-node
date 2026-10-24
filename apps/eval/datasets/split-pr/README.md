@@ -1,10 +1,8 @@
 # Frozen split-pr cases
 
-The suite lists case files in evaluation order, relative to this directory. Each case preserves the original identity, change inventory and source excerpts. The first case, `pr-review-test-2`, was imported from `outputs/split-pr-20261023-192117-87636/run.json`, for [PR 2](https://github.com/daphne-proj/pr-review-test/pull/2). Its four changes and six original units remain unchanged. The ignored source artifact is not needed to load the saved case.
+The suite lists case files in evaluation order, relative to this directory. Each case preserves the original identity, change inventory and source excerpts. Current captures are `pr_1_1.json` and `pr_2_1.json`; both are drafts. The suite still refers to the missing old `pr-review-test-2.json`. Individual validation and comparison commands load the case directly and do not require or alter suite registration. The ignored source artifact is not needed to validate a saved case, but comparison needs its saved predicted groups.
 
 All imported cases start in `development` with `review.status: "draft"` and no labels. A valid draft is not a reviewed benchmark. Generated proposals, raw responses and existing scores are not imported as reference answers.
-
-The first case now has 15 pair labels proposed by an isolated LLM judge and explicitly approved by the user in chat on 2026-10-24: three together and twelve separate. It is marked reviewed and remains in development. The judge used only the frozen evidence; its missing-context notes remain in the case.
 
 ## Add and review a case
 
