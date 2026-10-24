@@ -38,6 +38,14 @@ Add pair labels using original unit IDs such as `change-3:0`. A text hunk uses `
 
 Do not label a unit against itself or repeat a pair in either order. Together relationships are transitive: A together B and B together C cannot coexist with A separate C. Several groupings may satisfy the same labels. Use `notes` for absent context and `tags` for relevant categories.
 
+Check a draft after annotation, before human approval or suite registration:
+
+```sh
+make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json
+```
+
+This offline check prints structural validation and explicit label coverage, including unknown/unlabeled pairs and units without any together/separate labels. It preserves the file and its review status. A valid result does not establish that the labels are semantically correct; see the [coverage definitions](../../README.md#import-and-validate-split-pr-cases).
+
 After human review, replace the review object with `status: "reviewed"`, a nonblank `reviewer` and an ISO UTC `reviewedAt`. Assign the partition deliberately; related revisions belong to the same partition. Synthetic cases use provenance kind `synthetic`, `capturedAt` and a nonblank `constructionSource`. Do not fabricate reviewer approval.
 
 ## Validation and provenance

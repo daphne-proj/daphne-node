@@ -16,6 +16,16 @@ bun run eval -- split-pr validate --suite apps/eval/datasets/split-pr/suite.json
 
 Import creates a draft case and refuses to overwrite files. Register its relative filename in your suite explicitly. Validation exits `0` for a structurally valid suite, including drafts, and `1` for malformed evidence or contradictory labels. These commands require no credentials and do not initialize telemetry or make network calls. See the [dataset guide](datasets/split-pr/README.md) for annotation, fingerprints and the first imported case.
 
+Validate an individual case before registering or approving it:
+
+```sh
+make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json
+```
+
+The target builds and runs `bun run eval -- split-pr validate --case PATH`. Choose exactly one of `--case` or `--suite`; both use the same validator. Validation prints JSON and changes no case, review status or suite entry. Invalid input exits nonzero.
+
+Each case summary reports label counts and coverage: all possible unordered pairs, unlabeled pairs, labeled-pair rate, known-pair count/rate and units with or without known relationships. A known relationship is `together` or `separate`; `unknown` contributes only to labeled coverage. Rates are fractions from 0 to 1, or `null` when there are fewer than two units. Only explicit labels count; transitive relationships are checked for contradictions but do not inflate coverage. These counts describe annotations, including draft proposals, not semantic correctness or human approval. Partial annotation is allowed; there is no minimum coverage gate.
+
 ## Score a saved split-pr run
 
 ```sh

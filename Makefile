@@ -1,10 +1,10 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-case
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-case split-pr-validate
 
 MODEL ?= gpt-6.1-sol
 MAX_INPUT_TOKENS ?= 16384
-export PR OUTPUT MODEL MAX_INPUT_TOKENS
+export PR OUTPUT MODEL MAX_INPUT_TOKENS CASE
 
 help:
 	@printf '%s\n' \
@@ -29,7 +29,9 @@ help:
 		'make split-pr-case PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Save outputs/pr_123_1/run.json and draft cases/pr_123_1.json' \
 		'                   Increment the suffix when occupied; no labels or suite registration' \
-		'                   Optional: MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384'
+		'                   Optional: MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384' \
+		'make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_2_1.json' \
+		'                   Validate a case and report label coverage offline; preserve review status'
 
 install:
 	bun install --frozen-lockfile
@@ -131,3 +133,11 @@ split-pr-case:
 	fi; \
 	bun run eval -- split-pr import --artifact "$$directory/run.json" --case-id "$$case_id" --output "$$case_file"; \
 	exit "$$split_status"
+
+split-pr-validate:
+	@test -n "$$CASE" || { \
+		printf '%s\n' 'Usage: make split-pr-validate CASE=PATH' >&2; \
+		exit 1; \
+	}
+	bun run build
+	bun run eval -- split-pr validate --case "$$CASE"

@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
-import { getExpectedUnitIds } from '@daphne/semantic-split';
-import { loadSplitSuite } from './dataset.js';
+import { loadSplitCase, loadSplitSuite } from './dataset.js';
+import { summarizeSplitCase } from './validation.js';
 import { importSplitCase } from './import.js';
 import { evaluateSplitArtifact } from './evaluate.js';
 import { writeJsonArtifact } from './report.js';
@@ -8,7 +8,7 @@ import { SplitDatasetError, text, choice } from './parse.js';
 import { runSplitEvaluation } from './run.js';
 
 const usage =
-  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --suite PATH\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
+  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --case PATH | --suite PATH\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
 
 function options(
   args: string[],
@@ -71,8 +71,28 @@ export async function runSplitCommand(
         }) + '\n',
       );
     } else if (command === 'validate') {
-      const values = options(rest, ['suite']);
-      const suite = await loadSplitSuite(text(values.suite, '--suite'));
+      const target = rest.some(
+        (argument) => argument === '--case' || argument.startsWith('--case='),
+      )
+        ? 'case'
+        : 'suite';
+      const values = options(rest, [target]);
+      const path = text(values[target], `--${target}`);
+
+      if (target === 'case') {
+        const prepared = await loadSplitCase(path);
+        signal.throwIfAborted();
+        process.stdout.write(
+          JSON.stringify(
+            { status: 'valid', ...summarizeSplitCase(prepared) },
+            null,
+            2,
+          ) + '\n',
+        );
+        return 0;
+      }
+
+      const suite = await loadSplitSuite(path);
       signal.throwIfAborted();
       const partitions = { development: 0, holdout: 0 };
       const reviews = { draft: 0, reviewed: 0 };
@@ -94,16 +114,7 @@ export async function runSplitCommand(
           partitions,
           reviews,
           labels,
-          cases: suite.cases.map(({ definition, caseHash, inputHash }) => ({
-            id: definition.id,
-            partition: definition.partition,
-            review: definition.review.status,
-            tags: definition.tags,
-            units: getExpectedUnitIds(definition.evidence.changes).size,
-            labels: definition.labels.length,
-            caseHash,
-            inputHash,
-          })),
+          cases: suite.cases.map(summarizeSplitCase),
         }) + '\n',
       );
     } else if (command === 'score') {

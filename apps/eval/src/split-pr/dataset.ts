@@ -21,7 +21,7 @@ function caseFile(value: unknown): string {
   return path;
 }
 
-async function loadCase(path: string): Promise<PreparedSplitCase> {
+export async function loadSplitCase(path: string): Promise<PreparedSplitCase> {
   const { bytes, value: definition } = await parse.readJson(
     path,
     parseSplitCase,
@@ -80,7 +80,7 @@ export async function loadSplitSuite(
         );
       }
 
-      const prepared = await loadCase(target);
+      const prepared = await loadSplitCase(target);
 
       if (ids.has(prepared.definition.id)) {
         throw new parse.SplitDatasetError(

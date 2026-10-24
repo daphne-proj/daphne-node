@@ -72,6 +72,8 @@ Running this command calls GitHub and OpenAI; importing the case is offline and 
 
 For annotation, give a fresh Codex session only the draft case and the rubric in the [dataset guide](apps/eval/datasets/split-pr/README.md), keeping the model's `run.json` output out of its context. Labels, human approval and suite registration remain separate steps; this target does not modify `suite.json`.
 
+After adding labels, check the case offline with `make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json`. It reports structural validity, label counts and coverage without changing the case or its review status. Human review of label meaning remains required.
+
 ## Verify Langfuse setup
 
 Configure the three `LANGFUSE_*` variables listed in [.env.example](.env.example), preserving any existing `.env` values, then run:
