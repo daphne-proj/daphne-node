@@ -1,6 +1,6 @@
 # Daphne — TypeScript workspace
 
-Foundation for migrating [Daphne](https://github.com/daphne-proj/daphne) to TypeScript. This repository includes tooling, agent guidance, bounded PR context inspection and an experimental LLM split proposal command. The commands connect PR metadata, pinned Git source, evidence retrieval and context assembly. Rust workflow parity, extraction, graph, lifecycle and domain evaluation logic remain future work.
+Foundation for migrating [Daphne](https://github.com/daphne-proj/daphne) to TypeScript. This repository includes tooling, agent guidance, bounded PR context inspection and an experimental LLM split proposal command. The commands connect PR metadata, pinned Git source, evidence retrieval and context assembly. Rust workflow parity, extraction, graph, lifecycle and broader evaluation workflows remain future work.
 
 ## Getting started
 
@@ -71,6 +71,8 @@ bun run eval -- langfuse-smoke
 
 This explicitly sends two synthetic arithmetic cases and their scores to your configured Langfuse instance, with no model calls. The JSON result links to the experiment. See [the smoke check](apps/eval/tests/smoke/README.md) for its purpose and the official Langfuse references, and [the evaluation app](apps/eval/README.md) for configuration and failure behavior. Normal checks remain offline.
 
+The evaluation app also imports saved split-pr evidence, validates frozen datasets and scores saved outputs against reviewed pair labels offline. The [dataset guide](apps/eval/datasets/split-pr/README.md) describes annotation and the first reviewed case; [saved-run scoring](apps/eval/README.md#score-a-saved-split-pr-run) explains the command and metrics. Baseline commands and model experiments are not implemented yet.
+
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `bun run build`        | Compile workspace projects in dependency order                         |
@@ -90,7 +92,7 @@ Use **`bun run test`**, not `bun test`: the latter selects Bun's separate test r
 ```text
 apps/
   cli/                 Node CLI entry point; src/ and tests/
-  eval/                Node evaluation app; synthetic Langfuse smoke command
+  eval/                Frozen split-pr datasets and synthetic Langfuse smoke command
 packages/              PR acquisition, Git source, evidence and context libraries
 docs/
   adr/                 Accepted architecture decisions
