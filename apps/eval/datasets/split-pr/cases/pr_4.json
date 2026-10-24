@@ -1,0 +1,24 @@
+{
+  "together": [
+    ["change-2:0", "change-7:0"],
+    ["change-3:0", "change-7:0"],
+    ["change-4:0", "change-16:metadata"],
+    ["change-5:0", "change-16:metadata"],
+    ["change-6:metadata", "change-8:0"],
+    ["change-7:0", "change-8:0"],
+    ["change-7:0", "change-9:0"],
+    ["change-10:0", "change-11:0"],
+    ["change-10:1", "change-17:metadata"],
+    ["change-10:2", "change-17:metadata"],
+    ["change-11:0", "change-17:metadata"],
+    ["change-12:0", "change-16:metadata"],
+    ["change-13:0", "change-16:metadata"],
+    ["change-14:0", "change-16:metadata"],
+    ["change-15:0", "change-18:0"],
+    ["change-16:metadata", "change-17:metadata"],
+    ["change-16:metadata", "change-18:0"],
+    ["change-18:0", "change-18:1"],
+    ["change-18:0", "change-18:2"]
+  ],
+  "separate": [["change-7:0", "change-16:metadata"]]
+}

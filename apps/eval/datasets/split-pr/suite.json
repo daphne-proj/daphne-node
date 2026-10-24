@@ -1,5 +1,14 @@
 {
   "format": "daphne-split-suite-v1",
   "id": "split-pr",
-  "caseFiles": ["cases/pr_1.json", "cases/pr_2.json"]
+  "caseFiles": [
+    "cases/pr_1.json",
+    "cases/pr_2.json",
+    "cases/pr_3.json",
+    "cases/pr_4.json",
+    "cases/pr_5.json",
+    "cases/pr_6.json",
+    "cases/pr_7.json",
+    "cases/pr_8.json"
+  ]
 }
