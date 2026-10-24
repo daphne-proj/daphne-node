@@ -16,6 +16,7 @@ help:
 		'make format-check  Check formatting without changing files' \
 		'make typecheck     Build and check TypeScript types' \
 		'make test          Build and run Vitest' \
+		'                   Optional: TEST=PATH selects a package directory or test file' \
 		'make test-watch    Build and start Vitest in watch mode' \
 		'make clean         Remove TypeScript build outputs' \
 		'make cli           Build and run the CLI without arguments' \
@@ -29,8 +30,11 @@ help:
 install:
 	bun install --frozen-lockfile
 
-build check lint format typecheck test clean:
+build check lint format typecheck clean:
 	bun run $@
+
+test:
+	bun run test $(TEST)
 
 format-check:
 	bun run format:check
@@ -40,6 +44,8 @@ test-watch:
 
 cli: build
 	bun run cli
+
+## Dapgne CLI
 
 inspect:
 	@test -n "$$PR" || { \
