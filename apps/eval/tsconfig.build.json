@@ -10,5 +10,13 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
-  "include": ["src/**/*.ts", "tests/smoke/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/smoke/**/*.ts"],
+  "references": [
+    {
+      "path": "../../packages/semantic-split/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/review-evidence/tsconfig.build.json"
+    }
+  ]
 }

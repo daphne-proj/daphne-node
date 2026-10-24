@@ -34,6 +34,8 @@
       "name": "@daphne/eval",
       "version": "0.0.0",
       "dependencies": {
+        "@daphne/review-evidence": "workspace:*",
+        "@daphne/semantic-split": "workspace:*",
         "@langfuse/client": "6.0.2",
         "@langfuse/core": "6.0.2",
         "@langfuse/otel": "6.0.2",

@@ -1,10 +1,11 @@
 /*
- * Starts the evaluation command and prints its result after cleanup.
+ * Dispatches offline dataset commands and the live smoke experiment.
  * Example: `bun run eval langfuse-smoke` checks the Langfuse setup.
  * A failed or cancelled run makes the command exit with an error.
  */
 
 import { existsSync } from 'node:fs';
+import { runSplitCommand } from './split-pr/command.js';
 import { loadEnvFile } from 'node:process';
 import {
   LangfuseConfigurationError,
@@ -14,22 +15,8 @@ import {
 import { runLangfuseSmoke } from '../tests/smoke/langfuse-smoke.js';
 import type { LangfuseSmokeResult } from '../tests/smoke/langfuse-smoke.js';
 
-async function main(): Promise<number> {
-  const args = process.argv.slice(2);
-
-  if (args.length !== 1 || args[0] !== 'langfuse-smoke') {
-    process.stderr.write('Usage: eval langfuse-smoke\n');
-    return 1;
-  }
-
-  const controller = new AbortController();
-  const cancel = () => {
-    controller.abort();
-  };
+async function runSmoke(signal: AbortSignal): Promise<number> {
   let result: LangfuseSmokeResult | undefined;
-
-  process.on('SIGINT', cancel);
-  process.on('SIGTERM', cancel);
 
   try {
     if (existsSync('.env')) {
@@ -39,7 +26,7 @@ async function main(): Promise<number> {
     const connection = readLangfuseConnection(process.env);
 
     await withLangfuse(connection, async (client) => {
-      result = await runLangfuseSmoke(client, controller.signal);
+      result = await runLangfuseSmoke(client, signal);
     });
   } catch (error) {
     const message =
@@ -57,16 +44,13 @@ async function main(): Promise<number> {
     if (!result) {
       return 1;
     }
-  } finally {
-    process.off('SIGINT', cancel);
-    process.off('SIGTERM', cancel);
   }
 
   if (!result) {
     return 1;
   }
 
-  if (controller.signal.aborted) {
+  if (signal.aborted) {
     result.status = 'failed';
     result.issues.push('Command cancelled.');
   }
@@ -74,6 +58,38 @@ async function main(): Promise<number> {
   /* Announce success only after scores and traces have finished finalization. */
   process.stdout.write(`${JSON.stringify(result)}\n`);
   return result.status === 'complete' ? 0 : 1;
+}
+
+async function main(): Promise<number> {
+  const args = process.argv.slice(2);
+
+  if (
+    args[0] !== 'split-pr' &&
+    (args.length !== 1 || args[0] !== 'langfuse-smoke')
+  ) {
+    process.stderr.write(
+      'Usage: eval langfuse-smoke | split-pr import|validate ...\n',
+    );
+    return 1;
+  }
+
+  const controller = new AbortController();
+  const cancel = () => {
+    controller.abort();
+  };
+  process.on('SIGINT', cancel);
+  process.on('SIGTERM', cancel);
+
+  try {
+    if (args[0] === 'split-pr') {
+      return await runSplitCommand(args.slice(1), controller.signal);
+    }
+
+    return await runSmoke(controller.signal);
+  } finally {
+    process.off('SIGINT', cancel);
+    process.off('SIGTERM', cancel);
+  }
 }
 
 process.exitCode = await main();

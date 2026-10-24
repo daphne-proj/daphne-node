@@ -1,0 +1,114 @@
+import { parseArgs } from 'node:util';
+import { getExpectedUnitIds } from '@daphne/semantic-split';
+import { loadSplitSuite } from './dataset.js';
+import { importSplitCase } from './import.js';
+import { SplitDatasetError, text } from './parse.js';
+
+const usage =
+  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --suite PATH';
+
+function options(args: string[], names: string[]): Record<string, string> {
+  try {
+    const { values, tokens } = parseArgs({
+      args,
+      options: Object.fromEntries(
+        names.map((name) => [name, { type: 'string' }]),
+      ),
+      strict: true,
+      allowPositionals: false,
+      tokens: true,
+    });
+    const used = tokens
+      .filter((token) => token.kind === 'option')
+      .map((token) => token.name);
+
+    if (new Set(used).size !== used.length) {
+      throw new SplitDatasetError('Options must appear once.');
+    }
+
+    return Object.fromEntries(
+      names.map((name) => [name, text(values[name], `--${name}`)]),
+    );
+  } catch {
+    throw new SplitDatasetError(usage);
+  }
+}
+
+export async function runSplitCommand(
+  args: string[],
+  signal: AbortSignal,
+): Promise<number> {
+  try {
+    signal.throwIfAborted();
+
+    const [command, ...rest] = args;
+
+    if (command === 'import') {
+      const values = options(rest, ['artifact', 'case-id', 'output']);
+      await importSplitCase(
+        text(values.artifact, '--artifact'),
+        text(values['case-id'], '--case-id'),
+        text(values.output, '--output'),
+      );
+      signal.throwIfAborted();
+      process.stdout.write(
+        JSON.stringify({
+          status: 'draft',
+          caseId: values['case-id'],
+          output: values.output,
+          message:
+            'Evidence imported. Human labels, review and deliberate partition assignment are still required; the suite was not changed.',
+        }) + '\n',
+      );
+    } else if (command === 'validate') {
+      const values = options(rest, ['suite']);
+      const suite = await loadSplitSuite(text(values.suite, '--suite'));
+      signal.throwIfAborted();
+      const partitions = { development: 0, holdout: 0 };
+      const reviews = { draft: 0, reviewed: 0 };
+      const labels = { together: 0, separate: 0, unknown: 0 };
+
+      for (const { definition } of suite.cases) {
+        partitions[definition.partition] += 1;
+        reviews[definition.review.status] += 1;
+        for (const label of definition.labels) {
+          labels[label.relation] += 1;
+        }
+      }
+
+      process.stdout.write(
+        JSON.stringify({
+          status: 'valid',
+          id: suite.id,
+          datasetHash: suite.datasetHash,
+          partitions,
+          reviews,
+          labels,
+          cases: suite.cases.map(({ definition, caseHash, inputHash }) => ({
+            id: definition.id,
+            partition: definition.partition,
+            review: definition.review.status,
+            tags: definition.tags,
+            units: getExpectedUnitIds(definition.evidence.changes).size,
+            labels: definition.labels.length,
+            caseHash,
+            inputHash,
+          })),
+        }) + '\n',
+      );
+    } else {
+      throw new SplitDatasetError(usage);
+    }
+
+    return 0;
+  } catch (error) {
+    const message =
+      error instanceof SplitDatasetError
+        ? error.message
+        : 'Split dataset operation failed.';
+    process.stderr.write(
+      `${signal.aborted ? 'Command cancelled.' : message}\n`,
+    );
+    return 1;
+  }
+}
