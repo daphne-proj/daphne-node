@@ -92,12 +92,22 @@ split-pr-case:
 		directory="outputs/$$case_id"; \
 		case_file="$$cases/$$case_id.json"; \
 		lock="outputs/.$$case_id.lock"; \
-		if mkdir "$$lock" 2>/dev/null; then \
+		reservation_status=0; \
+		node --input-type=module -e ' \
+			import { mkdirSync } from "node:fs"; \
+			try { \
+				mkdirSync(process.argv[1]); \
+			} catch (error) { \
+				if (error.code !== "EEXIST") { throw error; } \
+				process.exitCode = 2; \
+			} \
+		' "$$lock" || reservation_status=$$?; \
+		if test "$$reservation_status" -eq 0; then \
 			if ! test -e "$$directory" && ! test -L "$$directory" && ! test -e "$$case_file" && ! test -L "$$case_file"; then \
 				break; \
 			fi; \
 			rmdir "$$lock"; \
-		elif ! test -d "$$lock"; then \
+		elif test "$$reservation_status" -ne 2; then \
 			printf '%s\n' "Cannot reserve $$directory." >&2; \
 			exit 1; \
 		fi; \

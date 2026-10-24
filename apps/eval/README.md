@@ -1,8 +1,12 @@
 # Evaluation application
 
-The Node evaluation application provides offline split-pr dataset import, validation and saved-run scoring, plus a manual Langfuse integration check. Baseline commands and model experiments are not implemented yet. The smoke command's two test files live together in [`tests/smoke`](tests/smoke/README.md).
+The Node evaluation application imports and validates frozen split-pr datasets, scores saved outputs offline, and runs reviewed cases through live Langfuse experiments. It also provides a manual Langfuse integration check. The smoke command's two test files live together in [`tests/smoke`](tests/smoke/README.md).
 
 ## Import and validate split-pr cases
+
+To capture a new PR and import a draft in one command, run `make split-pr-case PR=https://github.com/OWNER/REPO/pull/2`. It calls the splitter, saves `outputs/pr_2_1/run.json` and imports evidence into `apps/eval/datasets/split-pr/cases/pr_2_1.json`, incrementing the suffix when a run directory or case file already exists. It creates no labels, marks the case draft and leaves the suite unchanged. The split makes live GitHub/OpenAI calls; the import is offline, with no Langfuse writes. A failed split can still yield an importable case, but the command retains its failure exit status.
+
+To import an artifact you already have:
 
 ```sh
 bun run build
@@ -29,6 +33,28 @@ Each pair receives `1` when its expected relationship holds, `0` when violated, 
 
 The versioned report includes all pair results and reasons, violated pairs, fresh validation diagnostics, first-reply/correction information and case/input/dataset/artifact hashes. It is also printed as JSON. Exit `0` means evaluation and report publication completed, even when the output scores poorly. Exit `1` means invalid evaluation inputs, an inconsistent artifact, cancellation or output failure. The command does not fetch Git, make model calls or initialize Langfuse. Scores measure agreement with the approved labels; they do not establish buildability or semantic correctness beyond those constraints.
 
+## Run reviewed split-pr evaluations
+
+```sh
+bun run build
+bun run eval -- split-pr run \
+  --suite apps/eval/datasets/split-pr/suite.json \
+  --partition development \
+  --output outputs/split-pr-eval-first \
+  --trials 1 \
+  --concurrency 1
+```
+
+This explicitly calls OpenAI and writes experiments to Langfuse. Configure `OPENAI_API_KEY` and the three Langfuse variables below in your environment or root `.env`. Defaults are model `gpt-6.1-sol`, input budget `16384`, three independent trials and concurrency `2`; override them with `--model`, `--max-input-tokens`, `--trials` and `--concurrency`. The partition is required, every selected case must be reviewed, and the output directory must be new with an existing parent. Validation happens before credential loading or telemetry. The run uses frozen evidence without fetching GitHub or exposing labels to the splitter.
+
+Each trial number creates one native experiment, with one item per selected case. Item scores are `completed`, `accepted`, `constraints_passed`, `together_rate`, `separate_rate`, `corrections`, `count_calls` and `generate_calls`. Unavailable rates use categorical `not_applicable`. The run's `accepted_rate` includes every scheduled case in its denominator, including missing or failed work. Acceptance means structurally valid output; `constraints_passed` additionally checks the reviewed relationships.
+
+Langfuse stores the original compact evidence once as item input, reviewed labels as expected output, and only status plus proposal or sanitized error as output. Child `semantic-split`, `openai.count` and `openai.generate` observations record durations. Generations carry the actual response model and provider token usage, including usage from rejected replies. Cached input and reasoning output use separate, non-overlapping buckets. Count-endpoint estimates are not consumed tokens. Cost comes from matching Langfuse model prices; missing usage or prices means unavailable cost, never verified zero. Raw responses, replay items and repeated page text stay local.
+
+The output directory contains an initial `scheduled.json`, full `trial-N-case-M.json` artifacts, and a final `manifest.json` with scores, hashes, Git commit/dirty state, prompt/schema hash, model configuration, SDK version and experiment links. Files are published without overwriting. Cancellation preserves completed work and every scheduled entry, including unstarted rounds. These artifacts support later regrading; they do not provide crash resume. A dirty-state flag identifies an uncommitted build but is not a source-code snapshot.
+
+Exit `0` means all scheduled results, scores and telemetry finalization were accounted for, even when model quality is poor. Exit `1` means invalid configuration, cancellation, missing results/scores, artifact publication failure or a reported telemetry failure. The JSON summary separates quality failures from incomplete evaluation. Finalization failure retains local results and marks the manifest incomplete. The current dataset contains one reviewed case; its scores are an integration check, not a general quality estimate. General regrading and reference/candidate comparisons are the next task.
+
 ## Run the smoke experiment
 
 From the repository root, put these values in your ignored `.env` or export them. [.env.example](../../.env.example) lists blank placeholders; preserve existing `.env` contents.
@@ -51,8 +77,8 @@ SIGINT/SIGTERM request cancellation. The command waits for the native runner and
 
 ## Code ownership
 
-- `src/main.ts` owns command dispatch, signals and final stdout/exit status; only the live smoke branch loads `.env`.
-- `src/split-pr` owns frozen dataset contracts, validation, fingerprints, import, pure scoring, saved-run evaluation and safe file publication.
+- `src/main.ts` owns command dispatch, signals and final stdout/exit status; only explicitly live commands load `.env`.
+- `src/split-pr` owns frozen dataset contracts, validation, fingerprints, import, pure scoring, saved-run evaluation, live experiments, model-call observations and safe file publication.
 - `src/langfuse.ts` validates the explicit connection and owns one client/provider lifecycle across a command's experiments.
 - `src/langfuse-diagnostics.ts` captures SDK/OTel errors that are logged without rejecting export promises. Logger changes are scoped to this command; do not embed this lifecycle alongside another telemetry provider.
 - `tests/smoke/experiment-completeness.ts` checks case identity and required-score accounting independently of score quality.

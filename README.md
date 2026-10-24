@@ -60,6 +60,18 @@ Each generation uses `store: false`, allows up to 4,096 output tokens including 
 
 Exhausted corrections, input-budget failures, provider errors, refusals, incomplete responses, counting failures, timeouts and cancellation stop the command with exit 1. Transport failures are not retried. Handled failures save collected evidence, completed analyses and completed grouping attempts, leaving top-level `proposal` and `response` null. Exit 0 means inventory coverage was validated; only then are top-level results accepted. Artifacts are written when the command finalizes, without crash recovery or resume. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur when a caller runs a model operation, never in `bun run check`.
 
+## Capture a draft evaluation case
+
+```sh
+make split-pr-case PR=https://github.com/daphne-proj/pr-review-test/pull/2
+```
+
+This builds and runs the splitter, then imports only its frozen evidence into a draft case with no labels. The first available pair of paths is `outputs/pr_2_1/run.json` and `apps/eval/datasets/split-pr/cases/pr_2_1.json`; later runs use `pr_2_2`, `pr_2_3`, and so on. Existing run directories and case files are preserved, and concurrent invocations reserve different suffixes. The command prints both paths. `MODEL` and `MAX_INPUT_TOKENS` retain the split command's defaults; this target always selects its numbered output directory.
+
+Running this command calls GitHub and OpenAI; importing the case is offline and makes no Langfuse writes. A failed split still attempts evidence import if it saved an artifact, and retains a nonzero exit status. The importer rejects incomplete acquisition. Failed captures are not silently excluded from dataset preparation.
+
+For annotation, give a fresh Codex session only the draft case and the rubric in the [dataset guide](apps/eval/datasets/split-pr/README.md), keeping the model's `run.json` output out of its context. Labels, human approval and suite registration remain separate steps; this target does not modify `suite.json`.
+
 ## Verify Langfuse setup
 
 Configure the three `LANGFUSE_*` variables listed in [.env.example](.env.example), preserving any existing `.env` values, then run:
@@ -71,7 +83,7 @@ bun run eval -- langfuse-smoke
 
 This explicitly sends two synthetic arithmetic cases and their scores to your configured Langfuse instance, with no model calls. The JSON result links to the experiment. See [the smoke check](apps/eval/tests/smoke/README.md) for its purpose and the official Langfuse references, and [the evaluation app](apps/eval/README.md) for configuration and failure behavior. Normal checks remain offline.
 
-The evaluation app also imports saved split-pr evidence, validates frozen datasets and scores saved outputs against reviewed pair labels offline. The [dataset guide](apps/eval/datasets/split-pr/README.md) describes annotation and the first reviewed case; [saved-run scoring](apps/eval/README.md#score-a-saved-split-pr-run) explains the command and metrics. Baseline commands and model experiments are not implemented yet.
+The evaluation app also imports saved split-pr evidence, validates frozen datasets and scores saved outputs against reviewed pair labels offline. The [dataset guide](apps/eval/datasets/split-pr/README.md) describes annotation and the first reviewed case; [saved-run scoring](apps/eval/README.md#score-a-saved-split-pr-run) explains the command and metrics. The [live evaluation command](apps/eval/README.md#run-reviewed-split-pr-evaluations) runs reviewed frozen cases and records native scores, model usage and timing in Langfuse while saving full local trials.
 
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
@@ -92,7 +104,7 @@ Use **`bun run test`**, not `bun test`: the latter selects Bun's separate test r
 ```text
 apps/
   cli/                 Node CLI entry point; src/ and tests/
-  eval/                Frozen split-pr datasets and synthetic Langfuse smoke command
+  eval/                Frozen split-pr datasets, scoring and live Langfuse experiments
 packages/              PR acquisition, Git source, evidence and context libraries
 docs/
   adr/                 Accepted architecture decisions
