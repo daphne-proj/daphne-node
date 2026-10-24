@@ -3,63 +3,29 @@ import {
   defaultContextLimits,
   paginateDiffContext,
 } from '@daphne/context-engine';
-import type { DiffContextHunk, DiffContextPage } from '@daphne/context-engine';
-import type { Change, ReviewIdentity } from '@daphne/review-evidence/contracts';
 import { createOpenAI, ModelError } from '@daphne/review-agent';
-import type { ModelReply, ModelRequest } from '@daphne/review-agent';
+import type { ModelRequest } from '@daphne/review-agent';
+import type {
+  PageAnalysis,
+  SemanticSplitInput,
+  SemanticSplitOptions,
+  SemanticSplitResult,
+  SplitAttempt,
+} from './contracts.js';
 import {
   correctionInstructions,
   groupingInstructions,
   pageInstructions,
 } from './prompts.js';
 import { getExpectedUnitIds, validateProposal } from './proposal.js';
-import type { Proposal, ProposalValidation } from './proposal.js';
 import { proposalSchema } from './schema.js';
 
-export const maxCorrections = 3;
+export const maxCorrections: SemanticSplitResult['maxCorrections'] = 3;
 
-export interface PageAnalysis extends DiffContextPage {
-  analysis: Pick<ModelReply, 'text' | 'response'> | null;
-}
-
-export interface SplitAttempt {
-  number: number;
-  inputTokens: number;
-  text: string;
-  response: Record<string, unknown>;
-  validation: ProposalValidation;
-}
-
-export interface SemanticSplitInput {
-  identity: ReviewIdentity;
-  changes: readonly Change[];
-  hunks: readonly DiffContextHunk[];
-}
-
-export interface SemanticSplitOptions {
-  apiKey: string;
-  model: string;
-  maxInputTokens: number;
-  signal: AbortSignal;
-  onPage?: (page: DiffContextPage, pageNumber: number) => void;
-}
-
-interface SplitProgress {
-  maxCorrections: typeof maxCorrections;
-  pages: PageAnalysis[];
-  attempts: SplitAttempt[];
-  calls: { count: number; generate: number };
-}
-
-export type SemanticSplitResult = SplitProgress &
-  (
-    | {
-        status: 'complete';
-        proposal: Proposal;
-        response: Record<string, unknown> | null;
-      }
-    | { status: 'failed'; proposal: null; response: null; error: unknown }
-  );
+type SplitProgress = Pick<
+  SemanticSplitResult,
+  'maxCorrections' | 'pages' | 'attempts' | 'calls'
+>;
 
 function groupingRequest(
   input: readonly Record<string, unknown>[],
@@ -78,6 +44,11 @@ function groupingRequest(
   };
 }
 
+/*
+ * Group expected units and retain completed drafts in attempts.
+ * Example inputs: IDs {'change-1:0'}, one page containing that hunk,
+ * an OpenAI adapter, a 4,000-token limit, and an empty attempts array.
+ */
 async function proposeGroups(
   expectedUnitIds: ReadonlySet<string>,
   pages: PageAnalysis[],
@@ -85,6 +56,8 @@ async function proposeGroups(
   maxInputTokens: number,
   attempts: SplitAttempt[],
 ) {
+  /* Changes and hunks are separate inputs;
+  check that the pages built from hunks match the change inventory. */
   const pageUnitIds = new Set(pages.flatMap((page) => page.unitIds));
   const missingIds = [...expectedUnitIds].filter((id) => !pageUnitIds.has(id));
   const unknownIds = [...pageUnitIds].filter((id) => !expectedUnitIds.has(id));
@@ -115,6 +88,10 @@ async function proposeGroups(
   } else {
     const notes = [];
 
+    /*
+     * Summarize each page so the final grouping request can consider all
+     * changes together within the token budget.
+     */
     for (const page of pages) {
       const analysisRequest = {
         instructions: pageInstructions,
@@ -148,7 +125,11 @@ async function proposeGroups(
       );
     }
 
-    /* Only the first single-page request is identical to the pager's count. */
+    /*
+     * For one page, the pager counted the same instructions, schema and page text
+     * used by the first grouping request, so reuse that count.
+     * Page summaries and correction history change the request and need a new count.
+     */
     const inputTokens =
       number === 1 && pages.length === 1 && onlyPage
         ? onlyPage.inputTokens
@@ -163,7 +144,10 @@ async function proposeGroups(
     const reply = await model.generate(request);
     const validation = validateProposal(reply.text, expectedUnitIds);
 
-    /* Save the completed draft before a later count or generation can fail. */
+    /*
+     * Record this reply and its validation now so the caller can inspect them
+     * even if counting tokens or generating the next reply fails.
+     */
     attempts.push({
       number,
       inputTokens,
@@ -186,6 +170,10 @@ async function proposeGroups(
       context: string;
     }[] = [];
 
+    /*
+     * Summaries may omit details needed to place missing or duplicated IDs in
+     * the right groups. Supply their original page text to help the correction.
+     */
     if (validation.status === 'invalid_coverage') {
       const neededIds = new Set(
         [...validation.missingIds, ...validation.duplicateIds].filter((id) =>

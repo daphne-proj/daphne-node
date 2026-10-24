@@ -5,7 +5,7 @@ export type {
   SemanticSplitResult,
   PageAnalysis,
   SplitAttempt,
-} from './workflow.js';
+} from './contracts.js';
 export { getExpectedUnitIds, validateProposal } from './proposal.js';
 export type { Proposal, ProposalValidation } from './proposal.js';
 export {

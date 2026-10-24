@@ -284,6 +284,7 @@ export default defineConfig(
     ignores: [
       'packages/semantic-split/src/index.ts',
       'packages/semantic-split/src/workflow.ts',
+      'packages/semantic-split/src/contracts.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -311,6 +312,31 @@ export default defineConfig(
                 '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
               message:
                 'Keep supplied-evidence processing independent of repository and network I/O.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
+    },
+  },
+  {
+    files: ['packages/semantic-split/src/contracts.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              regex:
+                '^(?!@daphne/(?:context-engine|review-agent|review-evidence/contracts)$|\\./proposal\\.js$)',
+              message:
+                'Split contracts may reference only context, model, evidence and proposal types.',
+            },
+            {
+              group: ['**'],
+              allowTypeImports: true,
+              message: 'Split contracts must not load runtime dependencies.',
             },
           ],
         },
