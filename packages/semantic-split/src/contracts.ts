@@ -1,6 +1,6 @@
 import type { DiffContextHunk, DiffContextPage } from '@daphne/context-engine';
 import type { Change, ReviewIdentity } from '@daphne/review-evidence/contracts';
-import type { ModelReply } from '@daphne/review-agent';
+import type { ModelReply, ModelCallObservation } from '@daphne/review-agent';
 import type { Proposal, ProposalValidation } from './proposal.js';
 
 /*
@@ -42,6 +42,7 @@ export interface SemanticSplitOptions {
   model: string;
   maxInputTokens: number;
   signal: AbortSignal;
+  onModelCall?: (event: ModelCallObservation) => void;
   onPage?: (page: DiffContextPage, pageNumber: number) => void;
 }
 
