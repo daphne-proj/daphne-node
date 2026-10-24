@@ -1,5 +1,5 @@
 {
   "format": "daphne-split-suite-v1",
   "id": "split-pr",
-  "caseFiles": ["cases/pr-review-test-2.json"]
+  "caseFiles": ["cases/pr_1.json", "cases/pr_2.json"]
 }

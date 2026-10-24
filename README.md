@@ -40,11 +40,11 @@ The complete PR workflow is available as `splitPullRequest` from `@daphne/pr-rev
 
 Callers that already have evidence can use `runSemanticSplit` from `@daphne/semantic-split`. An optional synchronous `onPage` callback reports prepared pages. These operations do not read environment variables, print output or write artifacts. The CLI owns those concerns and serializes the existing v3 format. `@daphne/semantic-split` owns pagination coordination, page analysis, grouping history, coverage validation and bounded corrections, alongside expected IDs, schema and prompts. It uses `createOpenAI` from `@daphne/review-agent` for token counting and generation. Review-agent owns provider request/response handling and replayable output items, with no split-policy dependencies.
 
-The command saves one `outputs/split_pr_<pr_number>_<count>/run.json`, with the count starting at 1 and advancing to the first unused path for that PR number. The artifact contains pinned commits, the change inventory, collected `hunks`, exact pages, provider responses and `proposal.groups`. Collected hunks preserve evidence even if a later retrieval or paging operation fails; their `changeId` references the inventory without duplicating full change metadata. The `daphne-split-pr-v3` format records each page's `unitIds`, its initial grouping-request `inputTokens`, and nullable `analysis`; a direct grouping has no intermediate analysis. It adds `maxCorrections: 3` and ordered `attempts`, each containing its one-based `number`, complete-request `inputTokens`, answer `text`, raw `response`, and `validation` result. Attempts record successfully returned grouping replies, including invalid drafts; a failed provider request creates no completed attempt. `calls` counts actual attempted token-count and generation requests separately, including page analyses. Each group's `unitIds` refers to a change/hunk pair recorded on the pages; all fragments of a hunk stay together.
+The command saves one `outputs/split_pr_<pr_number>/run.json`. Reruns reuse the directory and atomically replace its previous `run.json` when the new complete or failed report is ready. Other files in the directory remain untouched. The artifact contains pinned commits, the change inventory, collected `hunks`, exact pages, provider responses and `proposal.groups`. Collected hunks preserve evidence even if a later retrieval or paging operation fails; their `changeId` references the inventory without duplicating full change metadata. The `daphne-split-pr-v3` format records each page's `unitIds`, its initial grouping-request `inputTokens`, and nullable `analysis`; a direct grouping has no intermediate analysis. It adds `maxCorrections: 3` and ordered `attempts`, each containing its one-based `number`, complete-request `inputTokens`, answer `text`, raw `response`, and `validation` result. Attempts record successfully returned grouping replies, including invalid drafts; a failed provider request creates no completed attempt. `calls` counts actual attempted token-count and generation requests separately, including page analyses. Each group's `unitIds` refers to a change/hunk pair recorded on the pages; all fragments of a hunk stay together.
 
 The split workflow derives expected unit IDs from the original Git inventory: one per text hunk, or one metadata unit for a change without text hunks. Before any analysis or grouping generation, it checks that the pages contain exactly those distinct IDs; repeated IDs across fragment pages are allowed. It validates each proposal's JSON structure and requires every expected unit exactly once, reporting all missing, duplicate and unknown IDs together. Invalid JSON, structure or coverage triggers a complete replacement proposal in the same local conversation, with at most three corrections after the first reply: four grouping generations total. Every replacement is checked again; the first valid reply wins, including on generation four. Four invalid replies fail explicitly. Empty inventory succeeds without generation unless the operation was cancelled. The proposal still needs human review: neither independence, patch applicability nor semantic correctness is verified.
 
-Optional Make variables are `OUTPUT=NEW_DIRECTORY`, `MODEL=gpt-6.1-sol` and `MAX_INPUT_TOKENS=16384`. Existing output directories are rejected. The equivalent CLI command is:
+Optional Make variables are `OUTPUT=DIRECTORY`, `MODEL=gpt-6.1-sol` and `MAX_INPUT_TOKENS=16384`. Custom output directories use the same replacement behavior. The equivalent CLI command is:
 
 ```sh
 bun run cli -- split-pr \
@@ -60,27 +60,21 @@ Each generation uses `store: false`, allows up to 4,096 output tokens including 
 
 Exhausted corrections, input-budget failures, provider errors, refusals, incomplete responses, counting failures, timeouts and cancellation stop the command with exit 1. Transport failures are not retried. Handled failures save collected evidence, completed analyses and completed grouping attempts, leaving top-level `proposal` and `response` null. Exit 0 means inventory coverage was validated; only then are top-level results accepted. Artifacts are written when the command finalizes, without crash recovery or resume. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur when a caller runs a model operation, never in `bun run check`.
 
-## Capture a draft evaluation case
+## Evaluate against the golden dataset
+
+Gold cases in `apps/eval/datasets/split-pr/cases` are created and edited manually. Repository commands only read them: CLI/eval output paths cannot target this directory, including through symlinks, and repository formatting skips it.
+
+Capture splitter output with `make split-pr PR=URL`, then compare its `run.json` with a manually prepared case:
 
 ```sh
-make split-pr-case PR=https://github.com/daphne-proj/pr-review-test/pull/2
+make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
+make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
+make split-pr-eval-all
 ```
 
-This builds and runs the splitter, then imports only its frozen evidence into a draft case with no labels. The first available pair of paths is `outputs/pr_2_1/run.json` and `apps/eval/datasets/split-pr/cases/pr_2_1.json`; later runs use `pr_2_2`, `pr_2_3`, and so on. Existing run directories and case files are preserved, and concurrent invocations reserve different suffixes. The command prints both paths. `MODEL` and `MAX_INPUT_TOKENS` retain the split command's defaults; this target always selects its numbered output directory.
+Validation reports structural consistency and label coverage. Evaluation checks the supplied artifact and prints the overall pair agreement score and any violated pairs without changing either input or creating a report by default. An explicit `OUTPUT=NEW_FILE` exports a report outside the gold directory. Neither command approves labels. See the [labeling policy](apps/eval/datasets/split-pr/cases/README.md) and [saved-run evaluation](apps/eval/README.md#compare-a-saved-split-pr-run).
 
-Running this command calls GitHub and OpenAI; importing the case is offline and makes no Langfuse writes. A failed split still attempts evidence import if it saved an artifact, and retains a nonzero exit status. The importer rejects incomplete acquisition. Failed captures are not silently excluded from dataset preparation.
-
-For annotation, give a fresh Codex session only the draft case and the rubric in the [dataset guide](apps/eval/datasets/split-pr/README.md), keeping the model's `run.json` output out of its context. Labels, human approval and suite registration remain separate steps; this target does not modify `suite.json`.
-
-After adding labels, check the case offline with `make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json`. It reports structural validity, label counts and coverage without changing the case or its review status. Human review of label meaning remains required.
-
-Compare the saved splitter output against those labels in one offline command:
-
-```sh
-make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json ARTIFACT=outputs/pr_1_1/run.json
-```
-
-This validates matching frozen evidence and predicted unit coverage, prints a compact score summary, and saves together/separate agreement and violations with label reasons in a new JSON report beside the artifact. Draft comparisons remain marked `Labels draft` and do not approve or modify the case. Unknown and unlabeled pairs are unscored; structural validity and annotation coverage are not quality scores. Suite registration is unnecessary. See [saved-run evaluation](apps/eval/README.md#compare-a-saved-split-pr-run) for report and exit semantics.
+`split-pr-eval-all` builds once, reruns the model for the PR in each saved capture, and compares each fresh result with its gold case. New runs are saved under a unique `outputs/split-pr-eval-all.*` directory, preserving the reference captures. The command refuses to score a PR whose commits changed since its gold capture, continues after failures, and exits nonzero if any run or comparison fails. Pair violations are printed but retain the individual evaluator's successful exit status. This command makes paid model calls and never writes gold files.
 
 ## Verify Langfuse setup
 

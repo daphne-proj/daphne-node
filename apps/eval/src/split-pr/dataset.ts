@@ -1,5 +1,14 @@
 import { realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve, sep, win32 } from 'node:path';
+import { findPackageJSON } from 'node:module';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+  win32,
+} from 'node:path';
 import type { PreparedSplitCase } from './contracts.js';
 import { parseSplitCase } from './case.js';
 import * as parse from './parse.js';
@@ -21,15 +30,36 @@ function caseFile(value: unknown): string {
   return path;
 }
 
-export async function loadSplitCase(path: string): Promise<PreparedSplitCase> {
-  const { bytes, value: definition } = await parse.readJson(
-    path,
-    parseSplitCase,
+export function splitCaseRunPath(path: string): string {
+  const packagePath = findPackageJSON(import.meta.url);
+
+  if (!packagePath) {
+    throw new parse.SplitDatasetError('Could not locate the eval workspace.');
+  }
+
+  return resolve(
+    dirname(packagePath),
+    '../../outputs',
+    `split_${basename(path, '.json')}`,
+    'run.json',
+  );
+}
+
+export async function loadSplitCase(
+  path: string,
+  artifactPath = splitCaseRunPath(path),
+): Promise<PreparedSplitCase> {
+  const { value: artifact } = await parse.readJson(
+    artifactPath,
+    (value) => value,
+  );
+  const { bytes, value: definition } = await parse.readJson(path, (value) =>
+    parseSplitCase(artifact, value, basename(path, '.json')),
   );
 
   return {
     definition,
-    caseHash: parse.sha256(bytes),
+    caseHash: parse.sha256(JSON.stringify([definition, parse.sha256(bytes)])),
     inputHash: parse.sha256(JSON.stringify(definition.evidence)),
   };
 }

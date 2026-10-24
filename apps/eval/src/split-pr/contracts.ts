@@ -23,15 +23,15 @@ export interface PairLabel {
   leftUnitId: string;
   rightUnitId: string;
   relation: 'together' | 'separate' | 'unknown';
-  reason: string;
 }
 
 export interface SplitCase {
-  format: 'daphne-split-case-v1';
+  format: 'daphne-split-input-v1';
   id: string;
   partition: 'development' | 'holdout';
   tags: string[];
   provenance:
+    | null
     | {
         kind: 'artifact';
         capturedAt: string;

@@ -2,6 +2,7 @@ node_modules/
 **/dist/
 coverage/
 bun.lock
+apps/eval/datasets/split-pr/cases/
 **/fixtures/**
 .agents/skills/vitest/
 .agents/skills/shape/

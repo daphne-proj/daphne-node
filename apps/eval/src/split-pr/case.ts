@@ -4,37 +4,54 @@ import { parseSplitEvidence } from './evidence.js';
 import * as parse from './parse.js';
 
 function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
+  const input = parse.object(value, 'labels');
+  const relations: PairLabel['relation'][] = ['together', 'separate'];
+
+  if (
+    Object.keys(input).some(
+      (key) => !relations.some((relation) => relation === key),
+    )
+  ) {
+    throw new parse.SplitDatasetError(
+      'labels: only together and separate are allowed.',
+    );
+  }
+
   const pairs = new Set<string>();
-  const result = parse.array(value, 'labels').map((value, index): PairLabel => {
-    const field = `labels[${String(index)}]`;
-    const input = parse.object(value, field);
-    const leftUnitId = parse.text(input.leftUnitId, `${field}.leftUnitId`);
-    const rightUnitId = parse.text(input.rightUnitId, `${field}.rightUnitId`);
-    const pair = JSON.stringify([leftUnitId, rightUnitId].sort());
+  const result = relations.flatMap((relation) =>
+    parse.array(input[relation], relation).map((value, index): PairLabel => {
+      const field = `${relation}[${String(index)}]`;
+      const endpoints = parse.array(value, field);
 
-    if (
-      leftUnitId === rightUnitId ||
-      !expected.has(leftUnitId) ||
-      !expected.has(rightUnitId) ||
-      pairs.has(pair)
-    ) {
-      throw new parse.SplitDatasetError(
-        `${field}: unknown, identical or duplicate pair endpoints.`,
-      );
-    }
+      if (endpoints.length !== 2) {
+        throw new parse.SplitDatasetError(
+          `${field}: expected exactly two unit IDs.`,
+        );
+      }
 
-    pairs.add(pair);
-    return {
-      leftUnitId,
-      rightUnitId,
-      relation: parse.choice(
-        input.relation,
-        ['together', 'separate', 'unknown'],
-        `${field}.relation`,
-      ),
-      reason: parse.text(input.reason, `${field}.reason`),
-    };
-  });
+      const leftUnitId = parse.text(endpoints[0], `${field}[0]`);
+      const rightUnitId = parse.text(endpoints[1], `${field}[1]`);
+      const pair = JSON.stringify([leftUnitId, rightUnitId].sort());
+
+      if (
+        leftUnitId === rightUnitId ||
+        !expected.has(leftUnitId) ||
+        !expected.has(rightUnitId) ||
+        pairs.has(pair)
+      ) {
+        throw new parse.SplitDatasetError(
+          `${field}: unknown, identical or duplicate pair endpoints.`,
+        );
+      }
+
+      pairs.add(pair);
+      return {
+        leftUnitId,
+        rightUnitId,
+        relation,
+      };
+    }),
+  );
 
   /* Together labels imply transitive membership; separate labels cannot cross it. */
   const parents = new Map([...expected].map((id) => [id, id]));
@@ -150,18 +167,49 @@ function review(value: unknown): SplitCase['review'] {
   };
 }
 
-export function parseSplitCase(value: unknown): SplitCase {
-  const input = parse.object(value, 'case');
-  const format = parse.choice(
-    input.format,
-    ['daphne-split-case-v1'],
-    'case.format',
+export function parseSplitCase(
+  value: unknown,
+  expectations: unknown,
+  caseId: string,
+): SplitCase {
+  const artifact = parse.object(value, 'artifact');
+  parse.choice(artifact.format, ['daphne-split-pr-v3'], 'artifact.format');
+  const status = parse.choice(
+    artifact.status,
+    ['complete', 'failed'],
+    'artifact.status',
   );
-  const evidence = parseSplitEvidence(input.evidence);
+  const calls = parse.object(artifact.calls, 'artifact.calls');
+  const count = parse.integer(calls.count, 'artifact.calls.count');
+  const generate = parse.integer(calls.generate, 'artifact.calls.generate');
+  parse.array(artifact.pages, 'artifact.pages');
+  parse.array(artifact.attempts, 'artifact.attempts');
+
+  /* A failed acquisition must not become a valid empty reference. */
+  if (status === 'failed' && count === 0 && generate === 0) {
+    throw new parse.SplitDatasetError(
+      'artifact: failed with no workflow activity; acquisition completion is ambiguous.',
+    );
+  }
+
+  const evidence = parseSplitEvidence({
+    identity: artifact.identity,
+    changes: artifact.changes,
+    hunks: artifact.hunks,
+  });
+  const input: Record<string, unknown> = {
+    partition: 'development',
+    tags: [],
+    notes: [],
+    review: { status: 'draft' },
+    ...(artifact.caseMetadata === undefined
+      ? {}
+      : parse.object(artifact.caseMetadata, 'artifact.caseMetadata')),
+  };
 
   return {
-    format,
-    id: parse.text(input.id, 'case.id'),
+    format: 'daphne-split-input-v1',
+    id: parse.text(caseId, 'case.id'),
     partition: parse.choice(
       input.partition,
       ['development', 'holdout'],
@@ -170,9 +218,10 @@ export function parseSplitCase(value: unknown): SplitCase {
     tags: parse
       .array(input.tags, 'tags')
       .map((value) => parse.text(value, 'tag')),
-    provenance: provenance(input.provenance),
+    provenance:
+      input.provenance === undefined ? null : provenance(input.provenance),
     evidence,
-    labels: labels(input.labels, getExpectedUnitIds(evidence.changes)),
+    labels: labels(expectations, getExpectedUnitIds(evidence.changes)),
     notes: parse
       .array(input.notes, 'notes')
       .map((value) => parse.text(value, 'note')),

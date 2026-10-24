@@ -1,60 +1,53 @@
 # Evaluation application
 
-The Node evaluation application imports and validates frozen split-pr datasets, scores saved outputs offline, and runs reviewed cases through live Langfuse experiments. It also provides a manual Langfuse integration check. The smoke command's two test files live together in [`tests/smoke`](tests/smoke/README.md).
+The Node evaluation application reads and validates manually maintained split-pr datasets, scores saved outputs offline, and runs reviewed cases through live Langfuse experiments. It also provides a manual Langfuse integration check. The smoke command's two test files live together in [`tests/smoke`](tests/smoke/README.md).
 
-## Import and validate split-pr cases
+## Validate manually maintained split-pr cases
 
-To capture a new PR and import a draft in one command, run `make split-pr-case PR=https://github.com/OWNER/REPO/pull/2`. It calls the splitter, saves `outputs/pr_2_1/run.json` and imports evidence into `apps/eval/datasets/split-pr/cases/pr_2_1.json`, incrementing the suffix when a run directory or case file already exists. It creates no labels, marks the case draft and leaves the suite unchanged. The split makes live GitHub/OpenAI calls; the import is offline, with no Langfuse writes. A failed split can still yield an importable case, but the command retains its failure exit status.
+The golden dataset in `datasets/split-pr/cases` is maintained manually. Evaluation commands only read its files. CLI/eval output writers reject destinations inside this directory, including symlink aliases, before creating output files or directories. Repository formatting excludes the gold directory.
 
-To import an artifact you already have:
-
-```sh
-bun run build
-bun run eval -- split-pr import --artifact outputs/split-pr-20261023-192117-87636/run.json --case-id my-case --output /existing/parent/my-case.json
-bun run eval -- split-pr validate --suite apps/eval/datasets/split-pr/suite.json
-```
-
-Import creates a draft case and refuses to overwrite files. Register its relative filename in your suite explicitly. Validation exits `0` for a structurally valid suite, including drafts, and `1` for malformed evidence or contradictory labels. These commands require no credentials and do not initialize telemetry or make network calls. See the [dataset guide](datasets/split-pr/README.md) for annotation, fingerprints and the first imported case.
+Capture model output separately with `make split-pr PR=URL`; it saves one `run.json` and does not create or edit gold cases. Evidence is read from that run, with optional review metadata under `caseMetadata`. Missing metadata means a development draft. Validation defaults to repository-root `outputs/split_<gold filename>/run.json`; use `--artifact PATH` when the capture and gold names differ. Suite cases use the filename convention and must be registered manually. Validation is offline and checks consistency, not approval.
 
 Validate an individual case before registering or approving it:
 
 ```sh
-make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json
+make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
 ```
 
-The target builds and runs `bun run eval -- split-pr validate --case PATH`. Choose exactly one of `--case` or `--suite`; both use the same validator. Validation prints JSON and changes no case, review status or suite entry. Invalid input exits nonzero.
+The target builds and runs `bun run eval -- split-pr validate --case PATH`; optional `ARTIFACT=PATH` selects another run. Choose exactly one of `--case` or `--suite`; both use the same validator. Validation prints JSON and changes no case, review status or suite entry. Invalid input exits nonzero.
 
 Each case summary reports label counts and coverage: all possible unordered pairs, unlabeled pairs, labeled-pair rate, known-pair count/rate and units with or without known relationships. A known relationship is `together` or `separate`; `unknown` contributes only to labeled coverage. Rates are fractions from 0 to 1, or `null` when there are fewer than two units. Only explicit labels count; transitive relationships are checked for contradictions but do not inflate coverage. These counts describe annotations, including draft proposals, not semantic correctness or human approval. Partial annotation is allowed; there is no minimum coverage gate.
 
 ## Compare a saved split-pr run
 
 ```sh
-make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1_1.json ARTIFACT=outputs/pr_1_1/run.json
+make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
 ```
 
-This builds and compares the saved groups directly against one case, without reading a suite or rerunning the splitter. It uses the same case validator, frozen-evidence matching and deterministic pair scorer as reviewed saved-run scoring. No model calls, Git/network verification, credential loading or Langfuse initialization occur. Case and artifact bytes remain unchanged.
+This builds and compares the saved groups directly against one case, without reading a suite or rerunning the splitter. It loads evidence directly from the supplied artifact, validates label IDs and exact unit coverage, and applies the deterministic pair scorer. No model calls, Git/network verification, credential loading or Langfuse initialization occur. Case and artifact bytes remain unchanged.
 
-Fresh split runs can reuse the same golden case: capture-specific session IDs are validated within each input, then normalized in memory for comparison. Repository and commit identity, change IDs, ordering, paths, blob IDs, ranges and source text must still match. The golden case's labels and hashes remain unchanged.
+Run `make split-pr-eval-all` to rerun the model for every JSON case in the gold folder and compare each fresh output with its labels. The target reads each PR URL from its existing `outputs/split_<case filename without .json>/run.json`, builds once, and saves the new runs under a unique `outputs/split-pr-eval-all.*` directory. It refuses to score a PR whose commits differ from the saved capture and continues after errors. Missing captures, failed model runs and invalid comparisons make the batch exit nonzero; label disagreements retain the individual evaluator's successful exit status. The target makes paid model calls and leaves the gold files and reference captures unchanged.
 
-Draft references are allowed as provisional comparisons: the compact terminal summary says `Labels draft`, and the report retains the original `review` object with `provisional: true`. Reviewed references retain their reviewer and timestamp with `provisional: false`. This command never approves labels; live benchmarks and the suite-based `score` command still require reviewed cases.
+Direct comparison trusts the selected artifact as the input reference; choose the capture the labels describe, since minimal gold files contain no independent commit fingerprint. Suite scoring separately checks candidate evidence against the configured reference run, normalizing capture-specific session IDs.
 
-The terminal summary shows the case, overall score, label review status and report path. The score counts each known together/separate label equally. Failures, nonzero violations and unscored pairs add short diagnostic rows; per-relation rates, validation details and violated pairs with reasons remain in the JSON report. Unknown and unlabeled pairs are never scored. Zero support prints `N/A` and stores a null rate; it cannot establish perfect agreement. Structural validity and annotation coverage are not quality scores.
+Draft references are allowed as provisional comparisons: the report retains the original `review` object with `provisional: true`. Reviewed references retain their reviewer and timestamp with `provisional: false`. This command never approves labels; live benchmarks and the suite-based `score` command still require reviewed cases.
 
-`src/command-output.ts` provides a reusable `formatCommandOutput(title, rows)` helper for human-readable evaluation commands. It aligns labels and applies bold green for success, yellow for warnings and red for errors, respecting terminal color support and `NO_COLOR`. The Make target suppresses command echo while preserving errors. Other commands retain their JSON output contracts.
+The terminal prints the overall `Score` line, counting each known together/separate label equally, followed by any violated pairs. Each violation shows the expected relationship and both unit IDs. An optional JSON export includes review status, annotation coverage, per-relation rates, validation details and violated pairs. Unknown and unlabeled pairs are never scored. Zero support prints `N/A` and stores a null rate; it cannot establish perfect agreement. Structural validity and annotation coverage are not quality scores.
 
-By default Make chooses a new `run.eval-TIMESTAMP-PID.json` beside the input artifact and prints its absolute location. Override it with `OUTPUT=NEW_FILE` in an existing directory. Publication refuses to overwrite any existing file, including the case or artifact. The equivalent compiled command is:
+`@daphne/cli/command-output` provides the shared `formatCommandOutput(title, rows)` helper for human-readable commands. It aligns labels and applies bold green for success, yellow for warnings and red for errors, respecting terminal color support and `NO_COLOR`. The split command uses it when stdout is a terminal and retains JSON summaries when redirected. The evaluation Make target suppresses command echo while preserving errors. Other commands retain their JSON output contracts.
+
+By default evaluation prints a summary and creates no file. To explicitly export JSON, use `OUTPUT=NEW_FILE` in an existing directory outside the capture folder. Publication refuses to overwrite existing files. The equivalent compiled command without an export is:
 
 ```sh
 bun run build
 bun run eval -- split-pr eval \
-  --case apps/eval/datasets/split-pr/cases/pr_1_1.json \
-  --artifact outputs/pr_1_1/run.json \
-  --output outputs/pr_1_1/comparison.json
+  --case apps/eval/datasets/split-pr/cases/pr_1.json \
+  --artifact outputs/split_pr_1/run.json
 ```
 
-The `daphne-split-case-eval-v1` report contains source paths, case/input/artifact hashes, reference annotation coverage, unchanged review metadata, provisional status, all per-pair scores/reasons and fresh proposal validation diagnostics. Saved validation claims are ignored; the accepted proposal must also match the final grouping attempt.
+The `daphne-split-case-eval-v1` report contains source paths, case/input/artifact hashes, reference annotation coverage, unchanged review metadata, provisional status, all per-pair scores and fresh proposal validation diagnostics. Saved validation claims are ignored; the accepted proposal must also match the final grouping attempt.
 
-The eval CLI exits `0` after a structurally accepted comparison is saved, even when every known pair is violated or there are no known labels. Exit `1` means malformed/inconsistent inputs, a failed saved run, invalid predicted coverage/shape, cancellation or publication failure (Make propagates failure as a nonzero exit). Failed runs and invalid output still save diagnostic reports with `status: "failed_run"` or `"invalid_output"` and null pair scores/rates. A completed comparison has `status: "complete"`; that status is not a quality verdict. Malformed inputs and mismatched evidence fail before publication.
+The eval CLI exits `0` after a structurally accepted comparison, even when every known pair is violated or there are no known labels. Exit `1` means malformed/inconsistent inputs, a failed saved run, invalid predicted coverage/shape, cancellation or publication failure (Make propagates failure as a nonzero exit). Failed runs and invalid output can still export diagnostic reports with `status: "failed_run"` or `"invalid_output"` and null pair scores/rates. A completed comparison has `status: "complete"`; that status is not a quality verdict. Malformed inputs and mismatched evidence fail before publication.
 
 ## Score a reviewed suite case
 
@@ -67,11 +60,11 @@ bun run eval -- split-pr score \
   --output outputs/reviewed-case-scores.json
 ```
 
-The selected case must be reviewed and registered in a valid suite. The checked-in suite currently names the missing `cases/pr-review-test-2.json`; use the direct-case comparison above for current draft files. Suite repair and human approval are separate steps. The command validates the v3 artifact's frozen evidence against the case's input hash, then uses the public split validator to recompute proposal shape and exact unit coverage. Saved validation claims are ignored. The source artifact remains unchanged, and the output must be a new file in an existing directory.
+The selected case must be reviewed and registered in a valid suite. Every listed gold file and its configured reference run must be available locally. Direct-case comparison also supports drafts without granting approval. The command validates the v3 artifact's frozen evidence against the case's input hash, then uses the public split validator to recompute proposal shape and exact unit coverage. Saved validation claims are ignored. The source artifact remains unchanged, and the output must be a new file in an existing directory.
 
 Each pair receives `1` when its expected relationship holds, `0` when violated, or `null` when unknown or unavailable. Together and separate rates have distinct denominators; unknown and unlabeled pairs contribute to neither. A class with no labels has a null rate. Failed runs and invalid proposals are unaccepted and have unavailable pair scores/rates; a retained valid reply cannot rescue a failed run. With scorer `split-pairs-v2`, `constraintsPassed` requires an accepted output, at least one known pair and satisfaction of every known pair. Earlier v1 reports treated zero known pairs as vacuously passing; v2 preserves pair rates but removes that misleading pass.
 
-The versioned report includes all pair results and reasons, violated pairs, fresh validation diagnostics, first-reply/correction information and case/input/dataset/artifact hashes. It is also printed as JSON. Exit `0` means evaluation and report publication completed, even when the output scores poorly. Exit `1` means invalid evaluation inputs, an inconsistent artifact, cancellation or output failure. The command does not fetch Git, make model calls or initialize Langfuse. Scores measure agreement with the approved labels; they do not establish buildability or semantic correctness beyond those constraints.
+The versioned report includes all pair results, violated pairs, fresh validation diagnostics, first-reply/correction information and case/input/dataset/artifact hashes. It is also printed as JSON. Exit `0` means evaluation and report publication completed, even when the output scores poorly. Exit `1` means invalid evaluation inputs, an inconsistent artifact, cancellation or output failure. The command does not fetch Git, make model calls or initialize Langfuse. Scores measure agreement with the approved labels; they do not establish buildability or semantic correctness beyond those constraints.
 
 ## Run reviewed split-pr evaluations
 
@@ -93,7 +86,7 @@ Langfuse stores the original compact evidence once as item input, reviewed label
 
 The output directory contains an initial `scheduled.json`, full `trial-N-case-M.json` artifacts, and a final `manifest.json` with scores, hashes, Git commit/dirty state, prompt/schema hash, model configuration, SDK version and experiment links. Files are published without overwriting. Cancellation preserves completed work and every scheduled entry, including unstarted rounds. These artifacts support later regrading; they do not provide crash resume. A dirty-state flag identifies an uncommitted build but is not a source-code snapshot.
 
-Exit `0` means all scheduled results, scores and telemetry finalization were accounted for, even when model quality is poor. Exit `1` means invalid configuration, cancellation, missing results/scores, artifact publication failure or a reported telemetry failure. The JSON summary separates quality failures from incomplete evaluation. Finalization failure retains local results and marks the manifest incomplete. Current cases are drafts and require human review plus valid suite registration before live benchmarking. Agreement with a small reference set is not a general quality estimate. General regrading and reference/candidate comparisons remain future work.
+Exit `0` means all scheduled results, scores and telemetry finalization were accounted for, even when model quality is poor. Exit `1` means invalid configuration, cancellation, missing results/scores, artifact publication failure or a reported telemetry failure. The JSON summary separates quality failures from incomplete evaluation. Finalization failure retains local results and marks the manifest incomplete. Draft cases require review before live benchmarking; validation does not grant human approval. Agreement with a small reference set is not a general quality estimate. General regrading and reference/candidate comparisons remain future work.
 
 ## Run the smoke experiment
 
@@ -118,7 +111,7 @@ SIGINT/SIGTERM request cancellation. The command waits for the native runner and
 ## Code ownership
 
 - `src/main.ts` owns command dispatch, signals and final stdout/exit status; only explicitly live commands load `.env`.
-- `src/split-pr` owns frozen dataset contracts, validation, fingerprints, import, pure scoring, saved-run evaluation, live experiments, model-call observations and safe file publication.
+- `src/split-pr` owns frozen dataset contracts, validation, fingerprints, pure scoring, saved-run evaluation, live experiments, model-call observations and safe file publication.
 - `src/langfuse.ts` validates the explicit connection and owns one client/provider lifecycle across a command's experiments.
 - `src/langfuse-diagnostics.ts` captures SDK/OTel errors that are logged without rejecting export promises. Logger changes are scoped to this command; do not embed this lifecycle alongside another telemetry provider.
 - `tests/smoke/experiment-completeness.ts` checks case identity and required-score accounting independently of score quality.

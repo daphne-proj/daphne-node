@@ -2,7 +2,6 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { summarizeSplitCase } from './validation.js';
-import { importSplitCase } from './import.js';
 import {
   evaluateSplitArtifact,
   evaluateSplitCaseArtifact,
@@ -13,12 +12,13 @@ import { SplitDatasetError, text, choice } from './parse.js';
 import { runSplitEvaluation } from './run.js';
 
 const usage =
-  'Usage: eval split-pr import --artifact PATH --case-id ID --output NEW_FILE\n       eval split-pr validate --case PATH | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH --output NEW_FILE\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
+  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
 
 function options(
   args: string[],
   names: string[],
   defaults: Record<string, string> = {},
+  optional: string[] = [],
 ): Record<string, string> {
   try {
     const { values, tokens } = parseArgs({
@@ -39,10 +39,15 @@ function options(
     }
 
     return Object.fromEntries(
-      names.map((name) => [
-        name,
-        text(values[name] ?? defaults[name], `--${name}`),
-      ]),
+      names.flatMap((name) => {
+        const value = values[name] ?? defaults[name];
+
+        if (value === undefined && optional.includes(name)) {
+          return [];
+        }
+
+        return [[name, text(value, `--${name}`)]];
+      }),
     );
   } catch {
     throw new SplitDatasetError(usage);
@@ -58,34 +63,22 @@ export async function runSplitCommand(
 
     const [command, ...rest] = args;
 
-    if (command === 'import') {
-      const values = options(rest, ['artifact', 'case-id', 'output']);
-      await importSplitCase(
-        text(values.artifact, '--artifact'),
-        text(values['case-id'], '--case-id'),
-        text(values.output, '--output'),
-      );
-      signal.throwIfAborted();
-      process.stdout.write(
-        JSON.stringify({
-          status: 'draft',
-          caseId: values['case-id'],
-          output: values.output,
-          message:
-            'Evidence imported. Human labels, review and deliberate partition assignment are still required; the suite was not changed.',
-        }) + '\n',
-      );
-    } else if (command === 'validate') {
+    if (command === 'validate') {
       const target = rest.some(
         (argument) => argument === '--case' || argument.startsWith('--case='),
       )
         ? 'case'
         : 'suite';
-      const values = options(rest, [target]);
+      const values = options(
+        rest,
+        target === 'case' ? [target, 'artifact'] : [target],
+        {},
+        ['artifact'],
+      );
       const path = text(values[target], `--${target}`);
 
       if (target === 'case') {
-        const prepared = await loadSplitCase(path);
+        const prepared = await loadSplitCase(path, values.artifact);
         signal.throwIfAborted();
         process.stdout.write(
           JSON.stringify(
@@ -123,16 +116,23 @@ export async function runSplitCommand(
         }) + '\n',
       );
     } else if (command === 'eval') {
-      const values = options(rest, ['case', 'artifact', 'output']);
+      const values = options(rest, ['case', 'artifact', 'output'], {}, [
+        'output',
+      ]);
       const report = await evaluateSplitCaseArtifact(
         text(values.case, '--case'),
         text(values.artifact, '--artifact'),
       );
-      const outputPath = resolve(text(values.output, '--output'));
+      const outputPath =
+        values.output === undefined ? undefined : resolve(values.output);
       signal.throwIfAborted();
-      await writeJsonArtifact(outputPath, report);
-      signal.throwIfAborted();
-      process.stdout.write(formatSplitEvaluation(report, outputPath));
+
+      if (outputPath !== undefined) {
+        await writeJsonArtifact(outputPath, report);
+        signal.throwIfAborted();
+      }
+
+      process.stdout.write(formatSplitEvaluation(report));
 
       return report.status === 'complete' ? 0 : 1;
     } else if (command === 'score') {
