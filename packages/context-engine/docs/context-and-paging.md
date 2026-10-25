@@ -150,7 +150,7 @@ The retained-ledger path is separate: `session.execute({ name: 'inspect_change',
 | Retention               | 4,194,304 bytes (4 MiB) | Serialized identity, unique sources, queries, pages, navigation and notices |
 | Packet / diff-page text | 65,536 bytes (64 KiB)   | Exact UTF-8 rendered context, including headers or JSON escaping            |
 
-Engine overrides may lower retention and packet limits. Retention overflow fails without eviction. Packet `byteCount` excludes the outer packet metadata; retention accounting is not an exact JavaScript heap quota.
+Engine overrides allow packets up to 8 MiB and retention up to 32 MiB. Standalone callers can pass the same limits as the third argument to `buildContextPacket(snapshot, input, limits)`; omitting them preserves the defaults. Diff pages keep their 64 KiB ceiling. Retention overflow fails without eviction. Packet `byteCount` excludes the outer packet metadata; retention accounting is not an exact JavaScript heap quota.
 
 Assembly optionally accepts a `TokenBudget`; paging requires one. It contains `counterId`, `maxTokens` and asynchronous `countTokens(context)`. Counts must be nonnegative safe integers; assembly without a counter returns `tokenCount: null`. The host must count its complete request, reserve output capacity and enforce counter deadlines. Counter failures propagate.
 

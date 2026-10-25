@@ -251,13 +251,14 @@ export function createEvidenceLedger(
 }
 
 /* Rebuild snapshots, including those loaded from JSON, through the ledger to verify source IDs, page fingerprints and query progress before assembly. */
-export function validateAndCopySnapshot(value: unknown): EvidenceSnapshot {
+export function validateAndCopySnapshot(
+  value: unknown,
+  maxRetainedBytes = defaultContextLimits.maxRetainedBytes,
+): EvidenceSnapshot {
   const input = validate.object(value);
   const identity = validate.identity(input.identity);
-  const ledger = createEvidenceLedger(
-    identity,
-    defaultContextLimits.maxRetainedBytes,
-  );
+  /* Reconstruction must honor the live ledger's allowance, including larger explicit budgets. */
+  const ledger = createEvidenceLedger(identity, maxRetainedBytes);
   const sources = new Map<string, SourceEvidence>();
 
   for (const value of validate.array(input.sources)) {

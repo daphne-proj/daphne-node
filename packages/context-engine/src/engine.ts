@@ -43,7 +43,11 @@ export function createContextEngine(
         resolved.maxContextBytes,
       );
 
-      return buildContextPacket(ledger.snapshot(), { ...input, maxBytes });
+      return buildContextPacket(
+        ledger.snapshot(),
+        { ...input, maxBytes },
+        resolved,
+      );
     },
   });
 }

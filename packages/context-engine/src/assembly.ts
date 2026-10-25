@@ -8,11 +8,12 @@ import type {
 } from './contracts.js';
 import { validateAndCopySnapshot } from './evidence.js';
 import { ContextInputError, ContextLimitError } from './errors.js';
-import { defaultContextLimits } from './limits.js';
+import { resolveContextLimits } from './limits.js';
+import type { ContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
 /* Capture selection and counter settings before asynchronous counting so caller edits cannot change an in-progress packet. */
-function parseAssembleInput(value: unknown): AssembleInput {
+function parseAssembleInput(value: unknown, limits: ContextLimits): AssembleInput {
   const input = validate.object(value);
   const evidenceIds = Object.freeze([
     ...new Set(
@@ -21,7 +22,7 @@ function parseAssembleInput(value: unknown): AssembleInput {
   ]);
   const maxBytes = Math.min(
     validate.integer(input.maxBytes, 1),
-    defaultContextLimits.maxContextBytes,
+    limits.maxContextBytes,
   );
 
   if (input.tokens === undefined) {
@@ -60,9 +61,11 @@ function contextNotice(code: string, message: string): ContextNotice {
 export async function buildContextPacket(
   snapshot: EvidenceSnapshot,
   input: AssembleInput,
+  limits?: ContextLimits,
 ): Promise<ContextPacket> {
-  const captured = validateAndCopySnapshot(snapshot);
-  const selection = parseAssembleInput(input);
+  const resolved = resolveContextLimits(limits);
+  const captured = validateAndCopySnapshot(snapshot, resolved.maxRetainedBytes);
+  const selection = parseAssembleInput(input, resolved);
   const byId = new Map(
     captured.sources.map((source) => [source.evidenceId, source]),
   );

@@ -27,6 +27,6 @@ For diff pages, validate the supplied hunks, render them together, and recursive
 
 The only workspace imports are types from `@daphne/review-evidence/contracts`, keeping context construction independent of retrieval. Node `Buffer` measures and splits UTF-8 bytes; `node:crypto` provides stable packet IDs and fingerprints. Callers supply token counting so this package needs no model SDK or tokenizer.
 
-Defaults cap serialized retention at 4 MiB and packet/page text at 64 KiB. `ContextInputError`, `ContextConflictError` and `ContextLimitError` distinguish malformed input, inconsistent evidence and exceeded budgets. Validation checks supplied evidence consistency; it does not authenticate repository contents or establish semantic correctness.
+Defaults cap serialized retention at 4 MiB and packet/page text at 64 KiB. Explicit limits allow packets up to 8 MiB and retention up to 32 MiB; diff pages keep their 64 KiB ceiling. `ContextInputError`, `ContextConflictError` and `ContextLimitError` distinguish malformed input, inconsistent evidence and exceeded budgets. Validation checks supplied evidence consistency; it does not authenticate repository contents or establish semantic correctness.
 
 See the [context and paging guide](docs/context-and-paging.md) for examples and budget behavior, the [contracts](src/contracts.ts) for data shapes, and the [boundary decision](../../docs/adr/0002-context-engine-boundary.md) for ownership.
