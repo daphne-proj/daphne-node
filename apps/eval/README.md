@@ -20,13 +20,13 @@ make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=out
 
 This builds and compares the saved groups directly against one case, without reading a suite or rerunning the splitter. It loads evidence directly from the supplied artifact, validates label IDs and exact unit coverage, and applies the deterministic pair scorer. No model calls, Git/network verification, credential loading or Langfuse initialization occur. Case and artifact bytes remain unchanged.
 
-Run `make split-pr-eval-all` to rerun the model for every JSON case in the gold folder and compare each fresh output with its labels. The target reads each PR URL from its existing `outputs/split_<case filename without .json>/run.json`, builds once, and saves the new runs under a unique `outputs/split-pr-eval-all.*` directory. It refuses to score a PR whose commits differ from the saved capture and continues after errors. Missing captures, failed model runs and invalid comparisons make the batch exit nonzero; label disagreements retain the individual evaluator's successful exit status. The target makes paid model calls and leaves the gold files and reference captures unchanged.
+Run `make split-pr-eval-all` to rerun the model for every JSON case in the gold folder and compare each fresh output with its labels. The target reads each PR URL from its existing `outputs/split_<case filename without .json>/run.json`, builds once, and saves the new runs under a unique `outputs/split-pr-eval-all.*` directory. Each case directory contains both `run.json` and a deterministic `eval.json` score report. It refuses to score a PR whose commits or frozen evidence differ from the saved capture and continues after errors. Missing captures, failed model runs and invalid comparisons make the batch exit nonzero; label disagreements retain the individual evaluator's successful exit status. The target makes paid model calls and leaves the gold files and reference captures unchanged.
 
-Direct comparison trusts the selected artifact as the input reference; choose the capture the labels describe, since minimal gold files contain no independent commit fingerprint. Suite scoring separately checks candidate evidence against the configured reference run, normalizing capture-specific session IDs.
+By default, direct comparison trusts the selected artifact as the input reference; choose the capture the labels describe, since minimal gold files contain no independent commit fingerprint. Suite scoring separately checks candidate evidence against the configured reference run, normalizing capture-specific session IDs.
 
 Draft references are allowed as provisional comparisons: the report retains the original `review` object with `provisional: true`. Reviewed references retain their reviewer and timestamp with `provisional: false`. This command never approves labels; live benchmarks and the suite-based `score` command still require reviewed cases.
 
-The terminal prints the overall `Score` line, counting each known together/separate label equally, followed by any violated pairs. Each violation shows the expected relationship and both unit IDs. An optional JSON export includes review status, annotation coverage, per-relation rates, validation details and violated pairs. Unknown and unlabeled pairs are never scored. Zero support prints `N/A` and stores a null rate; it cannot establish perfect agreement. Structural validity and annotation coverage are not quality scores.
+The terminal prints the overall `Score` line, counting each known together/separate label equally, followed by any violated pairs. Each violation shows the expected relationship and both unit IDs. An optional JSON export includes review status, annotation coverage, per-relation rates, validation details and violated pairs. Use `--reference PATH` with the direct evaluator when the labels belong to an original capture and the candidate is a later run; `split-pr-eval-all` supplies this automatically. Unknown and unlabeled pairs are never scored. Zero support prints `N/A` and stores a null rate; it cannot establish perfect agreement. Structural validity and annotation coverage are not quality scores.
 
 `@daphne/cli/command-output` provides the shared `formatCommandOutput(title, rows)` helper for human-readable commands. It aligns labels and applies bold green for success, yellow for warnings and red for errors, respecting terminal color support and `NO_COLOR`. The split command uses it when stdout is a terminal and retains JSON summaries when redirected. The evaluation Make target suppresses command echo while preserving errors. Other commands retain their JSON output contracts.
 
@@ -42,6 +42,20 @@ bun run eval -- split-pr eval \
 The `daphne-split-case-eval-v1` report contains source paths, case/input/artifact hashes, reference annotation coverage, unchanged review metadata, provisional status, all per-pair scores and fresh proposal validation diagnostics. Saved validation claims are ignored; the accepted proposal must also match the final grouping attempt.
 
 The eval CLI exits `0` after a structurally accepted comparison, even when every known pair is violated or there are no known labels. Exit `1` means malformed/inconsistent inputs, a failed saved run, invalid predicted coverage/shape, cancellation or publication failure (Make propagates failure as a nonzero exit). Failed runs and invalid output can still export diagnostic reports with `status: "failed_run"` or `"invalid_output"` and null pair scores/rates. A completed comparison has `status: "complete"`; that status is not a quality verdict. Malformed inputs and mismatched evidence fail before publication.
+
+## Upload saved batch scores to Langfuse
+
+After `make split-pr-eval-all`, use the directory printed as `Fresh model runs`:
+
+```sh
+make split-pr-langfuse-upload RUN_DIR=outputs/split-pr-eval-all.XXXXXX
+```
+
+Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL` in the environment or root `.env`. This explicit command reads the batch's `run.json` and `eval.json` files, recomputes every score against the registered gold case and original reference capture, and requires a report for every suite case before making a network call. It does not call the model. Old batches without `eval.json` can be scored offline with `split-pr eval --case ... --artifact ... --reference ... --output ...`; no model rerun is needed.
+
+The `daphne-split-pr-saved` experiment receives case IDs and input hashes, expected pair labels, predicted group unit IDs, eight item scores and an `accepted_rate` run score. Per-item metadata includes the model, scorer inputs, review state and `provisional: true` for draft labels. Raw `run.json` content, model replies and source evidence stay local. Experiment task timing reflects the upload only; it is not original model latency or cost. Treat draft scores as exploratory until the labels are reviewed.
+
+The uploader creates `langfuse-upload-attempt.json` before contacting Langfuse and writes `langfuse-upload.json` with the experiment link only after complete results and telemetry finalization. An attempt marker blocks another upload of the same directory, including after an uncertain network failure. If a failure leaves only the attempt marker, inspect the remote experiment by its saved `runName` before deciding whether to retry from a new copy of the batch. This guard prevents an accidental second upload; it cannot make remote writes transactional.
 
 ## Score a reviewed suite case
 

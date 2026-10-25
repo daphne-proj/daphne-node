@@ -1,10 +1,10 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-eval split-pr-eval-all
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-eval split-pr-eval-all split-pr-langfuse-upload
 
 MODEL ?= gpt-6.1-sol
 MAX_INPUT_TOKENS ?= 16384
-export PR OUTPUT MODEL MAX_INPUT_TOKENS CASE ARTIFACT
+export PR OUTPUT MODEL MAX_INPUT_TOKENS CASE ARTIFACT RUN_DIR
 
 help:
 	@printf '%s\n' \
@@ -30,7 +30,9 @@ help:
 		'                   Compare saved groups with labels offline; drafts are provisional' \
 		'                   Print results; optional OUTPUT=NEW_FILE outside the gold dataset' \
 		'make split-pr-eval-all' \
-		'                   Re-run the model for every gold case, then score each fresh result'
+		'                   Re-run every gold case; save run.json and eval.json together' \
+		'make split-pr-langfuse-upload RUN_DIR=outputs/split-pr-eval-all.XXXXXX' \
+		'                   Upload saved scores to Langfuse; no model calls'
 
 install:
 	bun install --frozen-lockfile
@@ -109,6 +111,14 @@ split-pr-eval-all:
 		pr_url=$$(node -e 'const run = require(process.argv[1]); if (typeof run.pr !== "string") process.exit(1); process.stdout.write(run.pr)' "./$$reference") || { status=1; continue; }; \
 		bun run --silent cli -- split-pr --pr "$$pr_url" --output "$$run_dir/$$case_name" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS" || { status=1; continue; }; \
 		node -e 'const fs = require("node:fs"); const [reference, fresh] = process.argv.slice(1).map((path) => JSON.parse(fs.readFileSync(path, "utf8"))); const keys = ["repositoryUrl", "baseCommit", "targetCommit", "headCommit"]; if (keys.some((key) => !reference.identity?.[key] || reference.identity[key] !== fresh.identity?.[key])) { console.error("PR code changed since the gold capture; refusing to score."); process.exitCode = 1; }' "$$reference" "$$fresh" || { status=1; continue; }; \
-		bun run --silent eval -- split-pr eval --case "$$case_file" --artifact "$$fresh" || status=1; \
+		bun run --silent eval -- split-pr eval --case "$$case_file" --artifact "$$fresh" --reference "$$reference" --output "$$run_dir/$$case_name/eval.json" || status=1; \
 	done; \
 	exit "$$status"
+
+split-pr-langfuse-upload:
+	@test -n "$$RUN_DIR" || { \
+		printf '%s\n' 'Usage: make split-pr-langfuse-upload RUN_DIR=outputs/split-pr-eval-all.XXXXXX' >&2; \
+		exit 1; \
+	}
+	@bun run --silent build
+	@bun run --silent eval -- split-pr upload --run-dir "$$RUN_DIR"

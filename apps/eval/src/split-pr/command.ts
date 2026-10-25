@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
+import { LangfuseConfigurationError } from '../langfuse.js';
 import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { summarizeSplitCase } from './validation.js';
 import {
@@ -10,9 +11,10 @@ import { formatSplitEvaluation } from './evaluation-summary.js';
 import { writeJsonArtifact } from './report.js';
 import { SplitDatasetError, text, choice } from './parse.js';
 import { runSplitEvaluation } from './run.js';
+import { uploadSplitEvaluation } from './upload.js';
 
 const usage =
-  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
+  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
 
 function options(
   args: string[],
@@ -116,12 +118,16 @@ export async function runSplitCommand(
         }) + '\n',
       );
     } else if (command === 'eval') {
-      const values = options(rest, ['case', 'artifact', 'output'], {}, [
-        'output',
-      ]);
+      const values = options(
+        rest,
+        ['case', 'artifact', 'reference', 'output'],
+        {},
+        ['reference', 'output'],
+      );
       const report = await evaluateSplitCaseArtifact(
         text(values.case, '--case'),
         text(values.artifact, '--artifact'),
+        values.reference,
       );
       const outputPath =
         values.output === undefined ? undefined : resolve(values.output);
@@ -135,6 +141,13 @@ export async function runSplitCommand(
       process.stdout.write(formatSplitEvaluation(report));
 
       return report.status === 'complete' ? 0 : 1;
+    } else if (command === 'upload') {
+      const values = options(rest, ['run-dir']);
+      const result = await uploadSplitEvaluation(
+        text(values['run-dir'], '--run-dir'),
+        signal,
+      );
+      process.stdout.write(JSON.stringify(result) + '\n');
     } else if (command === 'score') {
       const values = options(rest, ['suite', 'case-id', 'artifact', 'output']);
       const report = await evaluateSplitArtifact(
@@ -182,7 +195,8 @@ export async function runSplitCommand(
     return 0;
   } catch (error) {
     const message =
-      error instanceof SplitDatasetError
+      error instanceof SplitDatasetError ||
+      error instanceof LangfuseConfigurationError
         ? error.message
         : 'Split dataset operation failed.';
     process.stderr.write(

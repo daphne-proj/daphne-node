@@ -177,8 +177,9 @@ export async function evaluateSplitArtifact(
 export async function evaluateSplitCaseArtifact(
   casePath: string,
   artifactPath: string,
+  referencePath = artifactPath,
 ) {
-  const prepared = await loadSplitCase(casePath, artifactPath);
+  const prepared = await loadSplitCase(casePath, referencePath);
   const scored = await scoreArtifact(prepared, artifactPath, 'allow-draft');
   let status: 'complete' | 'failed_run' | 'invalid_output' = 'complete';
 
