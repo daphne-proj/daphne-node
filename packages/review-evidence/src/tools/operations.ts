@@ -18,6 +18,7 @@ import type {
 import { EvidenceInputError, SourceUnavailableError } from '../errors.js';
 import { readEvidenceBlob, readSource, sourceFromBlob } from '../source.js';
 import { hunkWindows } from './hunks.js';
+import { readLineWindow } from './lines.js';
 
 export type Observation =
   | { readonly kind: 'entry'; readonly entry: ToolEntry }
@@ -253,6 +254,24 @@ export async function* observations(
           kind: 'entry',
           entry: Object.freeze({ kind: 'source', source }),
         };
+      } catch (error) {
+        yield unavailable(error, request.path);
+      }
+
+      return;
+    case 'read_source_lines':
+      try {
+        const read = await readLineWindow(snapshot, request, options);
+
+        if (read.kind === 'unavailable') {
+          yield { kind: 'notice', notice: read.notice };
+        } else {
+          yield { kind: 'entry', entry: read.window };
+          yield {
+            kind: 'entry',
+            entry: Object.freeze({ kind: 'source', source: read.source }),
+          };
+        }
       } catch (error) {
         yield unavailable(error, request.path);
       }

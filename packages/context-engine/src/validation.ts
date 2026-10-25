@@ -161,6 +161,20 @@ export function request(value: unknown): ToolRequest {
         path: string(input.path),
         range: range(input.range),
       });
+    case 'read_source_lines': {
+      const startLine = integer(input.startLine, 1);
+      const lineCount = integer(input.lineCount, 1);
+      integer(startLine + (lineCount - 1), 1);
+
+      return Object.freeze({
+        ...common,
+        name: 'read_source_lines',
+        side: side(input.side),
+        path: string(input.path),
+        startLine,
+        lineCount,
+      });
+    }
     case 'search_code':
       return Object.freeze({
         ...common,
@@ -232,7 +246,11 @@ function entry(
 
   switch (input.kind) {
     case 'source': {
-      if (query.name !== 'read_source' && query.name !== 'inspect_change') {
+      if (
+        query.name !== 'read_source' &&
+        query.name !== 'read_source_lines' &&
+        query.name !== 'inspect_change'
+      ) {
         throw new ContextInputError('This tool cannot supply source entries.');
       }
 
@@ -251,6 +269,44 @@ function entry(
       }
 
       return Object.freeze({ kind: 'source', source: evidence });
+    }
+    case 'source_window': {
+      const selectedSide = side(input.side);
+      const path = string(input.path);
+      const selectedRange = range(input.range);
+      const startLine = integer(input.startLine);
+      const endLine = integer(input.endLine, startLine);
+      const totalLines = integer(input.totalLines, endLine);
+
+      if (
+        query.name !== 'read_source_lines' ||
+        selectedSide !== query.side ||
+        path !== query.path ||
+        startLine !== (totalLines === 0 ? 0 : query.startLine) ||
+        (totalLines === 0 &&
+          (query.startLine !== 1 ||
+            selectedRange.startByte !== 0 ||
+            selectedRange.endByte !== 0)) ||
+        endLine !==
+          Math.min(totalLines, query.startLine + (query.lineCount - 1)) ||
+        input.eofClamped !==
+          query.startLine + (query.lineCount - 1) > totalLines
+      ) {
+        throw new ContextInputError(
+          'Source window is outside the recorded line request.',
+        );
+      }
+
+      return Object.freeze({
+        kind: 'source_window',
+        side: selectedSide,
+        path,
+        range: selectedRange,
+        startLine,
+        endLine,
+        totalLines,
+        eofClamped: input.eofClamped,
+      });
     }
     case 'change': {
       const data = change(input.change);
@@ -312,6 +368,34 @@ export function result(value: unknown, session: ReviewIdentity): ToolResult {
     array(input.entries).map((value) => entry(value, session, query)),
   );
   const notices = Object.freeze(array(input.notices).map(notice));
+
+  if (
+    query.name === 'read_source_lines' &&
+    (entries.length > 0 || input.completeness === 'complete')
+  ) {
+    const windows = entries.filter((item) => item.kind === 'source_window');
+    const window = windows[0];
+    const sources = entries.filter((item) => item.kind === 'source');
+
+    /* Each fragment belongs to the selected window, even when a page splits a long line. */
+    if (
+      windows.length !== 1 ||
+      !window ||
+      sources.length === 0 ||
+      sources.some(
+        ({ source }) =>
+          source.ref.side !== window.side ||
+          source.ref.path !== window.path ||
+          source.ref.range.startByte < window.range.startByte ||
+          source.ref.range.endByte > window.range.endByte,
+      )
+    ) {
+      throw new ContextInputError(
+        'Line-read sources do not match their window metadata.',
+      );
+    }
+  }
+
   const nextCursor = nullableString(input.nextCursor);
   const { completeness } = input;
 

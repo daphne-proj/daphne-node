@@ -10,7 +10,7 @@
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `readSource({ side, path, range })` | Return exact UTF-8 text at a byte range, with its source reference.                                                                 |
 | `readHunk({ changeId, hunkIndex })` | Read an original hunk's existing sides in BASE-then-HEAD order.                                                                     |
-| `execute(request)`                  | Validate and run `list_changes`, `inspect_change`, `read_source` or `search_code`, with bounded responses and continuation cursors. |
+| `execute(request)`                  | Validate and run `list_changes`, `inspect_change`, `read_source`, `read_source_lines` or `search_code`, with bounded responses and continuation cursors. |
 
 `parseToolRequest` normalizes tool requests; `defaultEvidenceLimits` and `resolveEvidenceLimits` configure delivery budgets. Import data types through `@daphne/review-evidence/contracts` when retrieval code is unnecessary.
 
@@ -28,6 +28,8 @@
 3. For tool calls, fit entries into the response budget and return authenticated, retryable cursors when more delivery is possible. The host follows cursors and decides which results to retain.
 
 `git-source` is the only runtime package dependency and owns all repository I/O. Node `Buffer` handles byte boundaries; `node:crypto` authenticates session-local cursors. Context retention, model calls and semantic grouping remain with their owning packages.
+
+Line reads select one-based source lines and return exact bytes with window metadata; oversized windows continue through cursors.
 
 Tool defaults are 16 KiB per JSON response and 100 items per entries/notices array. Direct source/hunk reads use Git's blob limits instead. Search previews are navigation, not exact evidence; a null cursor alone does not prove completeness. Input, source-availability and response-budget failures have distinct error types.
 

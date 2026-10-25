@@ -190,6 +190,25 @@ export function createEvidenceLedger(
         );
       }
 
+      if (request.name === 'read_source_lines' && previous) {
+        const originalWindow = previous.pages[0]?.entries.find(
+          (entry) => entry.kind === 'source_window',
+        );
+        const incomingWindow = result.entries.find(
+          (entry) => entry.kind === 'source_window',
+        );
+
+        /* Pinned lines resolve to one window, regardless of how source bytes are paged. */
+        if (
+          incomingWindow &&
+          JSON.stringify(incomingWindow) !== JSON.stringify(originalWindow)
+        ) {
+          throw new ContextConflictError(
+            'Continuation pages disagree about the selected source window.',
+          );
+        }
+      }
+
       /* Store source text once even when several tool pages return the same excerpt. */
       const sources = [...state.sources];
       const entries: RetainedEntry[] = result.entries.map((entry) => {

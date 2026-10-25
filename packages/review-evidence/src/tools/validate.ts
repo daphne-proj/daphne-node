@@ -144,6 +144,33 @@ export function parseToolRequest(value: unknown): ToolRequest {
         path: path(input.path),
         range: range(input.range),
       });
+    case 'read_source_lines': {
+      keys(input, [...commonKeys, 'side', 'path', 'startLine', 'lineCount']);
+      const { startLine, lineCount } = input;
+
+      if (
+        typeof startLine !== 'number' ||
+        typeof lineCount !== 'number' ||
+        !Number.isSafeInteger(startLine) ||
+        !Number.isSafeInteger(lineCount) ||
+        startLine < 1 ||
+        lineCount < 1 ||
+        !Number.isSafeInteger(startLine + (lineCount - 1))
+      ) {
+        throw new EvidenceInputError(
+          'Line coordinates must be positive safe integers with a safe ending line.',
+        );
+      }
+
+      return Object.freeze({
+        ...common,
+        name: 'read_source_lines',
+        side: side(input.side),
+        path: path(input.path),
+        startLine,
+        lineCount,
+      });
+    }
     case 'search_code': {
       keys(input, [...commonKeys, 'side', 'query', 'pathPrefix', 'pageSize']);
       const query = text(input.query);

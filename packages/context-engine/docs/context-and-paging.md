@@ -161,3 +161,5 @@ Assembly optionally accepts a `TokenBudget`; paging requires one. It contains `c
 Internal consistency and complete paging do not prove semantic correctness, model delivery or independently applicable review groups. Assembly reconstructs snapshots and uses linear scans; worst-case latency near the retention cap has not been benchmarked.
 
 See the [boundary ADR](../../../docs/adr/0002-context-engine-boundary.md) for ownership decisions and [public contracts](../src/contracts.ts), [assembly](../src/assembly.ts) and [paging](../src/paging.ts) for the implementation.
+
+Line-read `source_window` entries remain navigation. Validation checks the request, side, path and fragment range without reading the repository. Each successful page includes consistent window metadata and exact source fragments, including an empty source for an empty file. Only those fragments become citable retained evidence.

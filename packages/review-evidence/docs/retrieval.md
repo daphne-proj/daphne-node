@@ -126,7 +126,7 @@ The host can collect these sources with their original change/hunk indexes and p
 
 ## Bounded repository tools
 
-The session now also accepts four validated requests: `list_changes`, `inspect_change`, `read_source` and `search_code`. The host chooses requests; the session never invokes a model or a context engine.
+The session now also accepts five validated requests: `list_changes`, `inspect_change`, `read_source`, `read_source_lines` and `search_code`. The host chooses requests; the session never invokes a model or a context engine.
 
 ```ts
 const page = await session.execute({
@@ -157,3 +157,21 @@ Source pages carry contiguous ranges on UTF-8 boundaries. The byte cap includes 
 Continuation recomputes bounded observations; it does not keep a response cache or a growing cursor registry. Git-source reuses a completed, frozen inventory for the same snapshot and blob/output byte limits, so individual hunk reads do not rescan the comparison. Changed byte limits require a fresh inventory; cancelled and closed snapshots still reject reads. Underlying Git search/inventory must finish within their own limits. Pagination bounds delivery, not total query work. The host must supply an overall workflow deadline if needed.
 
 For the wider package boundaries, see [the architecture guide](../../../docs/architecture.md) and [the context and paging guide](../../context-engine/docs/context-and-paging.md).
+
+## Read surrounding lines
+
+After `search_code` returns a path and one-based line number, use `read_source_lines` to read that area on the same BASE or HEAD side. Reads can address any supported committed file, including unchanged files. Expand the window by issuing another line request; follow `nextCursor` with the original normalized request to finish an existing window.
+
+```ts
+const page = await session.execute({
+  name: 'read_source_lines',
+  side: 'head',
+  path: 'src/cart.ts',
+  startLine: 1,
+  lineCount: 40,
+});
+```
+
+Every successful page includes a `source_window` with the full selected byte range, actual `startLine`/`endLine`, `totalLines` and `eofClamped`. Source entries contain exact original bytes, with CRLF and Unicode preserved. A long line can span several pages; window metadata describes the whole selection, not each fragment. It counts toward both the response byte budget and entry limit; a successful line page requires at least two entry slots.
+
+An ending line beyond EOF is clamped. A starting line beyond EOF returns an unavailable notice with valid bounds, so the caller can retry. Empty files have zero lines: a request starting at line 1 returns an empty source with window bounds 0/0. A trailing newline terminates the preceding line and does not create another line. Unsafe arithmetic is rejected before Git access.

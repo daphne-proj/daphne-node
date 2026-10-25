@@ -69,6 +69,13 @@ export type ToolRequest = ToolPage &
         readonly range: ByteRange;
       }
     | {
+        readonly name: 'read_source_lines';
+        readonly side: Side;
+        readonly path: string;
+        readonly startLine: number;
+        readonly lineCount: number;
+      }
+    | {
         readonly name: 'search_code';
         readonly side: Side;
         readonly query: string;
@@ -80,6 +87,16 @@ export type ToolRequest = ToolPage &
 export type ToolEntry =
   | { readonly kind: 'change'; readonly change: Change }
   | { readonly kind: 'source'; readonly source: SourceEvidence }
+  | {
+      readonly kind: 'source_window';
+      readonly side: Side;
+      readonly path: string;
+      readonly range: ByteRange;
+      readonly startLine: number;
+      readonly endLine: number;
+      readonly totalLines: number;
+      readonly eofClamped: boolean;
+    }
   | {
       readonly kind: 'search_hit';
       readonly side: Side;

@@ -144,6 +144,23 @@ export function createToolExecutor(
     try {
       let current = await iterator.next();
 
+      /* Repeat the selected window on every page; cursor offsets address source only. */
+      if (
+        request.name === 'read_source_lines' &&
+        !current.done &&
+        current.value.kind === 'entry' &&
+        current.value.entry.kind === 'source_window'
+      ) {
+        if (pageSize < 2) {
+          throw new EvidenceLimitError(
+            'A line-read page needs room for its window metadata and source entry.',
+          );
+        }
+
+        entries.push(current.value.entry);
+        current = await iterator.next();
+      }
+
       while (!current.done && index < position.index) {
         // Async-generator microtasks alone cannot deliver timers or user cancellation.
         if (index % 128 === 0) {
