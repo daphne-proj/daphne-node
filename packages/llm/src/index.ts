@@ -1,5 +1,7 @@
 export { createOpenAI, ModelError } from './openai.js';
 export type {
+  ModelFunctionTool,
+  ModelFunctionCall,
   ModelReply,
   ModelRequest,
   ModelCallObservation,

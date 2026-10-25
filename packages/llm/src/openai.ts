@@ -1,8 +1,26 @@
-export class ModelError extends Error {
-  override readonly name = 'ModelError';
+import { decodeResponse, ModelError, object } from './response.js';
+
+export { ModelError } from './response.js';
+
+export interface ModelFunctionTool {
+  type: 'function';
+  name: string;
+  description: string;
+  strict: true;
+  parameters: object;
+}
+
+export interface ModelFunctionCall {
+  id: string;
+  call_id: string;
+  name: string;
+  arguments: string;
 }
 
 export interface ModelRequest {
+  tools?: readonly ModelFunctionTool[];
+  parallel_tool_calls?: boolean;
+  max_output_tokens?: number;
   instructions: string;
   input: string | readonly Record<string, unknown>[];
   text?: {
@@ -11,6 +29,7 @@ export interface ModelRequest {
 }
 
 export interface ModelReply {
+  functionCalls?: readonly ModelFunctionCall[];
   text: string;
   output: readonly Record<string, unknown>[];
   response: Record<string, unknown>;
@@ -27,18 +46,6 @@ export interface ModelCallObservation {
   elapsedMs: number;
   status: 'complete' | 'failed';
   response: Record<string, unknown> | null;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function object(value: unknown): Record<string, unknown> {
-  if (!isObject(value)) {
-    throw new ModelError('OpenAI returned an invalid response.');
-  }
-
-  return value;
 }
 
 /* Validate provider JSON here and preserve accepted output items for local replay. */
@@ -134,7 +141,10 @@ export function createOpenAI(
   return {
     calls,
     async count(request: ModelRequest): Promise<number> {
-      return observe('count', '/input_tokens', request, (response) => {
+      const input = { ...request };
+      delete input.max_output_tokens;
+
+      return observe('count', '/input_tokens', input, (response) => {
         const count = response.input_tokens;
 
         if (
@@ -149,85 +159,26 @@ export function createOpenAI(
       });
     },
     async generate(request: ModelRequest): Promise<ModelReply> {
+      const maxOutputTokens = request.max_output_tokens ?? 4096;
+
+      if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens <= 0) {
+        throw new ModelError(
+          'Output token limit must be a positive safe integer.',
+        );
+      }
+
       return observe(
         'generate',
         '',
         {
           ...request,
           store: false,
-          max_output_tokens: 4096,
+          max_output_tokens: maxOutputTokens,
+          ...(request.tools?.length
+            ? { include: ['reasoning.encrypted_content'] }
+            : {}),
         },
-        (response) => {
-          if (
-            response.status !== 'completed' ||
-            !Array.isArray(response.output)
-          ) {
-            throw new ModelError('OpenAI did not complete the response.');
-          }
-
-          const output = response.output.map(object);
-          const texts: string[] = [];
-
-          for (const item of output) {
-            if (typeof item.id !== 'string' || !item.id) {
-              throw new ModelError(
-                'LLM returned an output item without an ID.',
-              );
-            }
-
-            if (item.type === 'reasoning') {
-              if (
-                !Array.isArray(item.summary) ||
-                !item.summary.every(
-                  (part: unknown) =>
-                    isObject(part) &&
-                    part.type === 'summary_text' &&
-                    typeof part.text === 'string',
-                ) ||
-                (item.status !== undefined && item.status !== 'completed')
-              ) {
-                throw new ModelError('LLM returned invalid reasoning output.');
-              }
-
-              continue;
-            }
-
-            if (
-              item.type !== 'message' ||
-              item.role !== 'assistant' ||
-              item.status !== 'completed' ||
-              !Array.isArray(item.content)
-            ) {
-              throw new ModelError('LLM returned unexpected output.');
-            }
-
-            for (const part of item.content) {
-              const content = object(part);
-
-              if (
-                content.type !== 'output_text' ||
-                typeof content.text !== 'string'
-              ) {
-                throw new ModelError(
-                  'OpenAI refused the request or returned unexpected content.',
-                );
-              }
-
-              /* Commentary stays in replay history, but is not part of the answer. */
-              if (item.phase !== 'commentary') {
-                texts.push(content.text);
-              }
-            }
-          }
-
-          const text = texts.join('');
-
-          if (!text.trim()) {
-            throw new ModelError('OpenAI returned no answer text.');
-          }
-
-          return { text, output, response };
-        },
+        (response) => decodeResponse(response, request.tools ?? []),
       );
     },
   };
