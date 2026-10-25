@@ -19,13 +19,13 @@ import {
 import type { SplitRunManifest, SplitRunOptions } from './contracts.js';
 import { loadSplitSuite } from './dataset.js';
 import { runSplitExperiment } from './experiment.js';
-import { sha256, SplitDatasetError } from './parse.js';
-import { writeJsonArtifact } from './report.js';
+import { sha256, EvaluationError } from '../parse.js';
+import { writeJsonArtifact } from '../artifacts.js';
 import { splitScorerVersion } from './score.js';
 
 function positiveInteger(value: number, field: string): void {
   if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new SplitDatasetError(`${field}: expected a positive safe integer.`);
+    throw new EvaluationError(`${field}: expected a positive safe integer.`);
   }
 }
 
@@ -50,7 +50,7 @@ export async function runSplitEvaluation(
   const outputDirectory = resolve(options.outputDirectory);
 
   if (await isGoldenDatasetPath(outputDirectory)) {
-    throw new SplitDatasetError(
+    throw new EvaluationError(
       'The golden dataset is read-only; choose an output outside its cases directory.',
     );
   }
@@ -64,7 +64,7 @@ export async function runSplitEvaluation(
     cases.length === 0 ||
     cases.some(({ definition }) => definition.review.status !== 'reviewed')
   ) {
-    throw new SplitDatasetError(
+    throw new EvaluationError(
       'The selected partition must contain cases and every selected case must be reviewed.',
     );
   }
@@ -75,7 +75,7 @@ export async function runSplitEvaluation(
   try {
     await mkdir(outputDirectory, { mode: 0o700 });
   } catch {
-    throw new SplitDatasetError(
+    throw new EvaluationError(
       '--output must be a new directory in an existing parent.',
     );
   }

@@ -9,7 +9,7 @@ import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { parseSplitEvidence } from './evidence.js';
 import { scoreSplitResult, splitScorerVersion } from './score.js';
 import { summarizeSplitCase } from './validation.js';
-import * as parse from './parse.js';
+import * as parse from '../parse.js';
 
 function artifactResult(
   value: unknown,
@@ -43,13 +43,13 @@ function artifactResult(
   };
 
   if (parse.sha256(JSON.stringify(comparisonEvidence)) !== prepared.inputHash) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'artifact: evidence does not match the selected case input hash.',
     );
   }
 
   if (input.maxCorrections !== 3) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'artifact.maxCorrections: v3 requires three corrections.',
     );
   }
@@ -61,7 +61,7 @@ function artifactResult(
       const attempt = parse.object(value, field);
 
       if (attempt.number !== index + 1) {
-        throw new parse.SplitDatasetError(
+        throw new parse.EvaluationError(
           `${field}.number: require consecutive attempts starting at one.`,
         );
       }
@@ -73,14 +73,14 @@ function artifactResult(
   const generate = parse.integer(calls.generate, 'artifact.calls.generate');
 
   if (attemptTexts.length > 4 || generate < attemptTexts.length) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'artifact: attempt count exceeds the v3 correction or generation count.',
     );
   }
 
   if (status === 'failed') {
     if (input.proposal !== null) {
-      throw new parse.SplitDatasetError(
+      throw new parse.EvaluationError(
         'artifact: a failed run must not contain an accepted proposal.',
       );
     }
@@ -92,7 +92,7 @@ function artifactResult(
     prepared.definition.evidence.changes.length > 0 &&
     attemptTexts.length === 0
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'artifact: a complete nonempty run requires a completed grouping attempt.',
     );
   }
@@ -133,7 +133,7 @@ async function scoreArtifact(
           JSON.stringify(lastValidation.proposal) !==
             JSON.stringify(scores.validation.proposal)
         ) {
-          throw new parse.SplitDatasetError(
+          throw new parse.EvaluationError(
             'artifact: accepted proposal disagrees with the final grouping attempt.',
           );
         }
@@ -157,7 +157,7 @@ export async function evaluateSplitArtifact(
   );
 
   if (!prepared) {
-    throw new parse.SplitDatasetError(`suite: unknown case ID ${caseId}.`);
+    throw new parse.EvaluationError(`suite: unknown case ID ${caseId}.`);
   }
 
   const scored = await scoreArtifact(prepared, artifactPath, 'reviewed');

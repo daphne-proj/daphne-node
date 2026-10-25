@@ -1,7 +1,24 @@
 import { startObservation } from '@langfuse/tracing';
 import type { ModelCallObservation } from '@daphne/review-agent';
-import type { RecordedModelCall, TokenUsage } from './contracts.js';
 import { integer, object } from './parse.js';
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number | null;
+  reasoningOutputTokens: number | null;
+}
+
+export interface RecordedModelCall {
+  kind: 'count' | 'generate';
+  number: number;
+  model: string;
+  startedAt: string;
+  endedAt: string;
+  elapsedMs: number;
+  status: 'complete' | 'failed';
+  usage: TokenUsage | null;
+}
 
 function detail(value: unknown, key: string, total: number): number | null {
   if (value === undefined || value === null) {

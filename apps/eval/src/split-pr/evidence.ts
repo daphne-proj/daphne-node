@@ -6,13 +6,13 @@ import type {
 import { getExpectedUnitIds } from '@daphne/semantic-split';
 import type { FrozenSplitEvidence } from './contracts.js';
 import { validateSourceConsistency } from './source-consistency.js';
-import * as parse from './parse.js';
+import * as parse from '../parse.js';
 
 function gitId(value: unknown, field: string): string {
   const id = parse.text(value, field);
 
   if (!/^[0-9a-f]{40}$/.test(id)) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `${field}: expected a full lowercase Git object ID.`,
     );
   }
@@ -27,7 +27,7 @@ function gitPath(value: unknown, field: string): string {
     path.startsWith('/') ||
     path.split('/').some((part) => !part || part === '.' || part === '..')
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `${field}: expected a repository-relative Git path.`,
     );
   }
@@ -87,7 +87,7 @@ function change(value: unknown, index: number): Change {
       status !== 'deleted' &&
       (beforePath === null || afterPath === null))
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `${field}: paths/modes contradict the change status.`,
     );
   }
@@ -119,7 +119,7 @@ function change(value: unknown, index: number): Change {
     });
 
   if (kind !== 'text' && hunks.length > 0) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `${field}: nontext changes cannot contain text hunks.`,
     );
   }
@@ -164,13 +164,13 @@ function source(
   const commit = side === 'base' ? session.baseCommit : session.headCommit;
 
   if (ref.sessionId !== session.sessionId || ref.commit !== commit) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `${field}: source session/commit does not match its identity and side.`,
     );
   }
 
   if (Buffer.byteLength(text) !== ref.range.endByte - ref.range.startByte) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `${field}: source UTF-8 length does not match its byte range.`,
     );
   }
@@ -185,7 +185,7 @@ export function parseSplitEvidence(value: unknown): FrozenSplitEvidence {
   const inventory = new Map(changes.map((entry) => [entry.id, entry]));
 
   if (inventory.size !== changes.length) {
-    throw new parse.SplitDatasetError('changes: duplicate change IDs.');
+    throw new parse.EvaluationError('changes: duplicate change IDs.');
   }
 
   const expected = getExpectedUnitIds(changes);
@@ -202,7 +202,7 @@ export function parseSplitEvidence(value: unknown): FrozenSplitEvidence {
     const unitId = `${changeId}:${hunkIndex === null ? 'metadata' : String(hunkIndex)}`;
 
     if (!entry || !expected.has(unitId) || seen.has(unitId)) {
-      throw new parse.SplitDatasetError(
+      throw new parse.EvaluationError(
         `${field}: unknown or duplicate original unit ${unitId}.`,
       );
     }
@@ -232,7 +232,7 @@ export function parseSplitEvidence(value: unknown): FrozenSplitEvidence {
         );
       })
     ) {
-      throw new parse.SplitDatasetError(
+      throw new parse.EvaluationError(
         `${field}: supply existing sides once in BASE-then-HEAD order at their change paths; metadata has no sources.`,
       );
     }
@@ -241,9 +241,7 @@ export function parseSplitEvidence(value: unknown): FrozenSplitEvidence {
   });
 
   if (seen.size !== expected.size) {
-    throw new parse.SplitDatasetError(
-      'hunks: missing original inventory units.',
-    );
+    throw new parse.EvaluationError('hunks: missing original inventory units.');
   }
 
   validateSourceConsistency(hunks.flatMap(({ sources }) => sources));

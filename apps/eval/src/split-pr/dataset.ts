@@ -11,7 +11,7 @@ import {
 } from 'node:path';
 import type { PreparedSplitCase } from './contracts.js';
 import { parseSplitCase } from './case.js';
-import * as parse from './parse.js';
+import * as parse from '../parse.js';
 
 function caseFile(value: unknown): string {
   const path = parse.text(value, 'suite.caseFiles');
@@ -22,7 +22,7 @@ function caseFile(value: unknown): string {
     path.includes('\\') ||
     path.split('/').some((part) => !part || part === '.' || part === '..')
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'suite.caseFiles: expected relative paths within the suite directory.',
     );
   }
@@ -34,7 +34,7 @@ export function splitCaseRunPath(path: string): string {
   const packagePath = findPackageJSON(import.meta.url);
 
   if (!packagePath) {
-    throw new parse.SplitDatasetError('Could not locate the eval workspace.');
+    throw new parse.EvaluationError('Could not locate the eval workspace.');
   }
 
   return resolve(
@@ -86,7 +86,7 @@ export async function loadSplitSuite(
       suite.caseFiles.length === 0 ||
       new Set(suite.caseFiles).size !== suite.caseFiles.length
     ) {
-      throw new parse.SplitDatasetError(
+      throw new parse.EvaluationError(
         'suite.caseFiles: require a nonempty list of unique paths.',
       );
     }
@@ -105,7 +105,7 @@ export async function loadSplitSuite(
         within.startsWith('..' + sep) ||
         isAbsolute(within)
       ) {
-        throw new parse.SplitDatasetError(
+        throw new parse.EvaluationError(
           `suite.caseFiles: ${filename} resolves outside the suite directory.`,
         );
       }
@@ -113,7 +113,7 @@ export async function loadSplitSuite(
       const prepared = await loadSplitCase(target);
 
       if (ids.has(prepared.definition.id)) {
-        throw new parse.SplitDatasetError(
+        throw new parse.EvaluationError(
           `suite: duplicate case ID ${prepared.definition.id}.`,
         );
       }
@@ -134,9 +134,9 @@ export async function loadSplitSuite(
     };
   } catch (error) {
     const message =
-      error instanceof parse.SplitDatasetError
+      error instanceof parse.EvaluationError
         ? error.message
         : 'could not resolve suite case files.';
-    throw new parse.SplitDatasetError(`${path}: ${message}`, { cause: error });
+    throw new parse.EvaluationError(`${path}: ${message}`, { cause: error });
   }
 }

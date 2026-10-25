@@ -7,7 +7,7 @@ import type { Evaluation, LangfuseClient } from '@langfuse/client';
 import {
   collectExperimentIssues,
   getExperimentCaseId,
-} from './experiment-completeness.js';
+} from '../../src/experiment-completeness.js';
 
 export interface LangfuseSmokeResult {
   status: 'complete' | 'failed';

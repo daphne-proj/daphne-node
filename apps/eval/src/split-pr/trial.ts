@@ -3,10 +3,10 @@ import type {
   SemanticSplitInput,
   SemanticSplitResult,
 } from '@daphne/semantic-split';
+import type { RecordedModelCall } from '../model-calls.js';
 import type {
   FrozenSplitEvidence,
   PreparedSplitCase,
-  RecordedModelCall,
   SplitExperimentOutput,
   SplitTrial,
 } from './contracts.js';

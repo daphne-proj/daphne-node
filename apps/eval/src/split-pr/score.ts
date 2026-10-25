@@ -8,7 +8,7 @@ import type {
   PreparedSplitCase,
   SplitTrial,
 } from './contracts.js';
-import { SplitDatasetError } from './parse.js';
+import { EvaluationError } from '../parse.js';
 
 export const splitScorerVersion = 'split-pairs-v2';
 
@@ -20,7 +20,7 @@ export function scoreSplitTrial(
     trial.caseId !== caseData.definition.id ||
     trial.inputHash !== caseData.inputHash
   ) {
-    throw new SplitDatasetError(
+    throw new EvaluationError(
       'Trial identity or frozen evidence does not match the reviewed case.',
     );
   }
@@ -62,7 +62,7 @@ export function scoreSplitResult(
   reviewPolicy: 'reviewed' | 'allow-draft' = 'reviewed',
 ): SplitScores {
   if (definition.review.status !== 'reviewed' && reviewPolicy === 'reviewed') {
-    throw new SplitDatasetError('Scoring requires a reviewed case.');
+    throw new EvaluationError('Scoring requires a reviewed case.');
   }
 
   const expected = getExpectedUnitIds(definition.evidence.changes);

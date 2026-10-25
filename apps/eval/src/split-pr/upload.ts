@@ -7,13 +7,14 @@ import type { Evaluation } from '@langfuse/client';
 import {
   collectExperimentIssues,
   getExperimentCaseId,
-} from '../../tests/smoke/experiment-completeness.js';
+} from '../experiment-completeness.js';
 import { readLangfuseConnection, withLangfuse } from '../langfuse.js';
 import type { PreparedSplitCase } from './contracts.js';
 import { loadSplitSuite, splitCaseRunPath } from './dataset.js';
 import { evaluateSplitCaseArtifact } from './evaluate.js';
-import * as parse from './parse.js';
-import { writeJsonArtifact } from './report.js';
+import { itemScoreNames, toSplitEvaluations } from './langfuse-scores.js';
+import * as parse from '../parse.js';
+import { writeJsonArtifact } from '../artifacts.js';
 
 type SavedCase = {
   prepared: PreparedSplitCase;
@@ -43,7 +44,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
   const packagePath = findPackageJSON(import.meta.url);
 
   if (!packagePath) {
-    throw new parse.SplitDatasetError('Could not locate the eval workspace.');
+    throw new parse.EvaluationError('Could not locate the eval workspace.');
   }
 
   const suitePath = resolve(
@@ -61,7 +62,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
     foundIds.size !== caseIds.size ||
     [...caseIds].some((id) => !foundIds.has(id))
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'run-dir: expected one directory for every registered gold case.',
     );
   }
@@ -73,7 +74,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
         (entry.isDirectory() && !caseIds.has(entry.name)),
     )
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'run-dir: unexpected directory or symbolic link.',
     );
   }
@@ -92,7 +93,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
       const file = await lstat(path).catch(() => undefined);
 
       if (!file?.isFile()) {
-        throw new parse.SplitDatasetError(`${path}: expected a regular file.`);
+        throw new parse.EvaluationError(`${path}: expected a regular file.`);
       }
     }
 
@@ -105,7 +106,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
     const savedReport = await parse.readJson(reportPath, (value) => value);
 
     if (JSON.stringify(savedReport.value) !== JSON.stringify(report)) {
-      throw new parse.SplitDatasetError(
+      throw new parse.EvaluationError(
         `${reportPath}: score report differs from current gold, artifact or scorer.`,
       );
     }
@@ -160,7 +161,7 @@ export async function uploadSplitEvaluation(
   signal: AbortSignal,
 ) {
   const runDirectory = await realpath(runDir).catch(() => {
-    throw new parse.SplitDatasetError('run-dir: could not resolve directory.');
+    throw new parse.EvaluationError('run-dir: could not resolve directory.');
   });
   const { suite, items } = await loadSavedCases(runDirectory, signal);
   signal.throwIfAborted();
@@ -176,7 +177,7 @@ export async function uploadSplitEvaluation(
   const cases = [...items.values()];
 
   if (existsSync(attemptPath) || existsSync(receiptPath)) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'run-dir: this batch already has a Langfuse upload attempt; inspect its receipt or remote experiment before retrying.',
     );
   }
@@ -228,27 +229,7 @@ export async function uploadSplitEvaluation(
       evaluators: [
         ({ input }): Promise<Evaluation[]> => {
           const { report, calls } = savedCase(items, input);
-          const scores = report.scores;
-
-          return Promise.resolve([
-            { name: 'completed', value: Number(scores.completed) },
-            { name: 'accepted', value: Number(scores.accepted) },
-            {
-              name: 'constraints_passed',
-              value: Number(scores.constraintsPassed),
-            },
-            {
-              name: 'together_rate',
-              value: scores.together.rate ?? 'not_applicable',
-            },
-            {
-              name: 'separate_rate',
-              value: scores.separate.rate ?? 'not_applicable',
-            },
-            { name: 'corrections', value: scores.corrections },
-            { name: 'count_calls', value: calls.count },
-            { name: 'generate_calls', value: calls.generate },
-          ]);
+          return Promise.resolve(toSplitEvaluations(report.scores, calls));
         },
       ],
       runEvaluators: [
@@ -265,21 +246,12 @@ export async function uploadSplitEvaluation(
 
   const issues = collectExperimentIssues(result, {
     caseIds: cases.map(({ prepared }) => prepared.definition.id),
-    itemScoreNames: [
-      'completed',
-      'accepted',
-      'constraints_passed',
-      'together_rate',
-      'separate_rate',
-      'corrections',
-      'count_calls',
-      'generate_calls',
-    ],
+    itemScoreNames,
     runScoreNames: ['accepted_rate'],
   });
 
   if (issues.length > 0 || !result.experimentUrl) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       `Langfuse experiment incomplete: ${issues.join(' ') || 'missing experiment URL.'}`,
     );
   }

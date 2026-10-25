@@ -1,7 +1,7 @@
 import { getExpectedUnitIds } from '@daphne/semantic-split';
 import type { PairLabel, SplitCase } from './contracts.js';
 import { parseSplitEvidence } from './evidence.js';
-import * as parse from './parse.js';
+import * as parse from '../parse.js';
 
 function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
   const input = parse.object(value, 'labels');
@@ -12,7 +12,7 @@ function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
       (key) => !relations.some((relation) => relation === key),
     )
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'labels: only together and separate are allowed.',
     );
   }
@@ -24,7 +24,7 @@ function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
       const endpoints = parse.array(value, field);
 
       if (endpoints.length !== 2) {
-        throw new parse.SplitDatasetError(
+        throw new parse.EvaluationError(
           `${field}: expected exactly two unit IDs.`,
         );
       }
@@ -39,7 +39,7 @@ function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
         !expected.has(rightUnitId) ||
         pairs.has(pair)
       ) {
-        throw new parse.SplitDatasetError(
+        throw new parse.EvaluationError(
           `${field}: unknown, identical or duplicate pair endpoints.`,
         );
       }
@@ -78,7 +78,7 @@ function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
       label.relation === 'separate' &&
       root(label.leftUnitId) === root(label.rightUnitId)
     ) {
-      throw new parse.SplitDatasetError(
+      throw new parse.EvaluationError(
         `labels: separate pair ${label.leftUnitId}/${label.rightUnitId} contradicts together labels.`,
       );
     }
@@ -101,7 +101,7 @@ export function sourcePrUrl(value: unknown): string | null {
     url.username ||
     url.password
   ) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'provenance.sourcePrUrl: expected an HTTP(S) URL without credentials.',
     );
   }
@@ -135,7 +135,7 @@ function provenance(value: unknown): SplitCase['provenance'] {
   );
 
   if (!/^[0-9a-f]{64}$/.test(artifactSha256)) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'provenance.artifactSha256: expected a lowercase SHA-256 digest.',
     );
   }
@@ -187,7 +187,7 @@ export function parseSplitCase(
 
   /* A failed acquisition must not become a valid empty reference. */
   if (status === 'failed' && count === 0 && generate === 0) {
-    throw new parse.SplitDatasetError(
+    throw new parse.EvaluationError(
       'artifact: failed with no workflow activity; acquisition completion is ambiguous.',
     );
   }

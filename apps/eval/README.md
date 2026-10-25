@@ -119,10 +119,13 @@ SIGINT/SIGTERM request cancellation. The command waits for the native runner and
 ## Code ownership
 
 - `src/main.ts` owns command dispatch, signals and final stdout/exit status; only explicitly live commands load `.env`.
-- `src/split-pr` owns frozen dataset contracts, validation, fingerprints, pure scoring, saved-run evaluation, live experiments, model-call observations and safe file publication.
+- `src/split-pr` owns frozen dataset contracts, evidence and label validation, fingerprints, pure scoring, saved-run evaluation, uploads and live experiments. Its `langfuse-scores.ts` maps split scores for both live experiments and saved uploads.
+- `src/parse.ts` provides JSON reading, primitive validation, hashing and the app's `EvaluationError`; case-specific validation stays with each evaluation.
+- `src/artifacts.ts` publishes complete JSON files without overwriting existing files and preserves golden-dataset write protection.
+- `src/model-calls.ts` records model-call observations, normalizes OpenAI usage and checks workflow call accounting. It also owns the recorded-call and token-usage types.
 - `src/langfuse.ts` validates the explicit connection and owns one client/provider lifecycle across a command's experiments.
 - `src/langfuse-diagnostics.ts` captures SDK/OTel errors that are logged without rejecting export promises. Logger changes are scoped to this command; do not embed this lifecycle alongside another telemetry provider.
-- `tests/smoke/experiment-completeness.ts` checks case identity and required-score accounting independently of score quality.
+- `src/experiment-completeness.ts` checks case identity and required-score accounting independently of score quality for live experiments, saved uploads and the smoke command.
 - `tests/smoke/langfuse-smoke.ts` runs the manual integration check and returns a summary, printed only after finalization.
 
 The build includes these smoke files because the command imports them. It preserves the folder structure under `dist/`; the command entry point is `dist/src/main.js`. Building and typechecking the files does not execute the smoke check.

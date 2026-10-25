@@ -1,5 +1,5 @@
 /*
- * Helps the smoke check detect missing or duplicate results and required scores.
+ * Detects missing or duplicate experiment results and required scores.
  * Example: expecting cases A and B but receiving A twice reports a problem.
  */
 import type { ExperimentResult } from '@langfuse/client';

@@ -8,6 +8,7 @@ import type {
   ProposalValidation,
   SemanticSplitResult,
 } from '@daphne/semantic-split';
+import type { RecordedModelCall } from '../model-calls.js';
 
 export interface FrozenSplitEvidence {
   identity: ReviewIdentity;
@@ -94,24 +95,6 @@ export interface SplitArtifactEvaluation {
   inputHash: string;
   artifactSha256: string;
   scores: SplitScores;
-}
-
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  cachedInputTokens: number | null;
-  reasoningOutputTokens: number | null;
-}
-
-export interface RecordedModelCall {
-  kind: 'count' | 'generate';
-  number: number;
-  model: string;
-  startedAt: string;
-  endedAt: string;
-  elapsedMs: number;
-  status: 'complete' | 'failed';
-  usage: TokenUsage | null;
 }
 
 export interface SplitTrial {

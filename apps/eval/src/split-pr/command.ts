@@ -8,8 +8,8 @@ import {
   evaluateSplitCaseArtifact,
 } from './evaluate.js';
 import { formatSplitEvaluation } from './evaluation-summary.js';
-import { writeJsonArtifact } from './report.js';
-import { SplitDatasetError, text, choice } from './parse.js';
+import { writeJsonArtifact } from '../artifacts.js';
+import { EvaluationError, text, choice } from '../parse.js';
 import { runSplitEvaluation } from './run.js';
 import { uploadSplitEvaluation } from './upload.js';
 
@@ -37,7 +37,7 @@ function options(
       .map((token) => token.name);
 
     if (new Set(used).size !== used.length) {
-      throw new SplitDatasetError('Options must appear once.');
+      throw new EvaluationError('Options must appear once.');
     }
 
     return Object.fromEntries(
@@ -52,7 +52,7 @@ function options(
       }),
     );
   } catch {
-    throw new SplitDatasetError(usage);
+    throw new EvaluationError(usage);
   }
 }
 
@@ -189,13 +189,13 @@ export async function runSplitCommand(
         signal,
       );
     } else {
-      throw new SplitDatasetError(usage);
+      throw new EvaluationError(usage);
     }
 
     return 0;
   } catch (error) {
     const message =
-      error instanceof SplitDatasetError ||
+      error instanceof EvaluationError ||
       error instanceof LangfuseConfigurationError
         ? error.message
         : 'Split dataset operation failed.';

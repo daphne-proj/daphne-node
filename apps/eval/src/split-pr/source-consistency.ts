@@ -1,5 +1,5 @@
 import type { SourceEvidence } from '@daphne/review-evidence/contracts';
-import { SplitDatasetError } from './parse.js';
+import { EvaluationError } from '../parse.js';
 
 export function validateSourceConsistency(sources: SourceEvidence[]): void {
   const paths = new Map<string, SourceEvidence[]>();
@@ -12,7 +12,7 @@ export function validateSourceConsistency(sources: SourceEvidence[]): void {
 
     for (const earlier of previous) {
       if (earlier.ref.blobId !== ref.blobId) {
-        throw new SplitDatasetError(
+        throw new EvaluationError(
           `sources: conflicting blob identities for committed path ${ref.path}.`,
         );
       }
@@ -34,7 +34,7 @@ export function validateSourceConsistency(sources: SourceEvidence[]): void {
       );
 
       if (!priorBytes.equals(overlap)) {
-        throw new SplitDatasetError(
+        throw new EvaluationError(
           `sources: conflicting overlapping bytes for committed path ${ref.path}.`,
         );
       }

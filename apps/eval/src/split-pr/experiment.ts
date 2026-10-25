@@ -1,25 +1,26 @@
 import { join } from 'node:path';
 import { context, trace } from '@opentelemetry/api';
 import { startObservation } from '@langfuse/tracing';
-import type { Evaluation, LangfuseClient } from '@langfuse/client';
+import type { LangfuseClient } from '@langfuse/client';
 import { runSemanticSplit } from '@daphne/semantic-split';
 import type { SemanticSplitOptions } from '@daphne/semantic-split';
 import {
   collectExperimentIssues,
   getExperimentCaseId,
-} from '../../tests/smoke/experiment-completeness.js';
+} from '../experiment-completeness.js';
 import type {
   PreparedSplitCase,
   SplitRunManifest,
   SplitTrial,
 } from './contracts.js';
-import { object } from './parse.js';
-import { writeJsonArtifact } from './report.js';
+import { object } from '../parse.js';
+import { writeJsonArtifact } from '../artifacts.js';
 import { scoreSplitTrial } from './score.js';
+import { itemScoreNames, toSplitEvaluations } from './langfuse-scores.js';
 import {
   collectModelCallIssues,
   createModelCallRecorder,
-} from './telemetry.js';
+} from '../model-calls.js';
 import {
   toSemanticSplitInput,
   toSplitExperimentOutput,
@@ -59,17 +60,6 @@ async function observeSplit(
 
   return result;
 }
-
-const itemScoreNames = [
-  'completed',
-  'accepted',
-  'constraints_passed',
-  'together_rate',
-  'separate_rate',
-  'corrections',
-  'count_calls',
-  'generate_calls',
-];
 
 /* One SDK invocation per trial keeps repetition separate from case concurrency. */
 export async function runSplitExperiment(
@@ -200,27 +190,9 @@ export async function runSplitExperiment(
 
             const scores = scoreSplitTrial(caseData, trial);
             entry.scores = scores;
-            const evaluations: Evaluation[] = [
-              { name: 'completed', value: Number(scores.completed) },
-              { name: 'accepted', value: Number(scores.accepted) },
-              {
-                name: 'constraints_passed',
-                value: Number(scores.constraintsPassed),
-              },
-              {
-                name: 'together_rate',
-                value: scores.together.rate ?? 'not_applicable',
-              },
-              {
-                name: 'separate_rate',
-                value: scores.separate.rate ?? 'not_applicable',
-              },
-              { name: 'corrections', value: scores.corrections },
-              { name: 'count_calls', value: trial.result.calls.count },
-              { name: 'generate_calls', value: trial.result.calls.generate },
-            ];
-
-            return Promise.resolve(evaluations);
+            return Promise.resolve(
+              toSplitEvaluations(scores, trial.result.calls),
+            );
           } catch {
             entry.issues.push('Trial scoring failed.');
             throw new Error('Trial scoring failed.');

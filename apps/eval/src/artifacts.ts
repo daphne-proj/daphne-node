@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { link, open, unlink } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { isGoldenDatasetPath } from '@daphne/cli/output-path';
-import { SplitDatasetError } from './parse.js';
+import { EvaluationError } from './parse.js';
 
 /* Publish a complete file with a hard link so an existing destination is never replaced. */
 export async function writeJsonArtifact(
@@ -12,7 +12,7 @@ export async function writeJsonArtifact(
   const destination = resolve(path);
 
   if (await isGoldenDatasetPath(destination)) {
-    throw new SplitDatasetError(
+    throw new EvaluationError(
       'The golden dataset is read-only; choose an output outside its cases directory.',
     );
   }
@@ -54,7 +54,7 @@ export async function writeJsonArtifact(
   }
 
   if (failures.length > 0) {
-    throw new SplitDatasetError(
+    throw new EvaluationError(
       `${path}: could not publish JSON without overwriting existing data, or clean its temporary file. The parent must exist.`,
       { cause: new AggregateError(failures) },
     );
