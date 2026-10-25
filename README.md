@@ -67,7 +67,6 @@ Gold cases in `apps/eval/datasets/split-pr/cases` are created and edited manuall
 Capture splitter output with `make split-pr PR=URL`, then compare its `run.json` with a manually prepared case:
 
 ```sh
-make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
 make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
 make split-pr-eval-all
 ```

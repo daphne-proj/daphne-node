@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-validate split-pr-eval split-pr-eval-all
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-eval split-pr-eval-all
 
 MODEL ?= gpt-6.1-sol
 MAX_INPUT_TOKENS ?= 16384

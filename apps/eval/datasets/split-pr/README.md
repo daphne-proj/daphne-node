@@ -21,7 +21,6 @@ Annotate using only the run's `identity`, `changes` and `hunks`. Keep generated 
 ## Validate and compare
 
 ```sh
-make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
 make split-pr-eval-all
 make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
 bun run eval -- split-pr validate --suite apps/eval/datasets/split-pr/suite.json

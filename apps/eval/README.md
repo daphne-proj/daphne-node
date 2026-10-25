@@ -8,13 +8,7 @@ The golden dataset in `datasets/split-pr/cases` is maintained manually. Evaluati
 
 Capture model output separately with `make split-pr PR=URL`; it saves one `run.json` and does not create or edit gold cases. Evidence is read from that run, with optional review metadata under `caseMetadata`. Missing metadata means a development draft. Validation defaults to repository-root `outputs/split_<gold filename>/run.json`; use `--artifact PATH` when the capture and gold names differ. Suite cases use the filename convention and must be registered manually. Validation is offline and checks consistency, not approval.
 
-Validate an individual case before registering or approving it:
-
-```sh
-make split-pr-validate CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json
-```
-
-The target builds and runs `bun run eval -- split-pr validate --case PATH`; optional `ARTIFACT=PATH` selects another run. Choose exactly one of `--case` or `--suite`; both use the same validator. Validation prints JSON and changes no case, review status or suite entry. Invalid input exits nonzero.
+Use `bun run eval -- split-pr validate --case PATH [--artifact PATH]` for one case, or `bun run eval -- split-pr validate --suite PATH` for the registered suite. Validation prints JSON and changes no case, review status or suite entry. Invalid input exits nonzero.
 
 Each case summary reports label counts and coverage: all possible unordered pairs, unlabeled pairs, labeled-pair rate, known-pair count/rate and units with or without known relationships. A known relationship is `together` or `separate`; `unknown` contributes only to labeled coverage. Rates are fractions from 0 to 1, or `null` when there are fewer than two units. Only explicit labels count; transitive relationships are checked for contradictions but do not inflate coverage. These counts describe annotations, including draft proposals, not semantic correctness or human approval. Partial annotation is allowed; there is no minimum coverage gate.
 
