@@ -3,6 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./output-path": {
+      "types": "./dist/output-path.d.ts",
+      "import": "./dist/output-path.js"
+    },
+    "./command-output": {
+      "types": "./dist/command-output.d.ts",
+      "import": "./dist/command-output.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",

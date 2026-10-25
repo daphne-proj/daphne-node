@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { splitPullRequest } from '@daphne/pr-review/split';
+import { formatCommandOutput } from './command-output.js';
+import type { CommandOutputRow } from './command-output.js';
 import { CliInputError, describeFailure } from './errors.js';
 import { ArtifactError, createRunDirectory, writeArtifact } from './output.js';
 
@@ -48,7 +50,7 @@ export function parseSplitArgs(args: string[]): SplitOptions {
     };
   } catch {
     throw new CliInputError(
-      'Usage: split-pr --pr URL --output NEW_DIRECTORY [--model MODEL] [--max-input-tokens NUMBER]',
+      'Usage: split-pr --pr URL --output DIRECTORY [--model MODEL] [--max-input-tokens NUMBER]',
     );
   }
 }
@@ -69,8 +71,19 @@ export async function runSplitPr(
     throw new CliInputError('Set OPENAI_API_KEY in .env or the environment.');
   }
 
-  const directory = await createRunDirectory(options.output);
+  const directory = await createRunDirectory(options.output, { reuse: true });
   const githubToken = process.env.GITHUB_TOKEN;
+
+  if (process.stderr.isTTY) {
+    process.stderr.write(
+      formatCommandOutput(`Split PR #${String(ref.number)}`, [
+        { label: 'Pull request', value: ref.url },
+        { label: 'Model', value: options.model },
+        { label: 'Run artifact', value: join(directory, 'run.json') },
+      ]) + '\n',
+    );
+  }
+
   const result = await splitPullRequest(ref, {
     apiKey,
     model: options.model,
@@ -79,7 +92,7 @@ export async function runSplitPr(
     ...(githubToken === undefined ? {} : { githubToken }),
     onPage: (page, pageNumber) => {
       process.stderr.write(
-        `Prepared page ${String(pageNumber)} (${page.unitIds.join(', ')}).\n`,
+        `  Page ${String(pageNumber)} ready · ${String(page.unitIds.length)} units\n`,
       );
     },
   });
@@ -114,6 +127,7 @@ export async function runSplitPr(
       'run.json',
       report,
       report.status === 'complete' ? signal : undefined,
+      { overwrite: true },
     );
   } catch (error) {
     if (!(error instanceof ArtifactError) || error.code !== 'cancelled') {
@@ -125,18 +139,41 @@ export async function runSplitPr(
     report.proposal = null;
     report.response = null;
     errors.push(describeFailure('run_output', error));
-    await writeArtifact(directory, 'run.json', report);
+    await writeArtifact(directory, 'run.json', report, undefined, {
+      overwrite: true,
+    });
   }
 
-  process.stdout.write(
-    JSON.stringify({
-      status: report.status,
-      pages: result.pages.length,
-      groups: report.proposal?.groups.length ?? 0,
-      output: join(directory, 'run.json'),
-      errors,
-    }) + '\n',
-  );
+  const summary = {
+    status: report.status,
+    pages: result.pages.length,
+    groups: report.proposal?.groups.length ?? 0,
+    output: join(directory, 'run.json'),
+    errors,
+  };
+
+  if (process.stdout.isTTY) {
+    const rows: CommandOutputRow[] = [
+      {
+        label: 'Status',
+        value: summary.status,
+        tone: summary.status === 'complete' ? 'success' : 'error',
+      },
+      { label: 'Pages', value: String(summary.pages) },
+      { label: 'Groups', value: String(summary.groups) },
+      { label: 'Run artifact', value: summary.output },
+    ];
+
+    for (const error of errors) {
+      rows.push({ label: 'Error', value: error.message, tone: 'error' });
+    }
+
+    process.stdout.write(
+      '\n' + formatCommandOutput('Split result', rows) + '\n',
+    );
+  } else {
+    process.stdout.write(JSON.stringify(summary) + '\n');
+  }
 
   return report.status === 'complete' ? 0 : 1;
 }

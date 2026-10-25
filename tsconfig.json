@@ -2,6 +2,9 @@
   "files": [],
   "references": [
     {
+      "path": "./apps/eval/tsconfig.build.json"
+    },
+    {
       "path": "./apps/cli/tsconfig.build.json"
     },
     {

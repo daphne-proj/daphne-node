@@ -225,7 +225,7 @@ export async function runSemanticSplit(
   options: SemanticSplitOptions,
 ): Promise<SemanticSplitResult> {
   const { apiKey, model: modelName, maxInputTokens, signal, onPage } = options;
-  const model = createOpenAI(apiKey, modelName, signal);
+  const model = createOpenAI(apiKey, modelName, signal, options.onModelCall);
   const progress: SplitProgress = {
     maxCorrections,
     pages: [],

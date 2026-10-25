@@ -1,0 +1,29 @@
+{
+  "together": [
+    ["change-3:0", "change-7:1"],
+    ["change-4:0", "change-5:0"],
+    ["change-4:0", "change-11:0"],
+    ["change-7:0", "change-7:1"],
+    ["change-7:1", "change-8:7"],
+    ["change-8:1", "change-8:3"],
+    ["change-8:2", "change-11:0"],
+    ["change-8:2", "change-12:0"],
+    ["change-8:2", "change-13:4"],
+    ["change-8:3", "change-8:4"],
+    ["change-8:3", "change-8:5"],
+    ["change-8:5", "change-8:6"],
+    ["change-8:7", "change-9:0"],
+    ["change-9:0", "change-10:0"],
+    ["change-10:0", "change-10:1"],
+    ["change-11:0", "change-13:5"],
+    ["change-13:0", "change-13:2"],
+    ["change-13:1", "change-13:2"],
+    ["change-13:2", "change-13:4"],
+    ["change-13:3", "change-13:4"]
+  ],
+  "separate": [
+    ["change-3:0", "change-4:0"],
+    ["change-8:1", "change-8:2"],
+    ["change-8:1", "change-8:7"]
+  ]
+}

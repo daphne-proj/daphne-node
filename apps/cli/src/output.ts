@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { linkSync, unlinkSync } from 'node:fs';
+import { linkSync, renameSync, unlinkSync } from 'node:fs';
 import { mkdir, open } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { isGoldenDatasetPath } from './output-path.js';
 
 export class ArtifactError extends Error {
   override readonly name = 'ArtifactError';
@@ -15,15 +16,28 @@ export class ArtifactError extends Error {
   }
 }
 
-export async function createRunDirectory(path: string): Promise<string> {
+export async function createRunDirectory(
+  path: string,
+  options: { reuse?: boolean } = {},
+): Promise<string> {
   const directory = resolve(path);
 
+  if (await isGoldenDatasetPath(directory)) {
+    throw new ArtifactError(
+      'output_directory',
+      'The golden dataset is read-only; choose an output outside its cases directory.',
+      undefined,
+    );
+  }
+
   try {
-    await mkdir(directory, { mode: 0o700 });
+    await mkdir(directory, { mode: 0o700, recursive: options.reuse ?? false });
   } catch (error) {
     throw new ArtifactError(
       'output_directory',
-      'Output must be a new directory in an existing writable parent.',
+      options.reuse
+        ? 'Output must be a writable directory.'
+        : 'Output must be a new directory in an existing writable parent.',
       error,
     );
   }
@@ -36,7 +50,16 @@ export async function writeArtifact(
   filename: 'context.json' | 'run.json',
   value: object,
   signal?: AbortSignal,
+  options: { overwrite?: boolean } = {},
 ): Promise<void> {
+  if (await isGoldenDatasetPath(directory)) {
+    throw new ArtifactError(
+      'artifact_write',
+      'The golden dataset is read-only; choose an output outside its cases directory.',
+      undefined,
+    );
+  }
+
   const temporary = join(directory, '.' + filename + '.' + randomUUID());
   const failures: unknown[] = [];
   let created = false;
@@ -63,8 +86,13 @@ export async function writeArtifact(
         );
       }
 
-      // Check cancellation and publish in one JS turn; no overwrite or late async publication gap.
-      linkSync(temporary, join(directory, filename));
+      /* Check cancellation and publish atomically in the same JS turn. */
+      if (options.overwrite) {
+        renameSync(temporary, join(directory, filename));
+        created = false;
+      } else {
+        linkSync(temporary, join(directory, filename));
+      }
     }
   } catch (error) {
     failures.push(error);
@@ -85,7 +113,7 @@ export async function writeArtifact(
   if (failures.length > 0) {
     throw new ArtifactError(
       'artifact_write',
-      'Could not publish an artifact and clean its temporary link without overwriting existing data.',
+      'Could not publish an artifact and clean up its temporary file.',
       new AggregateError(failures),
     );
   }
