@@ -1,0 +1,25 @@
+{
+  "name": "@daphne/intentions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "@daphne/context-engine": "workspace:*",
+    "@daphne/llm": "workspace:*",
+    "@daphne/review-evidence": "workspace:*"
+  }
+}

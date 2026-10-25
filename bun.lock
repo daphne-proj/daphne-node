@@ -73,6 +73,19 @@
         "typescript": "6.0.3",
       },
     },
+    "packages/intentions": {
+      "name": "@daphne/intentions",
+      "version": "0.0.0",
+      "dependencies": {
+        "@daphne/context-engine": "workspace:*",
+        "@daphne/llm": "workspace:*",
+        "@daphne/review-evidence": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "24.19.2",
+        "typescript": "6.0.3",
+      },
+    },
     "packages/pr-review": {
       "name": "@daphne/pr-review",
       "version": "0.0.0",
@@ -134,6 +147,8 @@
     "@daphne/eval": ["@daphne/eval@workspace:apps/eval"],
 
     "@daphne/git-source": ["@daphne/git-source@workspace:packages/git-source"],
+
+    "@daphne/intentions": ["@daphne/intentions@workspace:packages/intentions"],
 
     "@daphne/pr-review": ["@daphne/pr-review@workspace:packages/pr-review"],
 

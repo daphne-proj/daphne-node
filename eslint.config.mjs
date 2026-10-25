@@ -63,6 +63,10 @@ const downstreamImportRestriction = {
     '@daphne/semantic-split/**',
     '**/semantic-split',
     '**/semantic-split/**',
+    '@daphne/intentions',
+    '@daphne/intentions/**',
+    '**/intentions',
+    '**/intentions/**',
   ],
   message:
     'Acquisition packages must not depend on evidence retrieval or context assembly.',
@@ -192,6 +196,10 @@ export default defineConfig(
                 '@daphne/context-engine/**',
                 '**/context-engine',
                 '**/context-engine/**',
+                '@daphne/intentions',
+                '@daphne/intentions/**',
+                '**/intentions',
+                '**/intentions/**',
               ],
               message:
                 'Evidence retrieval must not depend on context retention or assembly.',
@@ -320,7 +328,10 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/semantic-split/src/contracts.ts'],
+    files: [
+      'packages/semantic-split/src/contracts.ts',
+      'packages/intentions/src/contracts.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -331,12 +342,12 @@ export default defineConfig(
               regex:
                 '^(?!@daphne/(?:context-engine|llm|review-evidence/contracts)$|\\./proposal\\.js$)',
               message:
-                'Split contracts may reference only context, model, evidence and proposal types.',
+                'Workflow contracts may reference only context, model, evidence and proposal types.',
             },
             {
               group: ['**'],
               allowTypeImports: true,
-              message: 'Split contracts must not load runtime dependencies.',
+              message: 'Workflow contracts must not load runtime dependencies.',
             },
           ],
         },
@@ -348,7 +359,9 @@ export default defineConfig(
     files: [
       'packages/semantic-split/src/index.ts',
       'packages/semantic-split/src/workflow.ts',
+      'packages/intentions/src/**/*.ts',
     ],
+    ignores: ['packages/intentions/src/contracts.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -359,7 +372,7 @@ export default defineConfig(
               regex:
                 '^@daphne/(?!(?:context-engine|llm|review-evidence/contracts)$)',
               message:
-                'Split orchestration uses supplied evidence, context paging and model calls.',
+                'Investigation workflows use supplied evidence, context assembly and model calls.',
             },
             {
               group: ['@daphne/review-evidence/contracts'],

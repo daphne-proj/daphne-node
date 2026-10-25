@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../context-engine/tsconfig.build.json"
+    },
+    {
+      "path": "../llm/tsconfig.build.json"
+    },
+    {
+      "path": "../review-evidence/tsconfig.build.json"
+    }
+  ]
+}
