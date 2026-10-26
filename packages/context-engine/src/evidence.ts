@@ -23,7 +23,11 @@ function digest(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
-/* Reuse identical excerpts and reject disagreements in blob identity or overlapping bytes so retained source stays consistent. */
+/*
+ * Retain one exact excerpt and reject contradictions with earlier evidence.
+ * Recording the same source reference and text twice reuses its evidence ID;
+ * overlapping ranges for the same committed blob must agree byte-for-byte.
+ */
 function insertSource(
   sources: RetainedSource[],
   incoming: SourceEvidence,
@@ -90,7 +94,13 @@ function insertSource(
   return evidenceId;
 }
 
-/* Publish whole validated updates so a failed retention or page-recording operation leaves evidence IDs and query progress unchanged. */
+/*
+ * Keep source text and tool-page history for one review in a bounded ledger.
+ * For example, recording an inspect_change page stores its source once and
+ * records an evidence ID in the page. Each update publishes a new snapshot
+ * only after the whole serialized state fits, so failures leave IDs and query
+ * progress unchanged.
+ */
 export function createEvidenceLedger(
   identity: ReviewIdentity,
   maxRetainedBytes: number,
@@ -101,7 +111,7 @@ export function createEvidenceLedger(
     queries: Object.freeze([]),
   });
 
-  /* Include source text and query bookkeeping in the budget before replacing the snapshot visible to callers. */
+  /* Publish a replacement only when the entire serialized snapshot fits. */
   function commit(
     sources: readonly RetainedSource[],
     queries: readonly RecordedQuery[],
@@ -125,7 +135,7 @@ export function createEvidenceLedger(
   commit(state.sources, state.queries);
 
   return {
-    /* Retain supplied source independently of tool history, allowing hosts to provide evidence read through other paths. */
+    /* Retain one supplied excerpt without recording a tool query. */
     addSource: (value: SourceEvidence): string => {
       const source = validate.source(value, state.identity);
       const sources = [...state.sources];
@@ -134,12 +144,11 @@ export function createEvidenceLedger(
 
       return evidenceId;
     },
-
-    /* Retain a tool page and its sources together so its recorded progress always describes the evidence actually stored. */
+    /* Record one tool page and its sources together; identical retries do nothing. */
     addToolResult: (value: ToolResult): void => {
       const result = validate.result(value, state.identity);
 
-      /* A cursor selects a page, so exclude it from the identity shared by all pages of the same request. */
+      /* The cursor identifies a page, not its query; continuations share one query ID. */
       const request = Object.freeze({ ...result.request, cursor: null });
       const queryId = digest(request);
       const previous = state.queries.find((query) => query.queryId === queryId);
@@ -190,6 +199,7 @@ export function createEvidenceLedger(
         );
       }
 
+      /* Fragment ranges may differ, but every page of a line read selects one pinned window. */
       if (request.name === 'read_source_lines' && previous) {
         const originalWindow = previous.pages[0]?.entries.find(
           (entry) => entry.kind === 'source_window',
@@ -198,7 +208,6 @@ export function createEvidenceLedger(
           (entry) => entry.kind === 'source_window',
         );
 
-        /* Pinned lines resolve to one window, regardless of how source bytes are paged. */
         if (
           incomingWindow &&
           JSON.stringify(incomingWindow) !== JSON.stringify(originalWindow)
@@ -209,7 +218,7 @@ export function createEvidenceLedger(
         }
       }
 
-      /* Store source text once even when several tool pages return the same excerpt. */
+      /* Keep exact text once; recorded pages refer to it by evidence ID. */
       const sources = [...state.sources];
       const entries: RetainedEntry[] = result.entries.map((entry) => {
         if (entry.kind !== 'source') {
@@ -221,6 +230,7 @@ export function createEvidenceLedger(
           evidenceId: insertSource(sources, entry.source),
         });
       });
+
       const page: RecordedPage = Object.freeze({
         cursor: result.request.cursor,
         nextCursor: result.nextCursor,
@@ -230,6 +240,7 @@ export function createEvidenceLedger(
         notices: result.notices,
       });
       const pages = Object.freeze([...(previous?.pages ?? []), page]);
+
       let status: RecordedQuery['status'];
 
       if (result.nextCursor !== null) {
@@ -261,22 +272,29 @@ export function createEvidenceLedger(
 
       commit(sources, queries);
     },
-
-    /* Later commits replace state, leaving previously returned frozen snapshots safe for callers to keep. */
+    /* Return the current snapshot; later commits replace state without changing this one. */
     snapshot: (): EvidenceSnapshot => {
       return state;
     },
   };
 }
 
-/* Rebuild snapshots, including those loaded from JSON, through the ledger to verify source IDs, page fingerprints and query progress before assembly. */
+/*
+ * Make an internally consistent copy of a snapshot before assembly. The
+ * snapshot may come from JSON, so its TypeScript type does not prove that its
+ * contents are valid. Add its sources and recorded tool pages to a fresh
+ * ledger, checking their IDs, page contents, continuation order, query status
+ * and retention size. For example, reject a page that refers to a source ID
+ * missing from the snapshot. Return the new copy so later caller edits cannot
+ * change the packet being assembled.
+ */
 export function validateAndCopySnapshot(
   value: unknown,
   maxRetainedBytes = defaultContextLimits.maxRetainedBytes,
 ): EvidenceSnapshot {
   const input = validate.object(value);
   const identity = validate.identity(input.identity);
-  /* Reconstruction must honor the live ledger's allowance, including larger explicit budgets. */
+
   const ledger = createEvidenceLedger(identity, maxRetainedBytes);
   const sources = new Map<string, SourceEvidence>();
 
@@ -331,6 +349,7 @@ export function validateAndCopySnapshot(
 
         return { kind: 'source', source };
       });
+
       const result = validate.result(
         {
           identity,

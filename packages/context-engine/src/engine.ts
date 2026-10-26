@@ -23,7 +23,12 @@ export interface ContextEngine {
   readonly buildContextPacket: (input: AssembleInput) => Promise<ContextPacket>;
 }
 
-/* Own only an in-memory ledger so the host can close Git before assembly and retain control of retrieval and cleanup. */
+/*
+ * Give a host one in-memory ledger and a way to assemble its retained evidence.
+ * The context inspect CLI, for example, records tool pages through this engine,
+ * closes Git, then assembles selected evidence IDs into a bounded packet.
+ * Retrieval policy and resource cleanup remain with the host.
+ */
 export function createContextEngine(
   identity: ReviewIdentity,
   limits: ContextLimits,

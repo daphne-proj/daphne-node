@@ -57,7 +57,8 @@ function contextNotice(code: string, message: string): ContextNotice {
   return Object.freeze({ code, message, path: null });
 }
 
-/* Build a bounded view of supplied evidence without changing retention, preserving whole excerpts and reporting every selected source that cannot fit. */
+/** Assembles supplied data only.
+Capturing both inputs precedes the first asynchronous counter call. */
 export async function buildContextPacket(
   snapshot: EvidenceSnapshot,
   input: AssembleInput,
@@ -65,10 +66,13 @@ export async function buildContextPacket(
 ): Promise<ContextPacket> {
   const resolved = resolveContextLimits(limits);
   const captured = validateAndCopySnapshot(snapshot, resolved.maxRetainedBytes);
+
   const selection = parseAssembleInput(input, resolved);
+
   const byId = new Map(
     captured.sources.map((source) => [source.evidenceId, source]),
   );
+
   const selected = selection.evidenceIds.map((id) => {
     const source = byId.get(id);
 
@@ -78,6 +82,7 @@ export async function buildContextPacket(
 
     return source;
   });
+
   const observations = captured.queries.flatMap((query) =>
     query.pages.flatMap((page, pageIndex) => [
       ...page.entries.flatMap((entry) =>
@@ -92,17 +97,24 @@ export async function buildContextPacket(
       })),
     ]),
   );
+
   const queries = captured.queries.map((query) => ({
     queryId: query.queryId,
     request: query.request,
     status: query.status,
     recordedPages: query.pages.length,
   }));
+
   const incompleteQueries = queries.filter(
     (query) => query.status !== 'complete',
   ).length;
 
-  /* Include query summaries and omission bookkeeping even with zero sources so a small packet cannot hide incomplete evidence. */
+  /*
+   * Build the JSON for one possible packet. render(1, 0) includes the first
+   * selected source, but no non-source tool entries or tool notices. It still
+   * reports omitted source IDs, the number of omitted observations and every
+   * query's status. measure then checks whether this JSON fits.
+   */
   function render(sourceCount: number, observationCount: number) {
     const included = selected.slice(0, sourceCount);
     const omittedEvidenceIds = Object.freeze(
@@ -160,7 +172,11 @@ export async function buildContextPacket(
     };
   }
 
-  /* Measure the exact rendering and avoid a potentially remote token count when the byte limit already rules it out. */
+  /*
+   * Check the exact rendered bytes before calling the host's token counter.
+   * Return the candidate and its count so admission keeps the rendering that
+   * passed both budgets without counting an oversized byte candidate.
+   */
   async function measure(sourceCount: number, observationCount: number) {
     const candidate = render(sourceCount, observationCount);
 

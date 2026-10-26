@@ -84,6 +84,11 @@ export type ToolRequest = ToolPage &
       }
   );
 
+/*
+ * One observation in a tool page. For example, inspect_change may return a
+ * change entry followed by BASE and HEAD source entries; search hits and line
+ * windows provide navigation without exact source text.
+ */
 export type ToolEntry =
   | { readonly kind: 'change'; readonly change: Change }
   | { readonly kind: 'source'; readonly source: SourceEvidence }
@@ -106,6 +111,11 @@ export type ToolEntry =
       readonly preview: string;
     };
 
+/*
+ * One page returned for a normalized tool request. For example, an
+ * inspect_change result may contain source entries and a nextCursor for the
+ * following page. Completeness reports progress; notices explain limitations.
+ */
 export interface ToolResult {
   readonly identity: ReviewIdentity;
   readonly request: ToolRequest;

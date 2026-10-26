@@ -8,13 +8,19 @@ import type {
   ToolResult,
 } from '@daphne/review-evidence/contracts';
 
+/*
+ * A query is one tool request, such as inspect_change for change-1; its cursor
+ * pages record the returned entries. Source entries become retained evidence
+ * IDs, while navigation entries remain in the page history.
+ */
+
 /* Give an exact excerpt a session-local ID so selections and query history can reuse it without copying its text. */
 export interface RetainedSource {
   readonly evidenceId: string;
   readonly source: SourceEvidence;
 }
 
-/* Keep navigation entries in page history, while source entries point to the ledger's retained text. */
+/* A recorded page refers to source text by ID rather than storing it again. */
 export type RetainedEntry =
   | Exclude<ToolEntry, { readonly kind: 'source' }>
   | { readonly kind: 'source'; readonly evidenceId: string };
@@ -29,7 +35,7 @@ export interface RecordedPage {
   readonly notices: readonly ContextNotice[];
 }
 
-/* Group pages under a request with a null cursor; open means a continuation remains unread. */
+/* One tool request and its ordered cursor pages, with a summary of progress. */
 export interface RecordedQuery {
   readonly queryId: string;
   readonly request: ToolRequest;
@@ -37,7 +43,7 @@ export interface RecordedQuery {
   readonly status: 'open' | 'complete' | 'partial' | 'unavailable';
 }
 
-/* Keep one consistent view of retained evidence and query progress that later ledger updates cannot alter. */
+/* The ledger's data at one moment: identity, exact sources, and query history. */
 export interface EvidenceSnapshot {
   readonly identity: ReviewIdentity;
   readonly sources: readonly RetainedSource[];
@@ -51,7 +57,12 @@ export interface TokenBudget {
   readonly countTokens: (renderedContext: string) => Promise<number>;
 }
 
-/* Supply exact excerpts for each existing hunk side in BASE-then-HEAD order, or no sources and a null index for metadata-only changes. */
+/*
+ * One supplied diff hunk and the exact excerpts the pager will render.
+ * A modified text hunk at index 0 carries BASE then HEAD sources; a
+ * metadata-only change has a null index and no sources. Keeping excerpts here
+ * lets the pager split oversized text without reading the repository again.
+ */
 export interface DiffContextHunk {
   readonly change: Change;
   readonly hunkIndex: number | null;

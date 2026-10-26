@@ -86,7 +86,12 @@ function splitSource(source: SourceEvidence): [SourceEvidence, SourceEvidence] {
   return [slice(0, cut), slice(cut, bytes.length)];
 }
 
-/* Validate existing sides and copy caller-owned evidence before counting can wait, while reusing shared change metadata across hunks. */
+/*
+ * Copy one hunk so later caller edits cannot change the pages we produce.
+ * For a text hunk with both paths, require BASE and HEAD sources in that order
+ * at the change's paths. A metadata-only entry has no sources. Hunk entries
+ * sharing one input change object reuse its validated copy.
+ */
 function validateAndCopyHunk(
   value: unknown,
   identity: ReviewIdentity,
@@ -159,7 +164,7 @@ export async function* splitDiffIntoContextPages(input: {
   hunks: readonly DiffContextHunk[];
   tokens: TokenBudget;
 }): AsyncIterable<DiffContextPage> {
-  /* Capture all evidence before awaiting the host's token counter. */
+  /* Copy every hunk before countTokens can wait for a result from the host. */
   const identity = validate.identity(input.identity);
   const capturedChanges = new Map<unknown, Change>();
   const hunks = validate
