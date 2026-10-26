@@ -243,7 +243,7 @@ export async function runContextInspect(
 
   async function stage<T>(
     name: Stage,
-    operation: () => Promise<T>,
+    operation: () => T | Promise<T>,
   ): Promise<T> {
     const started = Date.now();
     let outcome: 'complete' | 'failed' = 'complete';
@@ -312,7 +312,7 @@ export async function runContextInspect(
     }
 
     if (report.errors.length === 0) {
-      const assembled = await stage('assembly', async () => {
+      const assembled = await stage('assembly', () => {
         checkCancellation(signal);
 
         return context.buildContextPacket({

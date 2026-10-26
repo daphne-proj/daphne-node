@@ -130,7 +130,7 @@ export async function runIntentions(
       };
     }
 
-    const initial = await assembleEvidence(
+    const initial = assembleEvidence(
       engine,
       progress.hunks.flatMap((hunk) => hunk.evidenceIds),
     );

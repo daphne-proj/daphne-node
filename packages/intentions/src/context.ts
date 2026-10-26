@@ -217,11 +217,11 @@ export function retainDiff(
   }
 }
 
-export async function assembleEvidence(
+export function assembleEvidence(
   engine: ContextEngine,
   evidenceIds: readonly string[],
 ) {
-  const packet = await engine.buildContextPacket({
+  const packet = engine.buildContextPacket({
     evidenceIds,
     maxBytes: intentionsLimits.maxContextBytes,
   });

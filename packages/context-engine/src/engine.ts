@@ -20,7 +20,7 @@ export interface ContextEngine {
   readonly addSource: (source: SourceEvidence) => string;
   readonly addToolResult: (result: ToolResult) => void;
   readonly getEvidenceSnapshot: () => EvidenceSnapshot;
-  readonly buildContextPacket: (input: AssembleInput) => Promise<ContextPacket>;
+  readonly buildContextPacket: (input: AssembleInput) => ContextPacket;
 }
 
 /*

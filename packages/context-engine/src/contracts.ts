@@ -80,7 +80,6 @@ export interface DiffContextPage {
 export interface AssembleInput {
   readonly evidenceIds: readonly string[];
   readonly maxBytes: number;
-  readonly tokens?: TokenBudget;
 }
 
 /* Pair the exact rendered payload with its omissions and measurements so callers can distinguish selected evidence from included evidence. */
@@ -94,6 +93,6 @@ export interface ContextPacket {
   readonly renderedContext: string;
   /* Measure only renderedContext, including JSON escaping, rather than the outer packet object. */
   readonly byteCount: number;
-  /* A missing token counter leaves the count unknown rather than estimating it from bytes. */
+  /* Existing v1 packets retain this null field; model requests own token counts. */
   readonly tokenCount: number | null;
 }

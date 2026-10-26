@@ -21,6 +21,8 @@
 
 ## How it works
 
+Packet assembly is synchronous and byte-bounded; model workflows count complete requests separately. The v1 packet retains `tokenCount: null`, and assembly rejects a supplied token budget.
+
 For packets, validate and retain supplied sources or tool results, reuse identical evidence, and reject conflicting provenance or bytes. Search previews and line-read window metadata remain navigation; only exact source fragments become citable evidence. Line-read continuations must agree on the selected window. Select evidence IDs in priority order, then render the largest fitting prefix of whole excerpts with explicit omissions and retrieval limitations. Git can already be closed.
 
 For diff pages, validate the supplied hunks, render them together, and recursively divide oversized groups, sides or source ranges. Splits preserve UTF-8 boundaries and original byte offsets. Consume the iterator completely to preserve all supplied text; page boundaries do not define semantic groups.

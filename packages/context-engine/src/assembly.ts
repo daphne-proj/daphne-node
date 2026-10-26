@@ -4,7 +4,6 @@ import type {
   AssembleInput,
   ContextPacket,
   EvidenceSnapshot,
-  TokenBudget,
 } from './contracts.js';
 import { validateAndCopySnapshot } from './evidence.js';
 import { ContextInputError, ContextLimitError } from './errors.js';
@@ -12,7 +11,7 @@ import { resolveContextLimits } from './limits.js';
 import type { ContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
-/* Capture selection and counter settings before asynchronous counting so caller edits cannot change an in-progress packet. */
+/* Validate and copy the selection before rendering a byte-bounded packet. */
 function parseAssembleInput(value: unknown, limits: ContextLimits): AssembleInput {
   const input = validate.object(value);
   const evidenceIds = Object.freeze([
@@ -25,45 +24,25 @@ function parseAssembleInput(value: unknown, limits: ContextLimits): AssembleInpu
     limits.maxContextBytes,
   );
 
-  if (input.tokens === undefined) {
-    return Object.freeze({ evidenceIds, maxBytes });
+  if ('tokens' in input) {
+    throw new ContextInputError(
+      'Token budgets are not supported by context assembly.',
+    );
   }
 
-  const tokens = validate.object(input.tokens);
-  const counterId = validate.string(tokens.counterId);
-  const maxTokens = validate.integer(tokens.maxTokens, 1);
-  const counter = tokens.countTokens;
-
-  if (typeof counter !== 'function') {
-    throw new ContextInputError('A named token-counting function is required.');
-  }
-
-  const budget: TokenBudget = Object.freeze({
-    counterId,
-    maxTokens,
-    async countTokens(rendered: string): Promise<number> {
-      const value: unknown = await Reflect.apply(counter, undefined, [
-        rendered,
-      ]);
-
-      return validate.integer(value);
-    },
-  });
-
-  return Object.freeze({ evidenceIds, maxBytes, tokens: budget });
+  return Object.freeze({ evidenceIds, maxBytes });
 }
 
 function contextNotice(code: string, message: string): ContextNotice {
   return Object.freeze({ code, message, path: null });
 }
 
-/** Assembles supplied data only.
-Capturing both inputs precedes the first asynchronous counter call. */
-export async function buildContextPacket(
+/* Assemble supplied evidence into a byte-bounded packet without model calls. */
+export function buildContextPacket(
   snapshot: EvidenceSnapshot,
   input: AssembleInput,
   limits?: ContextLimits,
-): Promise<ContextPacket> {
+): ContextPacket {
   const resolved = resolveContextLimits(limits);
   const captured = validateAndCopySnapshot(snapshot, resolved.maxRetainedBytes);
 
@@ -172,35 +151,20 @@ export async function buildContextPacket(
     };
   }
 
-  /*
-   * Check the exact rendered bytes before calling the host's token counter.
-   * Return the candidate and its count so admission keeps the rendering that
-   * passed both budgets without counting an oversized byte candidate.
-   */
-  async function measure(sourceCount: number, observationCount: number) {
+  /* Keep the exact rendering that passed the byte budget. */
+  function measure(sourceCount: number, observationCount: number) {
     const candidate = render(sourceCount, observationCount);
 
-    if (candidate.byteCount > selection.maxBytes) {
-      return { candidate, fits: false, tokenCount: null };
-    }
-
-    const tokenCount = selection.tokens
-      ? await selection.tokens.countTokens(candidate.renderedContext)
-      : null;
-    const fits =
-      !selection.tokens ||
-      (tokenCount !== null && tokenCount <= selection.tokens.maxTokens);
-
-    return { candidate, fits, tokenCount };
+    return { candidate, fits: candidate.byteCount <= selection.maxBytes };
   }
 
   /* Remove the lowest-priority whole excerpts first rather than clipping their text or reordering the host's selection. */
   let sourceCount = selected.length;
-  let admitted = await measure(sourceCount, 0);
+  let admitted = measure(sourceCount, 0);
 
   while (!admitted.fits && sourceCount > 0) {
     sourceCount -= 1;
-    admitted = await measure(sourceCount, 0);
+    admitted = measure(sourceCount, 0);
   }
 
   if (!admitted.fits) {
@@ -212,7 +176,7 @@ export async function buildContextPacket(
 
   /* Add navigation in recorded order only after sources fit, so it never displaces the host's prioritized evidence. */
   for (let count = 1; count <= observations.length; count += 1) {
-    const next = await measure(sourceCount, count);
+    const next = measure(sourceCount, count);
 
     if (!next.fits) {
       break;
@@ -221,23 +185,16 @@ export async function buildContextPacket(
     admitted = next;
   }
 
-  const { candidate, tokenCount } = admitted;
-  const tokenConfiguration = selection.tokens
-    ? {
-        counterId: selection.tokens.counterId,
-        maxTokens: selection.tokens.maxTokens,
-      }
-    : null;
-
-  /* Identify this rendering and counting configuration without claiming to authenticate its source or confirm model delivery. */
+  const { candidate } = admitted;
+  /* Keep v1 packet IDs stable for the byte-only callers that already use them. */
   const packetId = createHash('sha256')
     .update(
       JSON.stringify({
         format: 'daphne-context-v1',
         identity: captured.identity,
         renderedContext: candidate.renderedContext,
-        tokenConfiguration,
-        tokenCount,
+        tokenConfiguration: null,
+        tokenCount: null,
       }),
     )
     .digest('hex');
@@ -247,6 +204,6 @@ export async function buildContextPacket(
     packetId,
     identity: captured.identity,
     ...candidate,
-    tokenCount,
+    tokenCount: null,
   });
 }

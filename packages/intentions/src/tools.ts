@@ -117,7 +117,7 @@ export async function executeIntentionTool(
     const evidenceIds = result.entries.flatMap((entry) =>
       entry.kind === 'source' ? [engine.addSource(entry.source)] : [],
     );
-    const packet = await assembleEvidence(engine, evidenceIds);
+    const packet = assembleEvidence(engine, evidenceIds);
     const output = JSON.stringify({
       request: result.request,
       completeness: result.completeness,

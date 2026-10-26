@@ -54,7 +54,7 @@ import {
 const context = createContextEngine(identity, defaultContextLimits);
 const evidenceIds = sources.map((source) => context.addSource(source));
 
-const packet = await context.buildContextPacket({
+const packet = context.buildContextPacket({
   evidenceIds,
   maxBytes: 65_536,
 });
@@ -69,7 +69,7 @@ Alternatively, the host calls `session.execute(request)`, passes each returned p
 3. Removes whole sources from the end until the candidate fits. For `[A, B, C]`, it may include `[A, B]` and report `C` as omitted; it never clips source text.
 4. Adds navigation and tool notices in recorded order while they fit, without displacing sources.
 
-The `ContextPacket` contains `renderedContext`, included/omitted evidence IDs, notices, byte/token counts and a SHA-256 `packetId`. Omissions and incomplete retrieval remain explicit. Mandatory bookkeeping that cannot fit causes failure. The ID identifies the rendering and token-count configuration; it does not authenticate evidence or prove model delivery.
+The `ContextPacket` contains `renderedContext`, included/omitted evidence IDs, notices, byte count, legacy `tokenCount: null` and a SHA-256 `packetId`. Omissions and incomplete retrieval remain explicit. Mandatory bookkeeping that cannot fit causes failure. The ID identifies the rendering with null legacy token fields; it does not authenticate evidence or prove model delivery.
 
 ## Page a supplied diff
 
@@ -145,14 +145,14 @@ The retained-ledger path is separate: `session.execute({ name: 'inspect_change',
 
 ## Budgets and failures
 
-| Budget                  | Default and maximum     | Measurement                                                                 |
+| Budget                  | Default                 | Measurement                                                                 |
 | ----------------------- | ----------------------- | --------------------------------------------------------------------------- |
 | Retention               | 4,194,304 bytes (4 MiB) | Serialized identity, unique sources, queries, pages, navigation and notices |
 | Packet / diff-page text | 65,536 bytes (64 KiB)   | Exact UTF-8 rendered context, including headers or JSON escaping            |
 
 Engine overrides allow packets up to 8 MiB and retention up to 32 MiB. Standalone callers can pass the same limits as the third argument to `buildContextPacket(snapshot, input, limits)`; omitting them preserves the defaults. Diff pages keep their 64 KiB ceiling. Retention overflow fails without eviction. Packet `byteCount` excludes the outer packet metadata; retention accounting is not an exact JavaScript heap quota.
 
-Assembly optionally accepts a `TokenBudget`; paging requires one. It contains `counterId`, `maxTokens` and asynchronous `countTokens(context)`. Counts must be nonnegative safe integers; assembly without a counter returns `tokenCount: null`. The host must count its complete request, reserve output capacity and enforce counter deadlines. Counter failures propagate.
+Assembly is synchronous and byte-bounded, preserves existing byte-only v1 packet IDs, and rejects a supplied token budget. Paging requires a `TokenBudget` containing `counterId`, `maxTokens` and asynchronous `countTokens(context)`. Counts must be nonnegative safe integers. The host must count its complete request, reserve output capacity and enforce counter deadlines. Counter failures propagate.
 
 - `ContextInputError`: malformed or foreign evidence, unknown selections, inconsistent snapshots, invalid hunks or counts.
 - `ContextConflictError`: conflicting source bytes, page retries, fingerprints or continuation chains.
