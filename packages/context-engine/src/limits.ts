@@ -1,15 +1,18 @@
 import { ContextInputError } from './errors.js';
 
+/* Bound investigation retention and individual rendered packets independently so a host can keep evidence for later selections. */
 export interface ContextLimits {
   readonly maxContextBytes: number;
   readonly maxRetainedBytes: number;
 }
 
+/* These application byte ceilings bound serialized data, not model tokens or exact JavaScript heap usage. */
 export const defaultContextLimits: ContextLimits = Object.freeze({
   maxContextBytes: 65_536,
   maxRetainedBytes: 4_194_304,
 });
 
+/* Allow callers to tighten the supported ceilings without letting a per-engine override remove them. */
 export function resolveContextLimits(
   overrides?: Partial<ContextLimits>,
 ): ContextLimits;

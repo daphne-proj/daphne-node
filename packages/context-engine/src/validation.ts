@@ -27,6 +27,7 @@ export function array(value: unknown): readonly unknown[] {
   return value;
 }
 
+/* Reject text that UTF-8 encoding would replace so stored byte ranges continue to describe the supplied text exactly. */
 export function string(value: unknown, allowEmpty = false): string {
   if (
     typeof value !== 'string' ||
@@ -86,6 +87,7 @@ export function identity(value: unknown): ReviewIdentity {
   });
 }
 
+/* Check the excerpt's session, committed side and byte length while leaving verification against actual repository bytes to the evidence producer. */
 export function source(
   value: unknown,
   session: ReviewIdentity,
@@ -130,6 +132,7 @@ export function notice(value: unknown): ContextNotice {
   });
 }
 
+/* Require the producer's normalized request, including explicit defaults, so query identity survives recording and JSON reconstruction. */
 export function request(value: unknown): ToolRequest {
   const input = object(value);
   const common = {
@@ -219,6 +222,7 @@ export function change(value: unknown): Change {
   });
 }
 
+/* Reject entry kinds and coordinates that contradict the recorded request before retaining the page. */
 function entry(
   value: unknown,
   session: ReviewIdentity,
@@ -292,6 +296,7 @@ function entry(
   }
 }
 
+/* Capture a supplied tool page and reject contradictory completeness metadata before the ledger treats it as retrieval progress. */
 export function result(value: unknown, session: ReviewIdentity): ToolResult {
   const input = object(value);
   const owner = identity(input.identity);

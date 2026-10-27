@@ -14,6 +14,7 @@ import type { ContextLimits } from './limits.js';
 import { resolveContextLimits } from './limits.js';
 import { integer, object } from './validation.js';
 
+/* Separate evidence retention from packet selection so a host can assemble different views of the same investigation. */
 export interface ContextEngine {
   readonly identity: ReviewIdentity;
   readonly retain: (source: SourceEvidence) => string;
@@ -22,7 +23,7 @@ export interface ContextEngine {
   readonly assemble: (input: AssembleInput) => Promise<ContextPacket>;
 }
 
-/** Owns in-memory evidence only; acquisition, retrieval policy and resource cleanup stay with the host. */
+/* Own only an in-memory ledger so the host can close Git before assembly and retain control of retrieval and cleanup. */
 export function createContextEngine(
   identity: ReviewIdentity,
   limits: ContextLimits,

@@ -23,6 +23,7 @@ function digest(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+/* Reuse identical excerpts and reject disagreements in blob identity or overlapping bytes so retained source stays consistent. */
 function insertSource(
   sources: RetainedSource[],
   incoming: SourceEvidence,
@@ -56,6 +57,7 @@ function insertSource(
       );
     }
 
+    /* Compare only the shared byte range; consistent overlaps remain separate excerpts with their own references. */
     const start = Math.max(
       existing.ref.range.startByte,
       incoming.ref.range.startByte,
@@ -88,7 +90,7 @@ function insertSource(
   return evidenceId;
 }
 
-/** Stages immutable replacements; no IDs or query progress change until the entire transaction fits. */
+/* Publish whole validated updates so a failed retention or page-recording operation leaves evidence IDs and query progress unchanged. */
 export function createEvidenceLedger(
   identity: ReviewIdentity,
   maxRetainedBytes: number,
@@ -99,6 +101,7 @@ export function createEvidenceLedger(
     queries: Object.freeze([]),
   });
 
+  /* Include source text and query bookkeeping in the budget before replacing the snapshot visible to callers. */
   function commit(
     sources: readonly RetainedSource[],
     queries: readonly RecordedQuery[],
@@ -122,6 +125,7 @@ export function createEvidenceLedger(
   commit(state.sources, state.queries);
 
   return {
+    /* Retain supplied source independently of tool history, allowing hosts to provide evidence read through other paths. */
     retain: (value: SourceEvidence): string => {
       const source = validate.source(value, state.identity);
       const sources = [...state.sources];
@@ -130,8 +134,12 @@ export function createEvidenceLedger(
 
       return evidenceId;
     },
+
+    /* Retain a tool page and its sources together so its recorded progress always describes the evidence actually stored. */
     record: (value: ToolResult): void => {
       const result = validate.result(value, state.identity);
+
+      /* A cursor selects a page, so exclude it from the identity shared by all pages of the same request. */
       const request = Object.freeze({ ...result.request, cursor: null });
       const queryId = digest(request);
       const previous = state.queries.find((query) => query.queryId === queryId);
@@ -140,6 +148,7 @@ export function createEvidenceLedger(
         (page) => page.cursor === result.request.cursor,
       );
 
+      /* Identical retries are harmless, but replacing a recorded page would make earlier evidence ambiguous. */
       if (retry) {
         if (retry.fingerprint !== fingerprint) {
           throw new ContextConflictError(
@@ -150,6 +159,7 @@ export function createEvidenceLedger(
         return;
       }
 
+      /* Compare opaque cursor values to enforce order without decoding or executing a retrieval continuation. */
       if (
         (!previous && result.request.cursor !== null) ||
         (previous &&
@@ -180,6 +190,7 @@ export function createEvidenceLedger(
         );
       }
 
+      /* Store source text once even when several tool pages return the same excerpt. */
       const sources = [...state.sources];
       const entries: RetainedEntry[] = result.entries.map((entry) => {
         if (entry.kind !== 'source') {
@@ -231,13 +242,15 @@ export function createEvidenceLedger(
 
       commit(sources, queries);
     },
+
+    /* Later commits replace state, leaving previously returned frozen snapshots safe for callers to keep. */
     snapshot: (): EvidenceSnapshot => {
       return state;
     },
   };
 }
 
-/** Reconstructs supplied snapshot data using the same invariants; no live engine or Git handle is required. */
+/* Rebuild snapshots, including those loaded from JSON, through the ledger to verify source IDs, page fingerprints and query progress before assembly. */
 export function captureSnapshot(value: unknown): EvidenceSnapshot {
   const input = validate.object(value);
   const identity = validate.identity(input.identity);

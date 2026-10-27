@@ -11,6 +11,7 @@ import { ContextInputError, ContextLimitError } from './errors.js';
 import { defaultContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
+/* Capture selection and counter settings before asynchronous counting so caller edits cannot change an in-progress packet. */
 function inputData(value: unknown): AssembleInput {
   const input = validate.object(value);
   const evidenceIds = Object.freeze([
@@ -55,7 +56,7 @@ function contextNotice(code: string, message: string): ContextNotice {
   return Object.freeze({ code, message, path: null });
 }
 
-/** Assembles supplied data only. Capturing both inputs precedes the first asynchronous counter call. */
+/* Build a bounded view of supplied evidence without changing retention, preserving whole excerpts and reporting every selected source that cannot fit. */
 export async function assembleContext(
   snapshot: EvidenceSnapshot,
   input: AssembleInput,
@@ -98,6 +99,7 @@ export async function assembleContext(
     (query) => query.status !== 'complete',
   ).length;
 
+  /* Include query summaries and omission bookkeeping even with zero sources so a small packet cannot hide incomplete evidence. */
   function render(sourceCount: number, observationCount: number) {
     const included = selected.slice(0, sourceCount);
     const omittedEvidenceIds = Object.freeze(
@@ -155,6 +157,7 @@ export async function assembleContext(
     };
   }
 
+  /* Measure the exact rendering and avoid a potentially remote token count when the byte limit already rules it out. */
   async function measure(sourceCount: number, observationCount: number) {
     const candidate = render(sourceCount, observationCount);
 
@@ -172,6 +175,7 @@ export async function assembleContext(
     return { candidate, fits, tokenCount };
   }
 
+  /* Remove the lowest-priority whole excerpts first rather than clipping their text or reordering the host's selection. */
   let sourceCount = selected.length;
   let admitted = await measure(sourceCount, 0);
 
@@ -187,7 +191,7 @@ export async function assembleContext(
     );
   }
 
-  // Navigation never displaces host-prioritized source. Keep first-seen query, page and item order.
+  /* Add navigation in recorded order only after sources fit, so it never displaces the host's prioritized evidence. */
   for (let count = 1; count <= observations.length; count += 1) {
     const next = await measure(sourceCount, count);
 
@@ -205,6 +209,8 @@ export async function assembleContext(
         maxTokens: selection.tokens.maxTokens,
       }
     : null;
+
+  /* Identify this rendering and counting configuration without claiming to authenticate its source or confirm model delivery. */
   const packetId = createHash('sha256')
     .update(
       JSON.stringify({

@@ -1,22 +1,47 @@
 # Context engine
 
-This package remembers evidence already supplied by a host, assembles selected evidence into a bounded JSON context string, and pages supplied diff text. It does not open repositories, fetch PRs, execute tools, choose searches or call a model.
+`@daphne/context-engine` turns supplied source evidence into bounded, traceable context. It retains exact excerpts, checks their consistency, and prepares JSON packets or diff text pages for a caller.
 
-Its only workspace imports are types from `@daphne/review-evidence/contracts`. Commit, blob, path and range fields are provenance data. They are not Git handles.
+The package owns no repository, retrieval policy, prompts or model generation. Its only workspace imports are types from `@daphne/review-evidence/contracts`; emitted JavaScript uses Node.js facilities such as `Buffer` and `node:crypto`. Its package manifest still declares the evidence dependency for those contracts. **Semantic-split depends on context-engine; context-engine does not depend on semantic-split.** Other Node hosts can use it with compatible evidence, including saved JSON.
 
-## Retention and assembly are different operations
+## Two independent APIs
 
-`retain(source)` validates a source excerpt and returns a session-local evidence ID. Repeating the same reference and text reuses its ID. Different text, conflicting blob identity or contradictory overlapping bytes fail. Consistent overlaps stay separate.
+| API                                           | Input and output                                                     | When evidence is too large                                                    |
+| --------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `createContextEngine()` / `assembleContext()` | Retain evidence, then select IDs for one JSON `ContextPacket`        | Omit whole lower-priority excerpts and report their IDs                       |
+| `paginateDiffContext()`                       | Supply `DiffContextHunk[]` and receive text `DiffContextPage` values | Divide the input into smaller pages while preserving all supplied source text |
 
-`record(result)` records a complete supplied tool page, retains its source entries and tracks query progress. Search previews stay navigation. Recording is atomic: a bad entry or exceeded retention budget leaves sources, IDs and pagination unchanged.
+Paging does not use or modify the retained ledger. The current `context inspect` CLI uses retention and assembly; `semantic-split` uses the pager directly.
 
-An identical page retry is a no-op. Continuations must follow the previously recorded opaque cursor for the same normalized query. The engine compares cursor strings but never authenticates, decodes or follows them. A failed retrieval call has no result to record; an unavailable result remains unavailable.
+## Evidence and identity
 
-`evidence()` returns a frozen snapshot. `assemble(input)` captures that snapshot and builds a new packet without changing retention. The standalone `assembleContext(snapshot, input)` also accepts a JSON-roundtripped snapshot, validating it before use.
+| Type             | Purpose                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
+| `ReviewIdentity` | Identifies the session, repository, target commit, merge-base commit and head commit                 |
+| `SourceEvidence` | Pairs exact `text` with a `SourceRef`: session, BASE/HEAD side, commit, path, blob ID and byte range |
+| `Change`         | Describes a changed file, its status and content kind, and before/after hunk coordinates             |
+| `ToolResult`     | Records a retrieval request, entries, completeness, next cursor and notices                          |
 
-## Host example
+Byte ranges are zero-based and half-open: `[100, 140)` contains 40 original UTF-8 bytes. Validation checks well-formed text, range length, session and side/commit consistency. The evidence producer establishes correspondence with real repository bytes; context-engine checks supplied data without reading Git.
 
-Assume the host has acquired `snapshot` and created a borrowing review-evidence `session`. The following code belongs to the host:
+An `evidenceId`, such as `evidence-1`, identifies a retained excerpt. A `unitId`, such as `change-1:0`, identifies a change/hunk for paging. Several source excerpts and pages can belong to the same unit.
+
+## Retain and assemble evidence
+
+`createContextEngine(identity, limits)` creates one in-memory ledger and exposes:
+
+| Method            | Role                                                                        |
+| ----------------- | --------------------------------------------------------------------------- |
+| `retain(source)`  | Store an excerpt and return its session-local evidence ID                   |
+| `record(result)`  | Atomically retain a supplied tool page, its sources and query progress      |
+| `evidence()`      | Return a frozen `EvidenceSnapshot` containing identity, sources and queries |
+| `assemble(input)` | Build a packet from selected evidence IDs without changing the ledger       |
+
+The internal `insertSource()` reuses identical references and text. Conflicting text, blob identities or overlapping bytes fail; consistent overlaps remain separate excerpts. `commit()` checks the entire serialized ledger before publishing an update, so failures leave IDs, evidence and query progress unchanged.
+
+`RecordedPage` entries reference retained sources by ID instead of duplicating text. Search previews remain navigation. `RecordedQuery` groups pages of one request and tracks `open`, `complete`, `partial` or `unavailable` status. Identical retries are no-ops; conflicting retries, cycles and out-of-order pages fail. The engine compares opaque cursors but never follows them, and later pages cannot erase earlier retrieval limitations.
+
+Given a supplied `identity` and `sources`, direct retention needs no live repository:
 
 ```ts
 import {
@@ -24,79 +49,113 @@ import {
   defaultContextLimits,
 } from '@daphne/context-engine';
 
-const context = createContextEngine(session.identity, defaultContextLimits);
-
-try {
-  const page = await session.execute({
-    name: 'inspect_change',
-    changeId: 'change-1',
-  });
-
-  context.record(page);
-} finally {
-  await snapshot.close();
-}
+const context = createContextEngine(identity, defaultContextLimits);
+const evidenceIds = sources.map((source) => context.retain(source));
 
 const packet = await context.assemble({
-  evidenceIds: context.evidence().sources.map((entry) => entry.evidenceId),
+  evidenceIds,
   maxBytes: 65_536,
 });
 ```
 
-Git has already closed when assembly runs. The host chooses source priority through the order of `evidenceIds`; unknown IDs fail instead of triggering retrieval. Repeated selected IDs are deduplicated.
+Alternatively, the host calls `session.execute(request)`, passes each returned page to `context.record(result)`, and follows `nextCursor` when it wants complete retrieval. The host owns Git cleanup and can close Git before assembly.
 
-## Budgets and admission
+`assembleContext(snapshot, input)` also accepts snapshots loaded from JSON. Its internal `captureSnapshot()` reconstructs and validates source IDs, page fingerprints and query progress. Assembly then:
 
-The default ledger limit is **4,194,304 bytes (4 MiB)** of deterministic serialized JSON. It includes identity, unique source records, query/page bookkeeping, navigation and notices. Page history references retained source IDs instead of duplicating source text. This gives a single investigation room to retain substantially more than one packet while maintaining a clear bound. It is a starting policy, not a measured optimal size or an exact JavaScript heap quota.
+1. Deduplicates selected IDs in caller order and rejects unknown IDs.
+2. Renders all selected sources with mandatory query and omission bookkeeping.
+3. Removes whole sources from the end until the candidate fits. For `[A, B, C]`, it may include `[A, B]` and report `C` as omitted; it never clips source text.
+4. Adds navigation and tool notices in recorded order while they fit, without displacing sources.
 
-The independent packet limit is **65,536 bytes (64 KiB)**. Overrides may lower either limit. Retention overflow throws `ContextLimitError` without eviction or partial writes.
+The `ContextPacket` contains `renderedContext`, included/omitted evidence IDs, notices, byte/token counts and a SHA-256 `packetId`. Omissions and incomplete retrieval remain explicit. Mandatory bookkeeping that cannot fit causes failure. The ID identifies the rendering and token-count configuration; it does not authenticate evidence or prove model delivery.
 
-Assembly first admits a whole prefix of host-prioritized sources, then a whole prefix of recorded navigation/notices without displacing those sources. It never clips an excerpt. Query summaries, omitted source IDs, observation omission counts and incomplete-retrieval notices remain explicit. If mandatory bookkeeping cannot fit, assembly fails.
+## Page a supplied diff
 
-`byteCount` measures the exact UTF-8 `renderedContext`, including JSON escaping and bookkeeping. The outer packet metadata is not part of this budget. These bytes are not a model token estimate.
+Each `DiffContextHunk` contains a `change`, a zero-based `hunkIndex`, and exact sources for its existing sides in BASE-then-HEAD order. For a change without readable text hunks, supply `hunkIndex: null` and `sources: []`; its unit ID ends in `:metadata`. Empty insertion/deletion anchors remain explicit sources, while missing file sides are absent.
 
-An optional `tokens` input contains `counterId`, `maxTokens` and an asynchronous `countTokens(renderedContext)` function. Supply the relevant tokenizer externally. Counts must be nonnegative safe integers; without a counter, `tokenCount` is null. Inputs are captured before awaiting it. The host owns counter failure, cancellation and latency.
-
-## Page supplied diff hunks
-
-`paginateDiffContext` accepts a list of `DiffContextHunk` entries containing a change, zero-based hunk index and exact sources returned by `session.readHunk`. It yields `DiffContextPage` objects with `unitIds`, rendered `context` and `inputTokens`. A single-hunk call looks like this:
+Given supplied `identity` and `hunks`, the host provides counting and page consumption:
 
 ```ts
 import { paginateDiffContext } from '@daphne/context-engine';
 
-const sources = await session.readHunk({ changeId: change.id, hunkIndex });
-
 for await (const page of paginateDiffContext({
-  identity: session.identity,
-  hunks: [{ change, hunkIndex, sources }],
-  tokens,
+  identity,
+  hunks,
+  tokens: {
+    counterId: 'request-counter-v1',
+    maxTokens: 2_000,
+    countTokens: countRequestTokens,
+  },
 })) {
   await consumePage(page);
 }
 ```
 
-Supply multiple entries in `hunks` to pack them together. Each page fits both the **65,536-byte** context ceiling and `tokens.maxTokens`. The counter receives the exact rendered string, including unit IDs and repeated comparison, change, path, mode and hunk headers. The host's callback should count its complete request, including instructions and output schema; `inputTokens` records that count. A candidate over the byte ceiling splits before token counting.
+Here, `countRequestTokens(context)` counts the complete intended request, including instructions, schema, tools and history as applicable. `consumePage(page)` is also host-owned. Each `DiffContextPage` contains `unitIds`, rendered `context` and the accepted `inputTokens` count.
 
-The pager first tries all supplied hunks together. If they exceed either limit, it halves the ordered list and recursively pages each half. Only when a single hunk is too large does it separate BASE/HEAD, then divide oversized excerpts near their byte midpoint at a line boundary, falling back to a UTF-8 boundary. Every fragment retains its unit ID, side and absolute byte range; whitespace, CRLF and final newlines are preserved. BASE and HEAD can produce different numbers of pages. Empty anchors remain explicit sources, while missing file sides are absent. Page boundaries do not determine review groups.
+### How splitting works
 
-For a change without readable text hunks, include an entry with `hunkIndex: null` and `sources: []` to retain its metadata. For a whole comparison, follow every `list_changes` cursor and collect every text hunk; this pager has no total-diff source cutoff. Each change/hunk pair must be supplied once. An empty list produces no pages or token-count calls.
+`captureHunk()` validates and copies all evidence before the first asynchronous count, assigning IDs such as `change-1:0`. The internal `render()` repeats commit, change, path, mode, hunk, side and byte-range metadata so each fragment remains identifiable.
 
-The entry point validates and captures all evidence before its first token count. Internal splitting trusts those captured types. Invalid identity, side/path, range, index, duplicate unit IDs, budget or count values throw `ContextInputError`. An indivisible fragment or metadata page that cannot fit throws `ContextLimitError`. Counter failures propagate; the host owns counter deadlines.
+The recursive `paginate()` function:
 
-Calling the function creates an async iterator. Each requested page resumes its work until the next `yield`; pages are produced as the consumer asks for them. Breaking out of `for await` closes the iterator and stops further paging. The pager has no cancellation signal and does not interrupt a pending token count.
+1. Renders all candidate hunks together.
+2. Checks the **65,536-byte** ceiling first. Only candidates within it invoke the token counter.
+3. Yields a page if its count is within `maxTokens`.
+4. Otherwise divides a multi-hunk list into ordered halves and processes the left half before the right.
+5. If one hunk remains too large, separates its BASE and HEAD sources.
+6. If one source remains too large, calls `splitSource()` and repeats the checks on its fragments.
 
-Consume the iterator to completion: stopping early or an error leaves delivery unfinished. Successful completion preserves all supplied source bytes. This prepares context only; it does not verify model output. The host must include instructions, tools and history in its counter, reserve output capacity and avoid accumulating every page in one growing conversation. Existing retention and `assembleContext` behavior are unchanged.
+`splitSource()` cuts near the byte midpoint, preferring a newline and falling back to a UTF-8 character boundary. It adjusts absolute ranges and preserves original bytes, whitespace, CRLF and final newlines. Every fragment keeps its original unit ID. Page boundaries express size limits, not semantic groups; the algorithm does not guarantee the fewest pages.
 
-## Identity, errors and limits of the guarantee
+The async iterator yields pages as the caller requests them; `yield*` forwards child pages in order. Supply each change/hunk pair once and consume the iterator to completion to preserve all supplied text. Empty input yields no pages or counts. There is no total-diff source cutoff, but input evidence is captured in memory: page limits do not cap total memory. Stopping early or encountering an error leaves paging unfinished. The host owns cancellation, including any pending counter call.
 
-The SHA-256 packet ID includes the rendering, identity/format and token-counter configuration/count. It identifies this constructed packet; it does not prove model delivery or authenticate supplied evidence.
+## Worked example: two edits to a retry policy
 
-- `ContextInputError`: malformed or foreign data, unknown selection, inconsistent supplied snapshot or invalid counts.
-- `ContextConflictError`: conflicting evidence, page retries, continuation order or fingerprints.
-- `ContextLimitError`: retained data or mandatory packet content cannot fit.
+Suppose `src/retry.ts` changes as follows, using LF line endings and a final newline:
 
-Validation checks internal consistency. The evidence producer establishes correspondence to real repository bytes; this package cannot prove that correspondence without violating its acquisition boundary.
+```diff
+ export function canRetry(attempt: number): boolean {
+-  return attempt < 3;
++  return attempt < 5;
+ }
 
-The first version validates and reconstructs a supplied snapshot during assembly and uses simple linear scans. Worst-case latency near the retention cap has not been benchmarked. Add incremental accounting or lookup maps only when measurement justifies them.
+ export function retryDelayMs(): number {
+-  return 100;
++  return 250;
+ }
+```
 
-See the [walkthrough](../../docs/context-engine-walkthrough.md) and [boundary ADR](../../docs/adr/0002-context-engine-boundary.md) for decisions and observed verification.
+1. **Acquire:** `resolvePullRequest()` and `acquireSnapshot()` pin the comparison. `listSnapshotChanges()` finds `change-1` with two hunks, on lines 2 and 6.
+2. **Read:** `session.readHunk()` uses `lineRangeToBytes()` and `sourceFromBlob()` to supply BASE/HEAD excerpts for each hunk:
+
+   | Unit         | BASE text                   | HEAD text                   | Byte range on either side |
+   | ------------ | --------------------------- | --------------------------- | ------------------------- |
+   | `change-1:0` | `"  return attempt < 3;\n"` | `"  return attempt < 5;\n"` | `[53, 75)`                |
+   | `change-1:1` | `"  return 100;\n"`         | `"  return 250;\n"`         | `[119, 133)`              |
+
+3. **Page:** supply two `DiffContextHunk` entries. Suppose counting both together returns **1,200 tokens**. A 2,000-token allowance produces one page containing both unit IDs.
+4. **Split if necessary:** with a 1,000-token allowance, the candidate is divided. If the separate counts are 800 and 750, the result is two pages. That requires three counting calls: one rejected combined candidate and two accepted pages. These counts are illustrative.
+5. **Generate:** in the current `semantic-split` caller, `groupingRequest()` wraps context in instructions and an output schema; `createOpenAI().count()` supplies the pager's counter. One page goes directly to grouping generation. Multiple pages receive separate analyses before their notes are grouped. Git is already closed.
+6. **Validate:** `getExpectedUnitIds()` derives the two required IDs from the inventory. `validateProposal()` checks that the model assigns each exactly once; the caller owns corrections and semantic policy.
+
+The retained-ledger path is separate: `session.execute({ name: 'inspect_change', changeId: 'change-1' })` includes surrounding lines. In this small file its windows merge into two whole-file excerpts, one per side. `record()` retains those as `evidence-1` and `evidence-2`; `evidence()` exposes them and `assemble()` can include both in a JSON packet. The `context inspect` CLI writes that packet without calling a model.
+
+## Budgets and failures
+
+| Budget                  | Default and maximum     | Measurement                                                                 |
+| ----------------------- | ----------------------- | --------------------------------------------------------------------------- |
+| Retention               | 4,194,304 bytes (4 MiB) | Serialized identity, unique sources, queries, pages, navigation and notices |
+| Packet / diff-page text | 65,536 bytes (64 KiB)   | Exact UTF-8 rendered context, including headers or JSON escaping            |
+
+Engine overrides may lower retention and packet limits. Retention overflow fails without eviction. Packet `byteCount` excludes the outer packet metadata; retention accounting is not an exact JavaScript heap quota.
+
+Assembly optionally accepts a `TokenBudget`; paging requires one. It contains `counterId`, `maxTokens` and asynchronous `countTokens(context)`. Counts must be nonnegative safe integers; assembly without a counter returns `tokenCount: null`. The host must count its complete request, reserve output capacity and enforce counter deadlines. Counter failures propagate.
+
+- `ContextInputError`: malformed or foreign evidence, unknown selections, inconsistent snapshots, invalid hunks or counts.
+- `ContextConflictError`: conflicting source bytes, page retries, fingerprints or continuation chains.
+- `ContextLimitError`: retention overflow, mandatory packet content that cannot fit, or an indivisible diff fragment that exceeds a page budget.
+
+Internal consistency and complete paging do not prove semantic correctness, model delivery or independently applicable review groups. Assembly reconstructs snapshots and uses linear scans; worst-case latency near the retention cap has not been benchmarked.
+
+See the [boundary ADR](../../docs/adr/0002-context-engine-boundary.md) for ownership decisions and [public contracts](src/contracts.ts), [assembly](src/assembly.ts) and [paging](src/paging.ts) for the implementation.

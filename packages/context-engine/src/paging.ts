@@ -13,12 +13,13 @@ import { ContextInputError, ContextLimitError } from './errors.js';
 import { defaultContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
+/* Preserve a hunk's identity through every split so separate pages can still refer to one original change unit. */
 interface CapturedHunk extends DiffContextHunk {
   readonly unitId: string;
 }
 
 /*
- * Split the source near its byte midpoint, preferably just after a newline.
+ * Keep fragments readable by splitting near the byte midpoint, preferably just after a newline.
  * Otherwise, split between UTF-8 characters; choose the earlier boundary on a tie.
  */
 function splitSource(source: SourceEvidence): [SourceEvidence, SourceEvidence] {
@@ -68,7 +69,7 @@ function splitSource(source: SourceEvidence): [SourceEvidence, SourceEvidence] {
     );
   }
 
-  /* Both children keep their provenance and exactly partition the parent. */
+  /* Add local offsets to the original range so fragments still identify their exact bytes in the committed file. */
   function slice(start: number, end: number): SourceEvidence {
     return {
       ref: {
@@ -85,7 +86,7 @@ function splitSource(source: SourceEvidence): [SourceEvidence, SourceEvidence] {
   return [slice(0, cut), slice(cut, bytes.length)];
 }
 
-/* Capture validated evidence before async counting; hunks share one copy of their change metadata. */
+/* Validate existing sides and copy caller-owned evidence before counting can wait, while reusing shared change metadata across hunks. */
 function captureHunk(
   value: unknown,
   identity: ReviewIdentity,
@@ -148,9 +149,10 @@ function captureHunk(
 }
 
 /*
- * Pack supplied hunks before splitting oversized evidence. All callers share
- * the same byte and token checks; the host supplies complete-request counting.
- * Stopping early or an error leaves delivery unfinished.
+ * Preserve all supplied source text across bounded pages by splitting whole
+ * hunk lists first, then oversized hunks into sides and smaller excerpts.
+ * The caller counts complete model requests and owns counter cancellation;
+ * stopping iteration early or a counter failure leaves paging unfinished.
  */
 export async function* paginateDiffContext(input: {
   identity: ReviewIdentity;
@@ -171,7 +173,7 @@ export async function* paginateDiffContext(input: {
     throw new ContextInputError('Supply each change/hunk pair only once.');
   }
 
-  /* Repeat metadata on every page; source text stays byte-for-byte unchanged. */
+  /* Repeat comparison and hunk metadata so a page containing only one side or fragment remains identifiable on its own. */
   function render({
     unitId,
     change,
@@ -198,8 +200,9 @@ export async function* paginateDiffContext(input: {
   }
 
   /*
-   * Recursively split candidates until they fit.
-   * yield* forwards each child's pages before moving to the next child.
+   * Try the entire candidate list before dividing it into ordered halves so
+   * hunks that fit together remain together without choosing semantic groups.
+   * yield* forwards all pages from the left half before starting the right.
    */
   async function* paginate(
     candidates: CapturedHunk[],
@@ -236,7 +239,7 @@ export async function* paginateDiffContext(input: {
       return;
     }
 
-    /* A pair of validated sources is always BASE followed by HEAD. */
+    /* Split an oversized hunk into its existing BASE and HEAD sides before fragmenting either side's text. */
     const [base, head] = first.sources;
 
     if (base && head) {
@@ -250,7 +253,7 @@ export async function* paginateDiffContext(input: {
         );
       }
 
-      /* One source remains: split its text and page the left part before the right. */
+      /* A remaining source can be either side; keep its unit ID while splitting its text into consecutive byte ranges. */
       const [left, right] = splitSource(base);
 
       yield* paginate([{ ...first, sources: [left] }]);
