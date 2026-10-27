@@ -24,7 +24,7 @@ bun run cli -- context inspect \
 
 The command saves `context.json` and `run.json`, prints one JSON summary to stdout and sends diagnostics to stderr. Exit 0 means the bounded inspection completed; 2 means usable partial artifacts; 1 means invalid input, cancellation or an operational/output failure. Existing destinations are rejected. SIGINT/SIGTERM stop work and clean up Git before saving a stopped report where possible.
 
-The host admits whole tool pages up to 64 KiB of source text. The engine separately bounds retained data at 4 MiB and rendered context at 64 KiB. Inventory completeness, per-change inspection and packet omissions are reported separately. This is deterministic change-order inspection, not a semantic coverage or AI-review claim. Optional `GITHUB_TOKEN` is used only for metadata access; private repository cloning is not supported. See the [walkthrough](docs/context-engine-walkthrough.md#step-6-compose-the-cli-inspection-workflow) for the data flow and limitations.
+The host admits whole tool pages up to 64 KiB of source text. The engine separately bounds retained data at 4 MiB and rendered context at 64 KiB. Inventory completeness, per-change inspection and packet omissions are reported separately. This is deterministic change-order inspection, not a semantic coverage or AI-review claim. Optional `GITHUB_TOKEN` is used only for metadata access; private repository cloning is not supported. See the [CLI overview](apps/cli/README.md#how-it-works) for the data flow and limitations.
 
 ## Try an LLM split proposal
 
@@ -71,11 +71,11 @@ make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=out
 make split-pr-eval-all
 ```
 
-Validation reports structural consistency and label coverage. Evaluation checks the supplied artifact and prints the overall pair agreement score and any violated pairs without changing either input or creating a report by default. An explicit `OUTPUT=NEW_FILE` exports a report outside the gold directory. Neither command approves labels. See the [labeling policy](apps/eval/datasets/split-pr/cases/README.md) and [saved-run evaluation](apps/eval/README.md#compare-a-saved-split-pr-run).
+Validation reports structural consistency and label coverage. Evaluation checks the supplied artifact and prints the overall pair agreement score and any violated pairs without changing either input or creating a report by default. An explicit `OUTPUT=NEW_FILE` exports a report outside the gold directory. Neither command approves labels. See the [labeling policy](apps/eval/datasets/split-pr/cases/README.md) and [saved-run evaluation](apps/eval/docs/commands.md#compare-a-saved-split-pr-run).
 
 `split-pr-eval-all` builds once, reruns the model for the PR in each saved capture, and compares each fresh result with its gold case. Each case saves `run.json` and `eval.json` under a unique `outputs/split-pr-eval-all.*` directory, preserving the reference captures. The command refuses to score a PR whose commits or frozen evidence changed since its gold capture, continues after failures, and exits nonzero if any run or comparison fails. Pair violations are printed but retain the individual evaluator's successful exit status. This command makes paid model calls and never writes gold files.
 
-Upload a completed saved batch explicitly with `make split-pr-langfuse-upload RUN_DIR=outputs/split-pr-eval-all.XXXXXX`. This reads and revalidates the saved scores, sends compact case inputs, pair labels, predicted groups and scores to a separate Langfuse experiment, and marks draft labels provisional. It makes no model calls and does not upload raw run artifacts. The batch directory receives an upload-attempt marker and, on success, a receipt with the experiment URL. See [the upload guide](apps/eval/README.md#upload-saved-batch-scores-to-langfuse) for retry behavior and credential setup.
+Upload a completed saved batch explicitly with `make split-pr-langfuse-upload RUN_DIR=outputs/split-pr-eval-all.XXXXXX`. This reads and revalidates the saved scores, sends compact case inputs, pair labels, predicted groups and scores to a separate Langfuse experiment, and marks draft labels provisional. It makes no model calls and does not upload raw run artifacts. The batch directory receives an upload-attempt marker and, on success, a receipt with the experiment URL. See [the upload guide](apps/eval/docs/commands.md#upload-saved-batch-scores-to-langfuse) for retry behavior and credential setup.
 
 ## Verify Langfuse setup
 
@@ -88,7 +88,7 @@ bun run eval -- langfuse-smoke
 
 This explicitly sends two synthetic arithmetic cases and their scores to your configured Langfuse instance, with no model calls. The JSON result links to the experiment. See [the smoke check](apps/eval/tests/smoke/README.md) for its purpose and the official Langfuse references, and [the evaluation app](apps/eval/README.md) for configuration and failure behavior. Normal checks remain offline.
 
-The evaluation app also imports saved split-pr evidence, validates frozen datasets and scores saved outputs against reviewed pair labels offline. The [dataset guide](apps/eval/datasets/split-pr/README.md) describes annotation and the first reviewed case; [saved-run scoring](apps/eval/README.md#score-a-saved-split-pr-run) explains the command and metrics. The [live evaluation command](apps/eval/README.md#run-reviewed-split-pr-evaluations) runs reviewed frozen cases and records native scores, model usage and timing in Langfuse while saving full local trials.
+The evaluation app also imports saved split-pr evidence, validates frozen datasets and scores saved outputs against reviewed pair labels offline. The [dataset guide](apps/eval/datasets/split-pr/README.md) describes annotation and the first reviewed case; [saved-run scoring](apps/eval/docs/commands.md#score-a-reviewed-suite-case) explains the command and metrics. The [live evaluation command](apps/eval/docs/commands.md#run-reviewed-split-pr-evaluations) runs reviewed frozen cases and records native scores, model usage and timing in Langfuse while saving full local trials.
 
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
