@@ -6,10 +6,10 @@ The package owns no repository, retrieval policy, prompts or model generation. I
 
 ## Two independent APIs
 
-| API                                           | Input and output                                                     | When evidence is too large                                                    |
-| --------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `createContextEngine()` / `assembleContext()` | Retain evidence, then select IDs for one JSON `ContextPacket`        | Omit whole lower-priority excerpts and report their IDs                       |
-| `paginateDiffContext()`                       | Supply `DiffContextHunk[]` and receive text `DiffContextPage` values | Divide the input into smaller pages while preserving all supplied source text |
+| API                                              | Input and output                                                     | When evidence is too large                                                    |
+| ------------------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `createContextEngine()` / `buildContextPacket()` | Retain evidence, then select IDs for one JSON `ContextPacket`        | Omit whole lower-priority excerpts and report their IDs                       |
+| `splitDiffIntoContextPages()`                    | Supply `DiffContextHunk[]` and receive text `DiffContextPage` values | Divide the input into smaller pages while preserving all supplied source text |
 
 Paging does not use or modify the retained ledger. The current `context inspect` CLI uses retention and assembly; `semantic-split` uses the pager directly.
 
@@ -26,16 +26,16 @@ Byte ranges are zero-based and half-open: `[100, 140)` contains 40 original UTF-
 
 An `evidenceId`, such as `evidence-1`, identifies a retained excerpt. A `unitId`, such as `change-1:0`, identifies a change/hunk for paging. Several source excerpts and pages can belong to the same unit.
 
-## Retain and assemble evidence
+## Add evidence and build a packet
 
 `createContextEngine(identity, limits)` creates one in-memory ledger and exposes:
 
-| Method            | Role                                                                        |
-| ----------------- | --------------------------------------------------------------------------- |
-| `retain(source)`  | Store an excerpt and return its session-local evidence ID                   |
-| `record(result)`  | Atomically retain a supplied tool page, its sources and query progress      |
-| `evidence()`      | Return a frozen `EvidenceSnapshot` containing identity, sources and queries |
-| `assemble(input)` | Build a packet from selected evidence IDs without changing the ledger       |
+| Method                      | Role                                                                        |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `addSource(source)`         | Store an excerpt and return its session-local evidence ID                   |
+| `addToolResult(result)`     | Atomically retain a supplied tool page, its sources and query progress      |
+| `getEvidenceSnapshot()`     | Return a frozen `EvidenceSnapshot` containing identity, sources and queries |
+| `buildContextPacket(input)` | Build a packet from selected evidence IDs without changing the ledger       |
 
 The internal `insertSource()` reuses identical references and text. Conflicting text, blob identities or overlapping bytes fail; consistent overlaps remain separate excerpts. `commit()` checks the entire serialized ledger before publishing an update, so failures leave IDs, evidence and query progress unchanged.
 
@@ -50,17 +50,17 @@ import {
 } from '@daphne/context-engine';
 
 const context = createContextEngine(identity, defaultContextLimits);
-const evidenceIds = sources.map((source) => context.retain(source));
+const evidenceIds = sources.map((source) => context.addSource(source));
 
-const packet = await context.assemble({
+const packet = await context.buildContextPacket({
   evidenceIds,
   maxBytes: 65_536,
 });
 ```
 
-Alternatively, the host calls `session.execute(request)`, passes each returned page to `context.record(result)`, and follows `nextCursor` when it wants complete retrieval. The host owns Git cleanup and can close Git before assembly.
+Alternatively, the host calls `session.execute(request)`, passes each returned page to `context.addToolResult(result)`, and follows `nextCursor` when it wants complete retrieval. The host owns Git cleanup and can close Git before assembly.
 
-`assembleContext(snapshot, input)` also accepts snapshots loaded from JSON. Its internal `captureSnapshot()` reconstructs and validates source IDs, page fingerprints and query progress. Assembly then:
+`buildContextPacket(snapshot, input)` also accepts snapshots loaded from JSON. Its internal `validateAndCopySnapshot()` reconstructs and validates source IDs, page fingerprints and query progress. Assembly then:
 
 1. Deduplicates selected IDs in caller order and rejects unknown IDs.
 2. Renders all selected sources with mandatory query and omission bookkeeping.
@@ -76,9 +76,9 @@ Each `DiffContextHunk` contains a `change`, a zero-based `hunkIndex`, and exact 
 Given supplied `identity` and `hunks`, the host provides counting and page consumption:
 
 ```ts
-import { paginateDiffContext } from '@daphne/context-engine';
+import { splitDiffIntoContextPages } from '@daphne/context-engine';
 
-for await (const page of paginateDiffContext({
+for await (const page of splitDiffIntoContextPages({
   identity,
   hunks,
   tokens: {
@@ -95,7 +95,7 @@ Here, `countRequestTokens(context)` counts the complete intended request, includ
 
 ### How splitting works
 
-`captureHunk()` validates and copies all evidence before the first asynchronous count, assigning IDs such as `change-1:0`. The internal `render()` repeats commit, change, path, mode, hunk, side and byte-range metadata so each fragment remains identifiable.
+`validateAndCopyHunk()` validates and copies all evidence before the first asynchronous count, assigning IDs such as `change-1:0`. The internal `render()` repeats commit, change, path, mode, hunk, side and byte-range metadata so each fragment remains identifiable.
 
 The recursive `paginate()` function:
 
@@ -139,7 +139,7 @@ Suppose `src/retry.ts` changes as follows, using LF line endings and a final new
 5. **Generate:** in the current `semantic-split` caller, `groupingRequest()` wraps context in instructions and an output schema; `createOpenAI().count()` supplies the pager's counter. One page goes directly to grouping generation. Multiple pages receive separate analyses before their notes are grouped. Git is already closed.
 6. **Validate:** `getExpectedUnitIds()` derives the two required IDs from the inventory. `validateProposal()` checks that the model assigns each exactly once; the caller owns corrections and semantic policy.
 
-The retained-ledger path is separate: `session.execute({ name: 'inspect_change', changeId: 'change-1' })` includes surrounding lines. In this small file its windows merge into two whole-file excerpts, one per side. `record()` retains those as `evidence-1` and `evidence-2`; `evidence()` exposes them and `assemble()` can include both in a JSON packet. The `context inspect` CLI writes that packet without calling a model.
+The retained-ledger path is separate: `session.execute({ name: 'inspect_change', changeId: 'change-1' })` includes surrounding lines. In this small file its windows merge into two whole-file excerpts, one per side. `addToolResult()` retains those as `evidence-1` and `evidence-2`; `getEvidenceSnapshot()` exposes them and `buildContextPacket()` can include both in a JSON packet. The `context inspect` CLI writes that packet without calling a model.
 
 ## Budgets and failures
 

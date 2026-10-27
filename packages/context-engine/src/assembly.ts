@@ -6,13 +6,13 @@ import type {
   EvidenceSnapshot,
   TokenBudget,
 } from './contracts.js';
-import { captureSnapshot } from './evidence.js';
+import { validateAndCopySnapshot } from './evidence.js';
 import { ContextInputError, ContextLimitError } from './errors.js';
 import { defaultContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
 /* Capture selection and counter settings before asynchronous counting so caller edits cannot change an in-progress packet. */
-function inputData(value: unknown): AssembleInput {
+function parseAssembleInput(value: unknown): AssembleInput {
   const input = validate.object(value);
   const evidenceIds = Object.freeze([
     ...new Set(
@@ -57,12 +57,12 @@ function contextNotice(code: string, message: string): ContextNotice {
 }
 
 /* Build a bounded view of supplied evidence without changing retention, preserving whole excerpts and reporting every selected source that cannot fit. */
-export async function assembleContext(
+export async function buildContextPacket(
   snapshot: EvidenceSnapshot,
   input: AssembleInput,
 ): Promise<ContextPacket> {
-  const captured = captureSnapshot(snapshot);
-  const selection = inputData(input);
+  const captured = validateAndCopySnapshot(snapshot);
+  const selection = parseAssembleInput(input);
   const byId = new Map(
     captured.sources.map((source) => [source.evidenceId, source]),
   );

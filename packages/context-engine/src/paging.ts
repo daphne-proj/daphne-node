@@ -87,7 +87,7 @@ function splitSource(source: SourceEvidence): [SourceEvidence, SourceEvidence] {
 }
 
 /* Validate existing sides and copy caller-owned evidence before counting can wait, while reusing shared change metadata across hunks. */
-function captureHunk(
+function validateAndCopyHunk(
   value: unknown,
   identity: ReviewIdentity,
   capturedChanges: Map<unknown, Change>,
@@ -154,7 +154,7 @@ function captureHunk(
  * The caller counts complete model requests and owns counter cancellation;
  * stopping iteration early or a counter failure leaves paging unfinished.
  */
-export async function* paginateDiffContext(input: {
+export async function* splitDiffIntoContextPages(input: {
   identity: ReviewIdentity;
   hunks: readonly DiffContextHunk[];
   tokens: TokenBudget;
@@ -164,7 +164,7 @@ export async function* paginateDiffContext(input: {
   const capturedChanges = new Map<unknown, Change>();
   const hunks = validate
     .array(input.hunks)
-    .map((hunk) => captureHunk(hunk, identity, capturedChanges));
+    .map((hunk) => validateAndCopyHunk(hunk, identity, capturedChanges));
 
   const maxTokens = validate.integer(input.tokens.maxTokens, 1);
   const { countTokens } = input.tokens;

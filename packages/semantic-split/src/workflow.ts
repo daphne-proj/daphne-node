@@ -1,7 +1,7 @@
 import {
   ContextInputError,
   defaultContextLimits,
-  paginateDiffContext,
+  splitDiffIntoContextPages,
 } from '@daphne/context-engine';
 import { createOpenAI, ModelError } from '@daphne/review-agent';
 import type { ModelRequest } from '@daphne/review-agent';
@@ -237,7 +237,7 @@ export async function runSemanticSplit(
     checkCancellation(signal);
     const expectedUnitIds = getExpectedUnitIds(input.changes);
 
-    for await (const page of paginateDiffContext({
+    for await (const page of splitDiffIntoContextPages({
       identity: input.identity,
       hunks: input.hunks,
       tokens: {

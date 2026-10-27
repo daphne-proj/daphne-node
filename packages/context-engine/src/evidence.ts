@@ -126,7 +126,7 @@ export function createEvidenceLedger(
 
   return {
     /* Retain supplied source independently of tool history, allowing hosts to provide evidence read through other paths. */
-    retain: (value: SourceEvidence): string => {
+    addSource: (value: SourceEvidence): string => {
       const source = validate.source(value, state.identity);
       const sources = [...state.sources];
       const evidenceId = insertSource(sources, source);
@@ -136,7 +136,7 @@ export function createEvidenceLedger(
     },
 
     /* Retain a tool page and its sources together so its recorded progress always describes the evidence actually stored. */
-    record: (value: ToolResult): void => {
+    addToolResult: (value: ToolResult): void => {
       const result = validate.result(value, state.identity);
 
       /* A cursor selects a page, so exclude it from the identity shared by all pages of the same request. */
@@ -251,7 +251,7 @@ export function createEvidenceLedger(
 }
 
 /* Rebuild snapshots, including those loaded from JSON, through the ledger to verify source IDs, page fingerprints and query progress before assembly. */
-export function captureSnapshot(value: unknown): EvidenceSnapshot {
+export function validateAndCopySnapshot(value: unknown): EvidenceSnapshot {
   const input = validate.object(value);
   const identity = validate.identity(input.identity);
   const ledger = createEvidenceLedger(
@@ -265,7 +265,7 @@ export function captureSnapshot(value: unknown): EvidenceSnapshot {
     const evidenceId = validate.string(retained.evidenceId);
     const source = validate.source(retained.source, identity);
 
-    if (sources.has(evidenceId) || ledger.retain(source) !== evidenceId) {
+    if (sources.has(evidenceId) || ledger.addSource(source) !== evidenceId) {
       throw new ContextInputError(
         'The snapshot has inconsistent source IDs or duplicate references.',
       );
@@ -329,7 +329,7 @@ export function captureSnapshot(value: unknown): EvidenceSnapshot {
         );
       }
 
-      ledger.record(result);
+      ledger.addToolResult(result);
     }
 
     const reconstructed = ledger

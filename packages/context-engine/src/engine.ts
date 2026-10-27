@@ -8,7 +8,7 @@ import type {
   ContextPacket,
   EvidenceSnapshot,
 } from './contracts.js';
-import { assembleContext } from './assembly.js';
+import { buildContextPacket } from './assembly.js';
 import { createEvidenceLedger } from './evidence.js';
 import type { ContextLimits } from './limits.js';
 import { resolveContextLimits } from './limits.js';
@@ -17,10 +17,10 @@ import { integer, object } from './validation.js';
 /* Separate evidence retention from packet selection so a host can assemble different views of the same investigation. */
 export interface ContextEngine {
   readonly identity: ReviewIdentity;
-  readonly retain: (source: SourceEvidence) => string;
-  readonly record: (result: ToolResult) => void;
-  readonly evidence: () => EvidenceSnapshot;
-  readonly assemble: (input: AssembleInput) => Promise<ContextPacket>;
+  readonly addSource: (source: SourceEvidence) => string;
+  readonly addToolResult: (result: ToolResult) => void;
+  readonly getEvidenceSnapshot: () => EvidenceSnapshot;
+  readonly buildContextPacket: (input: AssembleInput) => Promise<ContextPacket>;
 }
 
 /* Own only an in-memory ledger so the host can close Git before assembly and retain control of retrieval and cleanup. */
@@ -33,17 +33,17 @@ export function createContextEngine(
 
   return Object.freeze({
     identity: ledger.snapshot().identity,
-    retain: ledger.retain,
-    record: ledger.record,
-    evidence: ledger.snapshot,
-    assemble: (input: AssembleInput) => {
+    addSource: ledger.addSource,
+    addToolResult: ledger.addToolResult,
+    getEvidenceSnapshot: ledger.snapshot,
+    buildContextPacket: (input: AssembleInput) => {
       const request = object(input);
       const maxBytes = Math.min(
         integer(request.maxBytes, 1),
         resolved.maxContextBytes,
       );
 
-      return assembleContext(ledger.snapshot(), { ...input, maxBytes });
+      return buildContextPacket(ledger.snapshot(), { ...input, maxBytes });
     },
   });
 }

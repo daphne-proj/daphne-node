@@ -132,7 +132,7 @@ async function inspectRepository(
   do {
     checkCancellation(signal);
     const page = await session.execute({ name: 'list_changes', cursor });
-    context.record(page);
+    context.addToolResult(page);
 
     for (const entry of page.entries) {
       if (entry.kind === 'change') {
@@ -188,9 +188,10 @@ async function inspectRepository(
         return;
       }
 
-      context.record(page);
+      context.addToolResult(page);
       report.inspection.admittedSourceBytes += sourceBytes;
-      report.inspection.retainedSourceCount = context.evidence().sources.length;
+      report.inspection.retainedSourceCount =
+        context.getEvidenceSnapshot().sources.length;
       change.recordedPages += 1;
       change.status = progress(page);
       cursor = page.nextCursor;
@@ -314,9 +315,9 @@ export async function runContextInspect(
       const assembled = await stage('assembly', async () => {
         checkCancellation(signal);
 
-        return context.assemble({
+        return context.buildContextPacket({
           evidenceIds: context
-            .evidence()
+            .getEvidenceSnapshot()
             .sources.map((entry) => entry.evidenceId),
           maxBytes: defaultContextLimits.maxContextBytes,
         });
