@@ -8,8 +8,11 @@ export interface PullRequestRef {
   readonly number: number;
 }
 
+/* Captures validated PR text alongside pinned revisions so workflows can cite the exact title/body. */
 export interface ResolvedPullRequest {
   readonly ref: PullRequestRef;
+  readonly title: string;
+  readonly body: string | null;
   readonly targetRepositoryUrl: string;
   readonly headRepositoryUrl: string;
   readonly targetCommit: string;
@@ -141,13 +144,20 @@ function readRevision(value: unknown) {
   };
 }
 
+/* Preserve PR text verbatim for quotations; a missing body is invalid, while an explicit null is valid. */
 function readMetadata(
   value: unknown,
   ref: PullRequestRef,
 ): ResolvedPullRequest {
-  if (!isRecord(value) || value.number !== ref.number) {
+  if (
+    !isRecord(value) ||
+    value.number !== ref.number ||
+    typeof value.title !== 'string' ||
+    (value.body !== null && typeof value.body !== 'string')
+  ) {
     throw invalidResponse();
   }
+
   const target = readRevision(value.base);
   const head = readRevision(value.head);
   if (
@@ -159,6 +169,8 @@ function readMetadata(
 
   return Object.freeze({
     ref,
+    title: value.title,
+    body: value.body,
     targetRepositoryUrl: target.repositoryUrl,
     headRepositoryUrl: head.repositoryUrl,
     targetCommit: target.commit,

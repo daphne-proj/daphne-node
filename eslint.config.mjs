@@ -138,7 +138,14 @@ export default defineConfig(
             gitSourceImportRestriction,
             downstreamImportRestriction,
             {
-              group: ['@daphne/pr-review/split', './split.js', '../split.js'],
+              group: [
+                '@daphne/pr-review/split',
+                './split.js',
+                '../split.js',
+                '@daphne/pr-review/intentions',
+                './intentions.js',
+                '../intentions.js',
+              ],
               message: 'Metadata acquisition must not load PR workflows.',
             },
           ],
@@ -147,7 +154,10 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/pr-review/src/split.ts'],
+    files: [
+      'packages/pr-review/src/split.ts',
+      'packages/pr-review/src/intentions.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',

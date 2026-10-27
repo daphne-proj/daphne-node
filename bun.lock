@@ -92,6 +92,7 @@
       "dependencies": {
         "@daphne/context-engine": "workspace:*",
         "@daphne/git-source": "workspace:*",
+        "@daphne/intentions": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
         "@daphne/semantic-split": "workspace:*",
       },

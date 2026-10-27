@@ -22,6 +22,9 @@
       "path": "../context-engine/tsconfig.build.json"
     },
     {
+      "path": "../intentions/tsconfig.build.json"
+    },
+    {
       "path": "../semantic-split/tsconfig.build.json"
     }
   ]
