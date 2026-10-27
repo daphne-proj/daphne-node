@@ -26,6 +26,14 @@ Its read-only `split-pr validate` command checks frozen dataset contracts, prove
 
 Bun handles installation and scripts. Node 24 is the production runtime. TypeScript compiles with NodeNext modules; `tsc -b` manages dependency order. Tests use Vitest on Node. Libraries export compiled JavaScript and declarations, with no package-private source imports.
 
+## PR intentions
+
+`make intentions` and the CLI's `intentions` command call `analyzePullRequestIntentions` from `@daphne/pr-review/intentions`. This separate entry point resolves metadata, pins Git revisions, collects the complete inventory and exact hunks, and lends an evidence-session executor to `runIntentions` from `@daphne/intentions`. Git stays open throughout model investigation because tool calls may inspect unchanged code, and closes before the workflow returns. Acquisition, investigation and cleanup failures retain completed work. The root pr-review export remains metadata-only.
+
+Intentions owns prompts, native tool-call continuation, evidence delivery tracking and card/citation validation. LLM owns counting and generation; review-evidence validates and executes repository reads; context-engine retains supplied evidence and assembles packets without access to the executor or Git. Explicit 8 MiB packet and 32 MiB retention limits propagate through context snapshot validation and assembly; existing default limits and splitter behavior remain unchanged. Line reads resolve UTF-8 byte ranges in review-evidence, including empty-file and EOF reporting.
+
+The CLI owns the ten-minute deadline, environment loading, safe error serialization, native model observations, indented JSON output and fresh `daphne-intentions-v1` artifacts. Failed runs clear accepted output while retaining evidence and diagnostic drafts. Structural citation checks and matching PR quotations do not establish semantic accuracy or author intent. See [ADR 0005](adr/0005-pr-intentions-workflow.md), the [CLI guide](../apps/cli/docs/intentions.md) and the [manual evaluation procedure](../apps/eval/docs/commands.md#manually-evaluate-intention-cards). This is a new experimental workflow without Rust parity claims.
+
 ## Target ownership
 
 | Location                         | Responsibility / Rust reference                                 |
@@ -44,6 +52,7 @@ Bun handles installation and scripts. Node 24 is the production runtime. TypeScr
 | `packages/pcg-builder`           | Graph construction                                              |
 | `packages/lifecycle`             | Review/revision state and promotion                             |
 | `packages/semantic-split`        | Semantic grouping workflow, validation and investigation state  |
+| `packages/intentions`            | PR intention investigation, card and citation validation        |
 | `packages/llm`                   | Model calls and provider adapters                               |
 | `packages/pr-review`             | Pull-request acquisition and review orchestration               |
 | `packages/integration-tests`     | Cross-package scenarios once multiple implementations exist     |
@@ -67,7 +76,7 @@ ESLint rejects static imports into workspace `src`/`dist` internals and app impo
 
 ## PR acquisition, Git source and reusable context
 
-The [boundary decision](adr/0002-context-engine-boundary.md) explains the package split; the [walkthrough](context-engine-walkthrough.md) traces the implemented workflow and its verification.
+The [boundary decision](adr/0002-context-engine-boundary.md) explains the package split; the [context and paging guide](../packages/context-engine/docs/context-and-paging.md) traces the implemented workflow and its verification.
 
 - `@daphne/pr-review` owns PR URL parsing, GitHub HTTP/authentication, metadata validation and HTTP limits/errors. Its separate `@daphne/pr-review/split` entry point owns the complete PR-to-split application workflow.
 - `@daphne/git-source` owns repository/revision inputs, immutable snapshots, subprocess controls, Git limits/errors and change inventory. Tasks 2–4 provide this behavior, exact source reads and bounded matching-file search.
@@ -79,7 +88,7 @@ Each library owns its configuration. Git-source has acquisition/operation/output
 
 The current Git adapter supports complete SHA-1 repositories on macOS/Linux, public canonical HTTPS GitHub origins. It rejects unsupported input explicitly. Those restrictions apply to Git access, not to packet assembly. Both review-evidence and context-engine are working packages. The latter retains plain provenance data without depending on Git resource lifetime.
 
-RCI/PCG retain indexing and qualified navigation ownership. Model requests and review/grouping policy remain outside these packages. Source identity is preserved through data contracts, not resource ownership. See the [walkthrough](context-engine-walkthrough.md) for reading order and observed checks.
+RCI/PCG retain indexing and qualified navigation ownership. Model requests and review/grouping policy remain outside these packages. Source identity is preserved through data contracts, not resource ownership. See the [context and paging guide](../packages/context-engine/docs/context-and-paging.md) for reading order and observed checks.
 
 Architecture review asks:
 

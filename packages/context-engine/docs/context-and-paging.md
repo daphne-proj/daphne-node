@@ -43,6 +43,8 @@ The internal `insertSource()` reuses identical references and text. Conflicting 
 
 `RecordedPage` entries reference retained sources by ID instead of duplicating text. Search previews remain navigation. `RecordedQuery` groups pages of one request and tracks `open`, `complete`, `partial` or `unavailable` status. Identical retries are no-ops; conflicting retries, cycles and out-of-order pages fail. The engine compares opaque cursors but never follows them, and later pages cannot erase earlier retrieval limitations.
 
+Line-read `source_window` entries remain navigation. Validation checks the request, side, path and fragment range without reading the repository. Each successful page includes consistent window metadata and exact source fragments, including an empty source for an empty file. Only those fragments become citable retained evidence.
+
 Given a supplied `identity` and `sources`, direct retention needs no live repository:
 
 ```ts
@@ -161,5 +163,3 @@ Assembly is synchronous and byte-bounded, preserves existing byte-only v1 packet
 Internal consistency and complete paging do not prove semantic correctness, model delivery or independently applicable review groups. Assembly reconstructs snapshots and uses linear scans; worst-case latency near the retention cap has not been benchmarked.
 
 See the [boundary ADR](../../../docs/adr/0002-context-engine-boundary.md) for ownership decisions and [public contracts](../src/contracts.ts), [assembly](../src/assembly.ts) and [paging](../src/paging.ts) for the implementation.
-
-Line-read `source_window` entries remain navigation. Validation checks the request, side, path and fragment range without reading the repository. Each successful page includes consistent window metadata and exact source fragments, including an empty source for an empty file. Only those fragments become citable retained evidence.

@@ -2,6 +2,7 @@
 import { CliInputError, describeFailure } from './errors.js';
 import { parseContextArgs, runContextInspect } from './context.js';
 import { parseSplitArgs, runSplitPr } from './split-pr.js';
+import { parseIntentionsArgs, runIntentionsPr } from './intentions.js';
 import { formatCommandOutput } from './command-output.js';
 
 const args = process.argv.slice(2);
@@ -28,6 +29,11 @@ if (args.length === 0) {
         parseSplitArgs(args.slice(1)),
         controller.signal,
       );
+    } else if (args[0] === 'intentions') {
+      process.exitCode = await runIntentionsPr(
+        parseIntentionsArgs(args.slice(1)),
+        controller.signal,
+      );
     } else if (args[0] === 'context' && args[1] === 'inspect') {
       process.exitCode = await runContextInspect(
         parseContextArgs(args.slice(2)),
@@ -35,7 +41,7 @@ if (args.length === 0) {
       );
     } else {
       throw new CliInputError(
-        'Expected context inspect or split-pr --pr URL --output DIRECTORY.',
+        'Expected context inspect, split-pr or intentions --pr URL --output DIRECTORY.',
       );
     }
   } catch (error) {
@@ -50,7 +56,11 @@ if (args.length === 0) {
       );
     } else {
       process.stdout.write(
-        JSON.stringify({ status: 'failed', errors: [failure] }) + '\n',
+        JSON.stringify(
+          { status: 'failed', errors: [failure] },
+          null,
+          args[0] === 'intentions' ? 2 : undefined,
+        ) + '\n',
       );
       process.stderr.write(failure.message + '\n');
     }

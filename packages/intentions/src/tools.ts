@@ -1,8 +1,5 @@
 import type { ContextEngine } from '@daphne/context-engine';
-import type {
-  ModelFunctionCall,
-  ModelFunctionTool,
-} from '@daphne/llm';
+import type { ModelFunctionCall, ModelFunctionTool } from '@daphne/llm';
 import type { ToolResult } from '@daphne/review-evidence/contracts';
 import type { IntentionToolRecord, IntentionsOptions } from './contracts.js';
 import { assembleEvidence } from './context.js';

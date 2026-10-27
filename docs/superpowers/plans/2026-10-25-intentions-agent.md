@@ -98,24 +98,28 @@ These are manual review requirements, not claims of new automated coverage.
 
 **Interface:** Add validated `title: string` and `body: string | null` to `ResolvedPullRequest`. Export `analyzePullRequestIntentions(ref: PullRequestRef, options: IntentionsPullRequestOptions): Promise<IntentionsPullRequestResult>` only through `@daphne/pr-review/intentions`. Options are `IntentionsOptions` without `executeTool`, plus optional `githubToken`; the result retains nullable acquisition data, investigation progress and separate acquisition/investigation/cleanup errors.
 
-- [ ] Acquire metadata and the pinned snapshot; collect the complete inventory and hunk sources using existing Git/evidence APIs. Map metadata explicitly into Git inputs. Preserve additions, deletions, renames and metadata-only changes. Unsupported non-text content gets a limitation; unavailable required text hunks fail acquisition with collected work.
-- [ ] Call `runIntentions` with the borrowed evidence executor while the snapshot remains open. Close it in `finally` after investigation; cleanup failure makes the overall result failed even if a valid draft exists. Retain that draft in diagnostics. Acquisition failures also return collected work.
-- [ ] Keep metadata root imports pure. Extend workflow lint restrictions to the new subpath without changing the splitter. Comment why this workflow keeps Git open; document ownership and the two entry points in the README.
-- [ ] Update the lock and run `bun install --frozen-lockfile` and `bun run check`; inspect empty PR, unsupported content, cancellation and cleanup paths against Review Focus 4–5.
+- [x] Acquire metadata and the pinned snapshot; collect the complete inventory and hunk sources using existing Git/evidence APIs. Map metadata explicitly into Git inputs. Preserve additions, deletions, renames and metadata-only changes. Unsupported non-text content gets a limitation; unavailable required text hunks fail acquisition with collected work.
+- [x] Call `runIntentions` with the borrowed evidence executor while the snapshot remains open. Close it in `finally` after investigation; cleanup failure makes the overall result failed even if a valid draft exists. Retain that draft in diagnostics. Acquisition failures also return collected work.
+- [x] Keep metadata root imports pure. Extend workflow lint restrictions to the new subpath without changing the splitter. Comment why this workflow keeps Git open; document ownership and the two entry points in the README.
+- [x] Update the lock and run `bun install --frozen-lockfile` and `bun run check`; inspect empty PR, unsupported content, cancellation and cleanup paths against Review Focus 4–5.
+
+Task 5 verification: frozen installation, typechecking, lint and all 32 existing tests passed. Offline assertions covered acquisition, investigation, cancellation, cleanup and import boundaries; independent review found no introduced defects. The full check stops on formatting in 13 pre-existing untracked `build-with-exa` skill files, which were left untouched. No tests were added and no live evaluation was run. Git acquisition's existing internal cleanup may mask an acquisition error if both fail before a snapshot is returned; the workflow README records that limitation.
 
 ## Task 6: Expose inspectable CLI results
 
-**Create:** `apps/cli/src/intentions.ts`, `apps/cli/README.md`.
+**Create:** `apps/cli/src/{intentions,intentions-report}.ts`, `apps/cli/README.md`.
 
 **Modify:** `apps/cli/src/{main,errors}.ts`, root `README.md`, `Makefile`.
 
 **Interface:** `intentions --pr URL --output NEW_DIRECTORY [--model MODEL] [--max-input-tokens NUMBER]`; `parseIntentionsArgs` validates arguments and `runIntentionsPr(options, signal): Promise<number>` owns command behavior.
 
-- [ ] Reuse environment loading, cancellation, output formatting and artifact helpers. Combine the caller signal with the host deadline. Add the command and a matching `make intentions` convenience target.
-- [ ] Write a `daphne-intentions-v1` `run.json`: PR metadata, pinned identity, limits, inventory, evidence/mappings, delivered IDs, tool requests/results, completed turns, diagnostics, final cards, native usage, timing and errors. Never serialize credentials or library configuration wholesale. Use a new output directory so comparison runs remain available.
-- [ ] Print a compact TTY/JSON summary and artifact path; return 0 only for complete runs. Preserve a failed report on handled cancellation/publication failure using the existing artifact pattern.
-- [ ] Comment why failed runs retain evidence and why accepted output is cleared on failure. Explain invocation, card fields, provenance, limits and artifact interpretation in the CLI README; link it from the root README.
-- [ ] Run `bun run check`; review artifact publication and cancellation against Review Focus 5.
+- [x] Reuse environment loading, cancellation, output formatting and artifact helpers. Combine the caller signal with the host deadline. Add the command and a matching `make intentions` convenience target.
+- [x] Write a `daphne-intentions-v1` `run.json`: PR metadata, pinned identity, limits, inventory, evidence/mappings, delivered IDs, tool requests/results, completed turns, diagnostics, final cards, native usage, timing and errors. Never serialize credentials or library configuration wholesale. Use a new output directory so comparison runs remain available.
+- [x] Print the proposal, status, artifact path and errors as indented JSON on stdout, with shared TTY summaries on stderr; return 0 only for complete runs. Preserve a failed report on handled cancellation/publication failure using the existing artifact pattern.
+- [x] Comment why failed runs retain evidence and why accepted output is cleared on failure. Explain invocation, card fields, provenance, limits and artifact interpretation in the CLI README; link it from the root README.
+- [x] Run `bun run check`; review artifact publication and cancellation against Review Focus 5.
+
+Task 6 verification: frozen install and the full check passed on pinned Node 24.22.0 / Bun 1.4.3, including all 32 existing tests. A temporary offline smoke check verified argument validation, indented stdout, cancelled-run preservation, credential omission, fresh-directory protection and Make defaults/overrides. Independent review found no actionable issues. No tests were added; model validation and any change to input-token policy remain deferred.
 
 ## Task 7: Document ownership and evaluate the result
 
@@ -123,11 +127,13 @@ These are manual review requirements, not claims of new automated coverage.
 
 **Create:** `docs/adr/0004-pr-intentions-workflow.md`, recording this extension to the accepted ownership decisions.
 
-- [ ] Document dependency direction, the borrowed executor, longer Git lifetime, context budget propagation and inference limits. Describe only implemented behavior; make no Rust parity claim.
-- [ ] Add a short manual evaluation procedure for PRs 1–8 in `daphne-proj/pr-review-test`, using the new CLI and distinct output directories. Record pinned revisions, omissions, inaccurate before/after claims, unsupported reasons, duplicate/missing intentions, citation quality, tokens and latency. Reuse saved model observations; split pair labels cannot grade intentions. No new scorer or Langfuse orchestration is required for this first result.
+- [x] Document dependency direction, the borrowed executor, longer Git lifetime, context budget propagation and inference limits. Describe only implemented behavior; make no Rust parity claim.
+- [x] Add a short manual evaluation procedure for PRs 1–8 in `daphne-proj/pr-review-test`, using the new CLI and distinct output directories. Record pinned revisions, omissions, inaccurate before/after claims, unsupported reasons, duplicate/missing intentions, citation quality, tokens and latency. Reuse saved model observations; split pair labels cannot grade intentions. No new scorer or Langfuse orchestration is required for this first result.
 - [ ] On an explicitly requested live evaluation, run those cases and record results alongside their artifacts. Compare repeated runs only with matching commits and captured PR metadata; saved diff-only fixtures cannot supply unchanged-code investigation. Otherwise report that live quality remains unverified.
-- [ ] Format touched files, run `bun install --frozen-lockfile` and `bun run check`, and independently review runtime imports, public contracts, comments, READMEs and the five review concerns. Resolve findings before handoff; report the missing automated coverage honestly.
+- [x] Format touched files, run `bun install --frozen-lockfile` and `bun run check`, and independently review runtime imports, public contracts, comments, READMEs and the five review concerns. Resolve findings before handoff; report the missing automated coverage honestly.
 
 ## Completion
+
+The command and documentation are available for user validation. Live explanation quality remains unverified; no paid model runs were made during CLI implementation.
 
 The flow is ready for review when the public PR entry point and CLI produce inspectable cards or explicit failures, existing checks pass, and ownership/documentation agree with the implementation. Live explanation quality is a separate recorded result. Review this plan before implementation; no product code is authorized by this document alone.

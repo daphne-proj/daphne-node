@@ -26,6 +26,7 @@ export type Stage =
   | 'metadata'
   | 'acquisition'
   | 'inspection'
+  | 'investigation'
   | 'cleanup'
   | 'assembly'
   | 'context_output'

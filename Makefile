@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr split-pr-eval split-pr-eval-all split-pr-langfuse-upload
+.PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr intentions split-pr-eval split-pr-eval-all split-pr-langfuse-upload
 
 MODEL ?= gpt-6.1-sol
 MAX_INPUT_TOKENS ?= 16384
@@ -26,6 +26,9 @@ help:
 		'make split-pr PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Analyze diff pages with OpenAI and replace outputs/split_pr_<pr_number>/run.json' \
 		'                   Optional: OUTPUT=DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384' \
+		'make intentions PR=https://github.com/OWNER/REPO/pull/123' \
+		'                   Print intention cards as JSON and save a new outputs/intentions-* run' \
+		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6-sol MAX_INPUT_TOKENS=256000' \
 		'make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json' \
 		'                   Compare saved groups with labels offline; drafts are provisional' \
 		'                   Print results; optional OUTPUT=NEW_FILE outside the gold dataset' \
@@ -78,6 +81,20 @@ split-pr:
 		OUTPUT="outputs/split_pr_$${pr_number}"; \
 	fi; \
 	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
+
+intentions: MODEL = gpt-6-sol
+intentions: MAX_INPUT_TOKENS = 256000
+intentions:
+	@test -n "$$PR" || { \
+		printf '%s\n' 'Usage: make intentions PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=NEW_DIRECTORY] [MODEL=gpt-6-sol] [MAX_INPUT_TOKENS=256000]' >&2; \
+		exit 1; \
+	}
+	@bun run --silent build
+	@if test -z "$$OUTPUT"; then \
+		mkdir -p outputs || exit 1; \
+		OUTPUT="outputs/intentions-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
+	fi; \
+	bun run --silent cli -- intentions --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
 
 split-pr-eval:
 	@test -n "$$CASE" && test -n "$$ARTIFACT" || { \

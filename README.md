@@ -60,6 +60,16 @@ Each generation uses `store: false`, allows up to 4,096 output tokens including 
 
 Exhausted corrections, input-budget failures, provider errors, refusals, incomplete responses, counting failures, timeouts and cancellation stop the command with exit 1. Transport failures are not retried. Handled failures save collected evidence, completed analyses and completed grouping attempts, leaving top-level `proposal` and `response` null. Exit 0 means inventory coverage was validated; only then are top-level results accepted. Artifacts are written when the command finalizes, without crash recovery or resume. This is a new end-to-end experiment, not a migration of the Rust semantic-split workflow. Paid calls occur when a caller runs a model operation, never in `bun run check`.
 
+## Explain a PR's intentions
+
+With `OPENAI_API_KEY` configured, run:
+
+```sh
+make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/2
+```
+
+The command prints indented JSON containing intention cards and saves an inspectable `run.json` in a new `outputs/intentions-*` directory. Cards explain before/after behavior with citations and distinguish stated, inferred and unknown reasons. It uses `gpt-6-sol`; optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `MODEL=...` and `MAX_INPUT_TOKENS=256000`. It makes paid model calls and returns exit 0 only after the workflow and artifact publication succeed. See the [CLI guide](apps/cli/docs/intentions.md) for output fields, budgets and failure handling.
+
 ## Evaluate against the golden dataset
 
 Gold cases in `apps/eval/datasets/split-pr/cases` are created and edited manually. Repository commands only read them: CLI/eval output paths cannot target this directory, including through symlinks, and repository formatting skips it.

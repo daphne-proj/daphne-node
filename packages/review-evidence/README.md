@@ -6,10 +6,10 @@
 
 `createEvidenceSession(snapshot, options)` returns an `EvidenceSession` with:
 
-| Method                              | Purpose                                                                                                                             |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `readSource({ side, path, range })` | Return exact UTF-8 text at a byte range, with its source reference.                                                                 |
-| `readHunk({ changeId, hunkIndex })` | Read an original hunk's existing sides in BASE-then-HEAD order.                                                                     |
+| Method                              | Purpose                                                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `readSource({ side, path, range })` | Return exact UTF-8 text at a byte range, with its source reference.                                                                                      |
+| `readHunk({ changeId, hunkIndex })` | Read an original hunk's existing sides in BASE-then-HEAD order.                                                                                          |
 | `execute(request)`                  | Validate and run `list_changes`, `inspect_change`, `read_source`, `read_source_lines` or `search_code`, with bounded responses and continuation cursors. |
 
 `parseToolRequest` normalizes tool requests; `defaultEvidenceLimits` and `resolveEvidenceLimits` configure delivery budgets. Import data types through `@daphne/review-evidence/contracts` when retrieval code is unnecessary.

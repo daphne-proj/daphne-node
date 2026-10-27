@@ -131,3 +131,11 @@ SIGINT/SIGTERM request cancellation. The command waits for the native runner and
 - `tests/smoke/langfuse-smoke.ts` runs the manual integration check and returns a summary, printed only after finalization.
 
 The build includes these smoke files because the command imports them. It preserves the folder structure under `dist/`; the command entry point is `dist/src/main.js`. Building and typechecking the files does not execute the smoke check.
+
+## Manually evaluate intention cards
+
+Use the new CLI on PRs 1–8 in `daphne-proj/pr-review-test`. Run cases explicitly when ready for paid model calls, for example `make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/1`, then repeat for the remaining PR numbers. Each invocation uses a fresh output directory; keep its `run.json` and write review notes beside it. No intentions scorer or Langfuse upload is involved.
+
+For each artifact, record the pinned commits from `identity` and captured PR title/body from `metadata`. Inspect the cards against both revisions, noting missing or duplicate intentions, inaccurate before/after claims, unsupported reasons, citation quality and reported omissions. Include failed runs and their diagnostics. Record native `modelCalls[].usage` and per-call/overall timing; missing usage is unknown. Split pair labels cannot grade explanation quality, and saved diff-only fixtures cannot provide unchanged-code investigation.
+
+Compare repeated runs only when pinned revisions and captured PR metadata match. Record qualitative findings rather than treating structural acceptance as semantic correctness. Live quality remains unverified until these runs and their human review are recorded.

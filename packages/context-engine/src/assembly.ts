@@ -12,7 +12,10 @@ import type { ContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
 /* Validate and copy the selection before rendering a byte-bounded packet. */
-function parseAssembleInput(value: unknown, limits: ContextLimits): AssembleInput {
+function parseAssembleInput(
+  value: unknown,
+  limits: ContextLimits,
+): AssembleInput {
   const input = validate.object(value);
   const evidenceIds = Object.freeze([
     ...new Set(

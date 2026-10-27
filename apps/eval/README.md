@@ -35,3 +35,5 @@ This app has no public library exports. Internally, `runSplitCommand` dispatches
 Commands never edit gold cases or approve labels. A completed evaluation is distinct from good model quality; unknown/unlabeled pairs do not count toward agreement. Live benchmarks require reviewed cases and explicit credentials. Normal repository checks stay offline.
 
 See the [command guide](docs/commands.md) for flags, artifacts, credentials and failure behavior; the [dataset guide](datasets/split-pr/README.md) for labeling; and [source contracts](src/split-pr/contracts.ts) for evaluation data shapes.
+
+Intentions currently uses a [manual card evaluation procedure](docs/commands.md#manually-evaluate-intention-cards); split pair labels do not grade explanation quality.
