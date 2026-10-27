@@ -4,3 +4,5 @@ export type {
   ModelRequest,
   ModelCallObservation,
 } from './openai.js';
+export { normalizeModelUsage } from './usage.js';
+export type { TokenUsage } from './usage.js';

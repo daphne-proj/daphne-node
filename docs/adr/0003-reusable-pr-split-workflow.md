@@ -3,6 +3,8 @@
 - Status: accepted for the user-authorized split refactoring
 - Date: 2026-10-23
 
+Package naming and provider-usage ownership were refined by [ADR 0004](0004-shared-llm-package.md): the model adapter now lives in `@daphne/llm`. The decision below retains its original package names.
+
 ## Problem
 
 Moving the model loop out of the CLI made supplied evidence reusable, but a backend would still have to copy PR acquisition, hunk collection, Git cleanup and failure retention from the command.

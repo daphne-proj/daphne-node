@@ -1,4 +1,4 @@
-import { ModelError } from '@daphne/review-agent';
+import { ModelError } from '@daphne/llm';
 import type {
   SemanticSplitInput,
   SemanticSplitResult,

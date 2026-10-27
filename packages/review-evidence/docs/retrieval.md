@@ -20,7 +20,7 @@ See the [package overview](../README.md) for the main APIs, types and dependenci
 | Git subprocesses, snapshot storage, inventory cache and blob access | `git-source`                                              |
 | Retaining evidence and packing it into model context pages          | `context-engine`                                          |
 | Semantic grouping, coverage decisions and corrections               | `semantic-split`                                          |
-| Model calls and provider responses                                  | `review-agent`                                            |
+| Model calls and provider responses                                  | `llm`                                                     |
 | Syntax extraction and code index construction                       | Their dedicated extractor/index packages when implemented |
 
 Repository I/O goes through `git-source`. Evidence returned to the caller remains usable after the snapshot closes. The sections below describe the retrieval interface in more detail.

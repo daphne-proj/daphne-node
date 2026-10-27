@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
-import { createOpenAI } from '@daphne/review-agent';
-import type { ModelReply, ModelRequest } from '@daphne/review-agent';
+import { createOpenAI } from '@daphne/llm';
+import type { ModelReply, ModelRequest } from '@daphne/llm';
 import type {
   SemanticSplitInput,
   SemanticSplitOptions,

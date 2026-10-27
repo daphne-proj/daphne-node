@@ -1,6 +1,6 @@
 import type { DiffContextHunk, DiffContextPage } from '@daphne/context-engine';
 import type { Change, ReviewIdentity } from '@daphne/review-evidence/contracts';
-import type { ModelReply, ModelCallObservation } from '@daphne/review-agent';
+import type { ModelReply, ModelCallObservation } from '@daphne/llm';
 import type { Proposal, ProposalValidation } from './proposal.js';
 
 /*

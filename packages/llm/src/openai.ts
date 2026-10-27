@@ -20,6 +20,7 @@ export interface ModelReply {
 export interface ModelCallObservation {
   kind: 'count' | 'generate';
   number: number;
+  /* Prefer the provider's resolved model name, falling back to the requested model. */
   model: string;
   startedAt: Date;
   endedAt: Date;
@@ -108,10 +109,16 @@ export function createOpenAI(
       return result;
     } finally {
       try {
+        const responseModel = response?.model;
+        const observedModel =
+          typeof responseModel === 'string' && responseModel.trim()
+            ? responseModel
+            : model;
+
         onModelCall?.({
           kind,
           number,
-          model,
+          model: observedModel,
           startedAt,
           endedAt: new Date(),
           elapsedMs: performance.now() - started,

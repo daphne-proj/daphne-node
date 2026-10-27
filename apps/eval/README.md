@@ -21,7 +21,7 @@ This app has no public library exports. Internally, `runSplitCommand` dispatches
 
 - `FrozenSplitEvidence` / `SplitCase` / `PairLabel`: pinned evidence, review state and expected together/separate/unknown relationships.
 - `SplitScores` / `SplitTrial`: structural acceptance, pair agreement, diagnostics and a trial's retained workflow result.
-- `RecordedModelCall` / `TokenUsage`: attempted calls, timings and provider-reported token usage; missing usage stays unavailable.
+- `RecordedModelCall`: attempted calls and timings, with provider-reported `TokenUsage` imported from `@daphne/llm`; missing usage stays unavailable.
 - `LangfuseConnection` / `ExperimentExpectations`: explicit service configuration and required case/score accounting.
 
 ## How it works
@@ -30,7 +30,7 @@ This app has no public library exports. Internally, `runSplitCommand` dispatches
 2. Score known pair relationships offline, or run reviewed cases with bounded concurrency through `runSemanticSplit`, withholding labels from model input.
 3. Preserve complete local trial artifacts. Live commands export experiment results and check case, score and model-call accounting before finalizing telemetry and reporting completion.
 
-`semantic-split` provides generation and proposal validation; evidence contracts describe inputs, and review-agent observations provide call data. Langfuse client/tracing APIs and OpenTelemetry provide experiments, scores and export lifecycle. CLI public subpaths share terminal formatting and gold-output protection. Node filesystem and crypto APIs provide safe JSON publication and input fingerprints.
+`semantic-split` provides generation and proposal validation; evidence contracts describe inputs, and `@daphne/llm` provides call observations and usage parsing. Eval retains Langfuse token-bucket mapping and reporting issues. Langfuse client/tracing APIs and OpenTelemetry provide experiments, scores and export lifecycle. CLI public subpaths share terminal formatting and gold-output protection. Node filesystem and crypto APIs provide safe JSON publication and input fingerprints.
 
 Commands never edit gold cases or approve labels. A completed evaluation is distinct from good model quality; unknown/unlabeled pairs do not count toward agreement. Live benchmarks require reviewed cases and explicit credentials. Normal repository checks stay offline.
 

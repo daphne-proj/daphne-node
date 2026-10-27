@@ -16,7 +16,7 @@
       "path": "../context-engine/tsconfig.build.json"
     },
     {
-      "path": "../review-agent/tsconfig.build.json"
+      "path": "../llm/tsconfig.build.json"
     },
     {
       "path": "../review-evidence/tsconfig.build.json"

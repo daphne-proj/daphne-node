@@ -10,7 +10,7 @@ import {
   ContextInputError,
   ContextLimitError,
 } from '@daphne/context-engine';
-import { ModelError } from '@daphne/review-agent';
+import { ModelError } from '@daphne/llm';
 import { ArtifactError } from './output.js';
 
 export class CliInputError extends Error {

@@ -1,13 +1,6 @@
 import { startObservation } from '@langfuse/tracing';
-import type { ModelCallObservation } from '@daphne/review-agent';
-import { integer, object } from './parse.js';
-
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  cachedInputTokens: number | null;
-  reasoningOutputTokens: number | null;
-}
+import { normalizeModelUsage } from '@daphne/llm';
+import type { ModelCallObservation, TokenUsage } from '@daphne/llm';
 
 export interface RecordedModelCall {
   kind: 'count' | 'generate';
@@ -18,61 +11,6 @@ export interface RecordedModelCall {
   elapsedMs: number;
   status: 'complete' | 'failed';
   usage: TokenUsage | null;
-}
-
-function detail(value: unknown, key: string, total: number): number | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  const count = object(value, 'usage detail')[key];
-
-  if (count === undefined || count === null) {
-    return null;
-  }
-
-  const tokens = integer(count, key);
-
-  if (tokens > total) {
-    throw new Error('Provider token detail exceeds its total.');
-  }
-
-  return tokens;
-}
-
-export function normalizeModelUsage(
-  response: Record<string, unknown> | null,
-): TokenUsage | null {
-  if (response?.usage === undefined || response.usage === null) {
-    return null;
-  }
-
-  const usage = object(response.usage, 'usage');
-  const inputTokens = integer(usage.input_tokens, 'input_tokens');
-  const outputTokens = integer(usage.output_tokens, 'output_tokens');
-  const total = integer(inputTokens + outputTokens, 'total_tokens');
-
-  if (
-    usage.total_tokens !== undefined &&
-    integer(usage.total_tokens, 'total_tokens') !== total
-  ) {
-    throw new Error('Provider token totals disagree.');
-  }
-
-  return {
-    inputTokens,
-    outputTokens,
-    cachedInputTokens: detail(
-      usage.input_tokens_details,
-      'cached_tokens',
-      inputTokens,
-    ),
-    reasoningOutputTokens: detail(
-      usage.output_tokens_details,
-      'reasoning_tokens',
-      outputTokens,
-    ),
-  };
 }
 
 function usageDetails(usage: TokenUsage): Record<string, number> {
@@ -119,11 +57,7 @@ export function createModelCallRecorder(): {
       }
 
       try {
-        const responseModel = event.response?.model;
-        const model =
-          typeof responseModel === 'string' && responseModel.trim()
-            ? responseModel
-            : event.model;
+        const { model } = event;
 
         calls.push({
           kind: event.kind,

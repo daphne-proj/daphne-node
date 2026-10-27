@@ -55,10 +55,10 @@ const downstreamImportRestriction = {
     '@daphne/review-evidence/**',
     '**/review-evidence',
     '**/review-evidence/**',
-    '@daphne/review-agent',
-    '@daphne/review-agent/**',
-    '**/review-agent',
-    '**/review-agent/**',
+    '@daphne/llm',
+    '@daphne/llm/**',
+    '**/llm',
+    '**/llm/**',
     '@daphne/semantic-split',
     '@daphne/semantic-split/**',
     '**/semantic-split',
@@ -329,7 +329,7 @@ export default defineConfig(
             ...libraryImportRestrictions,
             {
               regex:
-                '^(?!@daphne/(?:context-engine|review-agent|review-evidence/contracts)$|\\./proposal\\.js$)',
+                '^(?!@daphne/(?:context-engine|llm|review-evidence/contracts)$|\\./proposal\\.js$)',
               message:
                 'Split contracts may reference only context, model, evidence and proposal types.',
             },
@@ -357,7 +357,7 @@ export default defineConfig(
             ...libraryImportRestrictions,
             {
               regex:
-                '^@daphne/(?!(?:context-engine|review-agent|review-evidence/contracts)$)',
+                '^@daphne/(?!(?:context-engine|llm|review-evidence/contracts)$)',
               message:
                 'Split orchestration uses supplied evidence, context paging and model calls.',
             },
@@ -370,7 +370,7 @@ export default defineConfig(
               regex:
                 '^(?:node:)?(?:fs|child_process|https?|http2|net|tls|dgram|dns|worker_threads|cluster|module|process)(?:/|$)',
               message:
-                'The caller owns Git and artifacts; model I/O belongs to review-agent.',
+                'The caller owns Git and artifacts; model I/O belongs to llm.',
             },
           ],
         },
@@ -379,7 +379,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/review-agent/src/**/*.ts'],
+    files: ['packages/llm/src/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

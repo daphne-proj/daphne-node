@@ -15,7 +15,7 @@
   "dependencies": {
     "@daphne/cli": "workspace:*",
     "@langfuse/tracing": "6.0.2",
-    "@daphne/review-agent": "workspace:*",
+    "@daphne/llm": "workspace:*",
     "@langfuse/client": "6.0.2",
     "@langfuse/core": "6.0.2",
     "@langfuse/otel": "6.0.2",

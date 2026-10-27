@@ -25,7 +25,7 @@ From the repository root, compile with `bun run build`, then use `bun run cli --
 2. For inspection, resolve PR metadata, acquire Git, retrieve and retain tool pages, close Git, then build the packet. For splitting, delegate acquisition, cleanup and grouping to `splitPullRequest`.
 3. Save completed work and failure diagnostics, then print a summary and set the exit code. Inspection writes `context.json` when available and `run.json`; splitting writes one `run.json` and replaces it on reruns.
 
-`pr-review` supplies metadata and the split workflow. Inspection directly composes `git-source`, `review-evidence` and `context-engine`; `review-agent` errors are translated into user-facing diagnostics. Node's `parseArgs`, `loadEnvFile`, filesystem APIs and `styleText` provide argument parsing, configuration, artifact publication and terminal formatting without extra runtime libraries.
+`pr-review` supplies metadata and the split workflow. Inspection directly composes `git-source`, `review-evidence` and `context-engine`; `llm` errors are translated into user-facing diagnostics. Node's `parseArgs`, `loadEnvFile`, filesystem APIs and `styleText` provide argument parsing, configuration, artifact publication and terminal formatting without extra runtime libraries.
 
 Inspection admits whole tool pages under a 64 KiB source allowance and distinguishes complete, partial and failed runs. Split success means validated unit coverage, not verified semantic quality. Output writers reject the gold dataset directory; inspection requires a new destination, while splitting reuses its destination and replaces the previous run artifact.
 

@@ -23,7 +23,7 @@
       "path": "./packages/semantic-split/tsconfig.build.json"
     },
     {
-      "path": "./packages/review-agent/tsconfig.build.json"
+      "path": "./packages/llm/tsconfig.build.json"
     }
   ]
 }

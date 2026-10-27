@@ -25,7 +25,7 @@ The package also exports its prompts, `proposalSchema` and `maxCorrections` so c
 2. Group a single page's raw diff directly. For several pages, generate separate notes with unit IDs, then group from all notes. A single-page run has no page analysis.
 3. Validate each proposal. For an invalid reply, replay the grouping conversation with diagnostics and request a complete replacement. Missing or duplicated known IDs also bring in original pages not yet supplied as raw evidence. Allow at most three corrections after the first grouping reply.
 
-`context-engine` supplies `splitDiffIntoContextPages`; `review-agent` supplies `createOpenAI` for complete-request token counts, generation and replayable output. `review-evidence/contracts` supplies data types without repository I/O. The workflow performs no direct Git or filesystem operations.
+`context-engine` supplies `splitDiffIntoContextPages`; `llm` supplies `createOpenAI` for complete-request token counts, generation and replayable output. `review-evidence/contracts` supplies data types without repository I/O. The workflow performs no direct Git or filesystem operations.
 
 Input budgets can stop corrections early. Completed page notes and attempts remain in the result for the caller to save; the CLI stores them in `run.json`. Valid coverage does not prove that groups are semantically right or independently applicable, and this workflow does not establish Rust migration parity.
 

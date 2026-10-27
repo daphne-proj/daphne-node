@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@daphne/context-engine": "workspace:*",
-    "@daphne/review-agent": "workspace:*",
+    "@daphne/llm": "workspace:*",
     "@daphne/review-evidence": "workspace:*"
   }
 }

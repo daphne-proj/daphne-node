@@ -21,7 +21,7 @@
         "@daphne/context-engine": "workspace:*",
         "@daphne/git-source": "workspace:*",
         "@daphne/pr-review": "workspace:*",
-        "@daphne/review-agent": "workspace:*",
+        "@daphne/llm": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
       },
       "devDependencies": {
@@ -35,7 +35,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@daphne/cli": "workspace:*",
-        "@daphne/review-agent": "workspace:*",
+        "@daphne/llm": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
         "@daphne/semantic-split": "workspace:*",
         "@langfuse/client": "6.0.2",
@@ -87,8 +87,8 @@
         "typescript": "6.0.3",
       },
     },
-    "packages/review-agent": {
-      "name": "@daphne/review-agent",
+    "packages/llm": {
+      "name": "@daphne/llm",
       "version": "0.0.0",
       "devDependencies": {
         "@types/node": "24.19.2",
@@ -112,7 +112,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@daphne/context-engine": "workspace:*",
-        "@daphne/review-agent": "workspace:*",
+        "@daphne/llm": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
       },
       "devDependencies": {
@@ -137,7 +137,7 @@
 
     "@daphne/pr-review": ["@daphne/pr-review@workspace:packages/pr-review"],
 
-    "@daphne/review-agent": ["@daphne/review-agent@workspace:packages/review-agent"],
+    "@daphne/llm": ["@daphne/llm@workspace:packages/llm"],
 
     "@daphne/review-evidence": ["@daphne/review-evidence@workspace:packages/review-evidence"],
 

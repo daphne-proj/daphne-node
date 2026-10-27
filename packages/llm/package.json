@@ -1,5 +1,5 @@
 {
-  "name": "@daphne/review-agent",
+  "name": "@daphne/llm",
   "version": "0.0.0",
   "private": true,
   "type": "module",

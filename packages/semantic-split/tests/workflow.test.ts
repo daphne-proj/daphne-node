@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { ContextInputError } from '@daphne/context-engine';
-import { createOpenAI, ModelError } from '@daphne/review-agent';
+import { createOpenAI, ModelError } from '@daphne/llm';
 import { runSemanticSplit } from '@daphne/semantic-split';
 import {
   countOneUnitPerPage,
@@ -9,7 +9,7 @@ import {
   setupWorkflow,
 } from './workflow.helpers.js';
 
-vi.mock(import('@daphne/review-agent'), async (importOriginal) => ({
+vi.mock(import('@daphne/llm'), async (importOriginal) => ({
   ...(await importOriginal()),
   createOpenAI: vi.fn<typeof createOpenAI>(),
 }));

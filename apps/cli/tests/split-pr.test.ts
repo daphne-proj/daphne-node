@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { splitPullRequest } from '@daphne/pr-review/split';
 import type { SplitPullRequestResult } from '@daphne/pr-review/split';
-import { ModelError } from '@daphne/review-agent';
+import { ModelError } from '@daphne/llm';
 import { runSplitPr } from '../src/split-pr.js';
 import { completedResult, setupSplitPr } from './split-pr.helpers.js';
 

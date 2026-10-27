@@ -3,8 +3,8 @@ import {
   defaultContextLimits,
   splitDiffIntoContextPages,
 } from '@daphne/context-engine';
-import { createOpenAI, ModelError } from '@daphne/review-agent';
-import type { ModelRequest } from '@daphne/review-agent';
+import { createOpenAI, ModelError } from '@daphne/llm';
+import type { ModelRequest } from '@daphne/llm';
 import type {
   PageAnalysis,
   SemanticSplitInput,

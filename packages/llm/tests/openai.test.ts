@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { createOpenAI, ModelError } from '@daphne/review-agent';
+import { createOpenAI, ModelError } from '@daphne/llm';
 
 afterEach(() => {
   vi.unstubAllGlobals();
