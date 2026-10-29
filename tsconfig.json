@@ -27,6 +27,9 @@
     },
     {
       "path": "./packages/intentions/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/evaluator-optimizer/tsconfig.build.json"
     }
   ]
 }

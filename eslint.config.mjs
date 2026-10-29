@@ -402,6 +402,25 @@ export default defineConfig(
     },
   },
   {
+    files: ['packages/evaluator-optimizer/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              regex: '^(?!\\./[^/]+\\.js$|node:timers(?:/promises)?$)',
+              message:
+                'The runner uses only local modules and standard timers; workflows own domain criteria, providers and I/O.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': ['error', 'fetch', 'process', 'console'],
+    },
+  },
+  {
     files: ['packages/llm/src/**/*.ts'],
     rules: {
       'no-restricted-imports': [

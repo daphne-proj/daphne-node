@@ -67,6 +67,14 @@
         "typescript": "6.0.3",
       },
     },
+    "packages/evaluator-optimizer": {
+      "name": "@daphne/evaluator-optimizer",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/node": "24.19.2",
+        "typescript": "6.0.3",
+      },
+    },
     "packages/git-source": {
       "name": "@daphne/git-source",
       "version": "0.0.0",
@@ -148,6 +156,8 @@
     "@daphne/context-engine": ["@daphne/context-engine@workspace:packages/context-engine"],
 
     "@daphne/eval": ["@daphne/eval@workspace:apps/eval"],
+
+    "@daphne/evaluator-optimizer": ["@daphne/evaluator-optimizer@workspace:packages/evaluator-optimizer"],
 
     "@daphne/git-source": ["@daphne/git-source@workspace:packages/git-source"],
 
