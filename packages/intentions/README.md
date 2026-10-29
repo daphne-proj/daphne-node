@@ -44,6 +44,8 @@ Keep the borrowed session and its Git snapshot alive until the promise settles. 
 
 Only source evidence included in a request that produced a completed model reply is marked delivered and citable. Token counting does not establish delivery. Search previews remain navigation; a source read is needed for a code citation. Unavailable reads return notices, so the model can correct a line range or acknowledge missing context. Open continuations and retrieval notices remain visible even when the final proposal is valid.
 
+The prompt directs the model to read surrounding source when a claim exceeds the supplied evidence, especially for absence claims and control flow. It prefers whole short evidence ranges over estimated offsets, with focused line reads when a block is too broad or incomplete. Before submitting or correcting a proposal, the model reviews each claim's support, the purpose behind each reason, and consequential behavior across the change inventory. These are model instructions, not an additional validation stage or a minimum tool-call requirement.
+
 ## Card contract and evidence
 
 A model proposal has `intentions` and `warnings`. Each card has a title, known `changeIds`, and before/after claims containing text plus citations. For example, a card might explain **Return authentication explicitly**: before, the middleware writes request state; after, it returns a typed result. The reason is inferred from code unless the captured PR description states it.
