@@ -12,6 +12,8 @@
   },
   "include": ["src/**/*.ts", "tests/smoke/**/*.ts"],
   "references": [
+    { "path": "../../packages/context-engine/tsconfig.build.json" },
+    { "path": "../../packages/intentions/tsconfig.build.json" },
     { "path": "../cli/tsconfig.build.json" },
     { "path": "../../packages/llm/tsconfig.build.json" },
     {

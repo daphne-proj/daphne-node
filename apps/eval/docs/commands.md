@@ -132,6 +132,20 @@ SIGINT/SIGTERM request cancellation. The command waits for the native runner and
 
 The build includes these smoke files because the command imports them. It preserves the folder structure under `dist/`; the command entry point is `dist/src/main.js`. Building and typechecking the files does not execute the smoke check.
 
+## Judge saved intention cards
+
+```sh
+make intentions-eval ARTIFACT=outputs/intentions-20261027-233537-54278/run.json
+```
+
+This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It revalidates the artifact and citations before judging with the shared [rubric](../prompts/intentions.md). It does not regenerate intentions, fetch repository context or upload to Langfuse.
+
+Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. `MODEL=NAME` overrides the default judge model. When the saved provider response lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
+
+`input.json` preserves the judge prompt, schema and provenance hashes. `report.json` records the structured judgment, diagnostics and execution details. Failed runs and invalid outputs receive reports without a judge call. Low scores still yield a completed evaluation; malformed input, cancellation, missing or invalid judgments and publication failures exit unsuccessfully. Oversized judge input fails explicitly without truncating evidence.
+
+Each evaluation starts a fresh Codex process in a temporary workspace, with inherited configuration, project instructions, tools and memory restricted. These controls reduce context contamination; they cannot prove complete isolation from managed instructions or eliminate model bias. The judge can assess only saved evidence, so missing context must remain uncertainty. Scores are exploratory until calibrated against human review.
+
 ## Manually evaluate intention cards
 
 Use the new CLI on PRs 1–8 in `daphne-proj/pr-review-test`. Run cases explicitly when ready for paid model calls, for example `make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/1`, then repeat for the remaining PR numbers. Each invocation uses a fresh output directory; keep its `run.json` and write review notes beside it. No intentions scorer or Langfuse upload is involved.

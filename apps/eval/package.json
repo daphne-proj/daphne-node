@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@daphne/cli": "workspace:*",
+    "@daphne/context-engine": "workspace:*",
+    "@daphne/intentions": "workspace:*",
     "@langfuse/tracing": "6.0.2",
     "@daphne/llm": "workspace:*",
     "@langfuse/client": "6.0.2",

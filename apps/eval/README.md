@@ -1,6 +1,6 @@
 # Evaluation application
 
-`@daphne/eval` evaluates semantic-split output against manually maintained pair labels. It validates frozen datasets, scores saved runs, and executes live experiments with local artifacts and Langfuse reporting. It owns evaluation policy and telemetry; the reusable split workflow stays in `@daphne/semantic-split`.
+`@daphne/eval` evaluates semantic-split output against manually maintained pair labels and judges saved intention cards through the Codex CLI. It owns evaluation policy, local reports and Langfuse reporting; reusable generation workflows stay in their packages.
 
 ## Commands and main APIs
 
@@ -14,6 +14,7 @@ From the repository root, run `bun run build`, then `bun run eval -- <command>`.
 | `split-pr run`      | Run reviewed frozen cases through the splitter and report experiments.   | OpenAI and Langfuse |
 | `split-pr upload`   | Revalidate and upload saved batch scores.                                | Langfuse            |
 | `langfuse-smoke`    | Verify experiment reporting with two synthetic cases.                    | Langfuse            |
+| `intentions judge`  | Judge a saved run using its original prompt, evidence and output.        | Codex CLI           |
 
 This app has no public library exports. Internally, `runSplitCommand` dispatches evaluation commands, `withLangfuse` owns the telemetry lifecycle, and `createModelCallRecorder` captures provider timing and usage.
 
@@ -36,4 +37,6 @@ Commands never edit gold cases or approve labels. A completed evaluation is dist
 
 See the [command guide](docs/commands.md) for flags, artifacts, credentials and failure behavior; the [dataset guide](datasets/split-pr/README.md) for labeling; and [source contracts](src/split-pr/contracts.ts) for evaluation data shapes.
 
-Intentions currently uses a [manual card evaluation procedure](docs/commands.md#manually-evaluate-intention-cards); split pair labels do not grade explanation quality.
+To judge intentions, run `make intentions-eval ARTIFACT=outputs/intentions-20261027-233537-54278/run.json`. The artifact supplies the original generation prompt, pinned evidence and accepted cards; the shared [rubric](prompts/intentions.md) defines the quality checks. A fresh output directory contains `input.json` and `report.json`. Optional `OUTPUT`, `MODEL` and `GENERATION_PROMPT` settings are described in the [command guide](docs/commands.md#judge-saved-intention-cards).
+
+The judge lives in `src/intentions`; `codex-runner.ts` owns its fresh subprocess, context controls and cancellation. It does not regenerate intentions or upload to Langfuse. Context controls reduce inherited context but do not prove complete isolation from managed instructions or eliminate model bias. Use the [manual procedure](docs/commands.md#manually-evaluate-intention-cards) to calibrate judgments; split pair labels do not grade explanation quality.

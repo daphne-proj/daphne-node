@@ -6,6 +6,7 @@
 
 import { existsSync } from 'node:fs';
 import { runSplitCommand } from './split-pr/command.js';
+import { runIntentionsCommand } from './intentions/command.js';
 import { loadEnvFile } from 'node:process';
 import {
   LangfuseConfigurationError,
@@ -65,10 +66,11 @@ async function main(): Promise<number> {
 
   if (
     args[0] !== 'split-pr' &&
+    args[0] !== 'intentions' &&
     (args.length !== 1 || args[0] !== 'langfuse-smoke')
   ) {
     process.stderr.write(
-      'Usage: eval langfuse-smoke | split-pr validate|eval|score|upload|run ...\n',
+      'Usage: eval langfuse-smoke | split-pr validate|eval|score|upload|run ... | intentions judge ...\n',
     );
     return 1;
   }
@@ -81,6 +83,10 @@ async function main(): Promise<number> {
   process.on('SIGTERM', cancel);
 
   try {
+    if (args[0] === 'intentions') {
+      return await runIntentionsCommand(args.slice(1), controller.signal);
+    }
+
     if (args[0] === 'split-pr') {
       return await runSplitCommand(args.slice(1), controller.signal);
     }

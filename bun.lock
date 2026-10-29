@@ -20,8 +20,8 @@
       "dependencies": {
         "@daphne/context-engine": "workspace:*",
         "@daphne/git-source": "workspace:*",
-        "@daphne/pr-review": "workspace:*",
         "@daphne/llm": "workspace:*",
+        "@daphne/pr-review": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
       },
       "devDependencies": {
@@ -35,6 +35,8 @@
       "version": "0.0.0",
       "dependencies": {
         "@daphne/cli": "workspace:*",
+        "@daphne/context-engine": "workspace:*",
+        "@daphne/intentions": "workspace:*",
         "@daphne/llm": "workspace:*",
         "@daphne/review-evidence": "workspace:*",
         "@daphne/semantic-split": "workspace:*",
@@ -86,6 +88,15 @@
         "typescript": "6.0.3",
       },
     },
+    "packages/llm": {
+      "name": "@daphne/llm",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/node": "24.19.2",
+        "typescript": "6.0.3",
+        "vitest": "5.0.5",
+      },
+    },
     "packages/pr-review": {
       "name": "@daphne/pr-review",
       "version": "0.0.0",
@@ -99,15 +110,6 @@
       "devDependencies": {
         "@types/node": "24.19.2",
         "typescript": "6.0.3",
-      },
-    },
-    "packages/llm": {
-      "name": "@daphne/llm",
-      "version": "0.0.0",
-      "devDependencies": {
-        "@types/node": "24.19.2",
-        "typescript": "6.0.3",
-        "vitest": "5.0.5",
       },
     },
     "packages/review-evidence": {
@@ -151,9 +153,9 @@
 
     "@daphne/intentions": ["@daphne/intentions@workspace:packages/intentions"],
 
-    "@daphne/pr-review": ["@daphne/pr-review@workspace:packages/pr-review"],
-
     "@daphne/llm": ["@daphne/llm@workspace:packages/llm"],
+
+    "@daphne/pr-review": ["@daphne/pr-review@workspace:packages/pr-review"],
 
     "@daphne/review-evidence": ["@daphne/review-evidence@workspace:packages/review-evidence"],
 
