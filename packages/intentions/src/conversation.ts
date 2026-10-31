@@ -1,8 +1,7 @@
-import { setImmediate } from 'node:timers/promises';
 import type { ContextEngine } from '@daphne/context-engine';
 import type { RunBudget } from '@daphne/evaluator-optimizer';
-import { ModelError } from '@daphne/llm';
-import type { createOpenAI, ModelRequest } from '@daphne/llm';
+import { ModelError, runModelConversation } from '@daphne/llm';
+import type { createOpenAI, ModelConversation } from '@daphne/llm';
 import type {
   IntentionEvidenceDelivery,
   IntentionsOptions,
@@ -28,17 +27,15 @@ export interface IntentionCandidate {
  * A continuing writer updates candidateNumber before each proposal attempt;
  * a reviewer uses a separate instance even when both borrow the same runtime.
  */
-export interface IntentionConversation {
+export interface IntentionConversation extends ModelConversation {
   role: 'writer' | 'reviewer';
   conversationId: string;
   candidateNumber: number;
   instructions: string;
   schema: { name: string; schema: object };
-  history: Record<string, unknown>[];
   deliveredEvidenceIds: Set<string>;
   pendingDeliveries: IntentionEvidenceDelivery[];
   pendingTools: Extract<IntentionToolRecord, { status: 'complete' }>[];
-  callIds: Set<string>;
 }
 
 /* Borrow one client, evidence store and budget; shared runtimes execute conversations sequentially. */
@@ -89,28 +86,10 @@ export function checkIntentionCancellation(signal: AbortSignal): void {
   }
 }
 
-function modelRequest(conversation: IntentionConversation): ModelRequest {
-  return {
-    instructions: conversation.instructions,
-    input: conversation.history,
-    tools: intentionsTools,
-    parallel_tool_calls: false,
-    max_output_tokens: intentionsLimits.maxOutputTokens,
-    text: {
-      format: {
-        type: 'json_schema',
-        name: conversation.schema.name,
-        strict: true,
-        schema: conversation.schema.schema,
-      },
-    },
-  };
-}
-
 /*
- * Continue one conversation through sequential tool calls until a terminal reply.
- * Tool continuations help produce one candidate; they are not proposal revisions.
- * The workflow's evaluator-optimizer loop owns validation and candidate counting.
+ * Add intentions delivery and diagnostic records to LLM's conversation protocol.
+ * Tool continuations produce one candidate; the workflow's evaluator-optimizer
+ * loop owns validation and candidate counting.
  * For example, a source-read result becomes citable only after the next successful
  * generation receives it. Failed requests leave receipts pending; completed turns
  * and tools remain in progress on failure. A terminal reply is returned even when
@@ -124,94 +103,66 @@ export async function runIntentionConversation(
   const { model, engine, executeTool, budget, maxInputTokens, progress } =
     runtime;
 
-  for (;;) {
-    checkIntentionCancellation(budget.signal);
-    const request = modelRequest(conversation);
+  const terminal = await runModelConversation(conversation, {
+    model,
+    signal: budget.signal,
+    maxInputTokens,
+    maxRequestBytes: intentionsLimits.maxRequestBytes,
+    request: {
+      instructions: conversation.instructions,
+      tools: intentionsTools,
+      parallel_tool_calls: false,
+      max_output_tokens: intentionsLimits.maxOutputTokens,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: conversation.schema.name,
+          strict: true,
+          schema: conversation.schema.schema,
+        },
+      },
+    },
+    recordTurn(reply, inputTokens): IntentionTurn {
+      for (const receipt of conversation.pendingDeliveries) {
+        if (receipt.kind === 'initial') {
+          for (const id of receipt.evidenceIds) {
+            conversation.deliveredEvidenceIds.add(id);
+          }
+        }
+      }
 
-    if (
-      Buffer.byteLength(JSON.stringify(request)) >
-      intentionsLimits.maxRequestBytes
-    ) {
-      throw new ModelError(
-        'The complete intentions request exceeds the 8 MiB byte budget.',
-      );
-    }
+      for (const tool of conversation.pendingTools) {
+        tool.delivered = true;
 
-    /* Count the instructions, schema, tools and entire replay history on every turn. */
-    const inputTokens = await model.count(request);
-    checkIntentionCancellation(budget.signal);
-
-    if (inputTokens > maxInputTokens) {
-      throw new ModelError(
-        'The intentions request exceeds the input token budget.',
-      );
-    }
-
-    const reply = await model.generate(request);
-
-    for (const receipt of conversation.pendingDeliveries) {
-      if (receipt.kind === 'initial') {
-        for (const id of receipt.evidenceIds) {
+        for (const id of tool.includedEvidenceIds) {
           conversation.deliveredEvidenceIds.add(id);
         }
       }
-    }
 
-    for (const tool of conversation.pendingTools) {
-      tool.delivered = true;
-
-      for (const id of tool.includedEvidenceIds) {
-        conversation.deliveredEvidenceIds.add(id);
-      }
-    }
-
-    const recorded = {
-      number: progress.turns.length + 1,
-      candidateNumber: conversation.candidateNumber,
-      conversationId: conversation.conversationId,
-      generationNumber: model.calls.generate,
-      deliveries: conversation.pendingDeliveries,
-      deliveredEvidenceIds: [...conversation.deliveredEvidenceIds],
-      inputTokens,
-      reply,
-    };
-
-    const turn: IntentionTurn =
-      conversation.role === 'writer'
-        ? { ...recorded, role: 'writer', validation: null }
-        : { ...recorded, role: 'reviewer' };
-
-    progress.turns.push(turn);
-
-    conversation.pendingDeliveries = [];
-    conversation.pendingTools = [];
-
-    conversation.history.push(...reply.output);
-
-    const calls = reply.functionCalls ?? [];
-
-    if (calls.length === 0) {
-      return {
-        turnNumber: turn.number,
-        deliveredEvidenceIds: turn.deliveredEvidenceIds,
+      const recorded = {
+        number: progress.turns.length + 1,
+        candidateNumber: conversation.candidateNumber,
+        conversationId: conversation.conversationId,
+        generationNumber: model.calls.generate,
+        deliveries: conversation.pendingDeliveries,
+        deliveredEvidenceIds: [...conversation.deliveredEvidenceIds],
+        inputTokens,
+        reply,
       };
-    }
 
-    checkIntentionCancellation(budget.signal);
+      const turn: IntentionTurn =
+        conversation.role === 'writer'
+          ? { ...recorded, role: 'writer', validation: null }
+          : { ...recorded, role: 'reviewer' };
 
-    for (const call of calls) {
-      if (conversation.callIds.has(call.call_id)) {
-        throw new ModelError(
-          'The model reused a function call ID in this conversation.',
-        );
-      }
+      progress.turns.push(turn);
 
-      conversation.callIds.add(call.call_id);
-    }
+      conversation.pendingDeliveries = [];
+      conversation.pendingTools = [];
 
-    for (const call of calls) {
-      checkIntentionCancellation(budget.signal);
-
+      return turn;
+    },
+    async executeTool(call, turn) {
       progress.calls.tools += 1;
 
       const tool = await executeIntentionTool(call, engine, executeTool, {
@@ -228,20 +179,18 @@ export async function runIntentionConversation(
         throw tool.error;
       }
 
-      conversation.history.push({
-        type: 'function_call_output',
-        call_id: call.call_id,
-        output: tool.output,
-      });
-
       conversation.pendingTools.push(tool);
       conversation.pendingDeliveries.push({
         kind: 'tool',
         toolNumber: tool.number,
       });
-    }
 
-    /* Let cancellation timers run even when borrowed tools and model callbacks resolve immediately. */
-    await setImmediate();
-  }
+      return tool.output;
+    },
+  });
+
+  return {
+    turnNumber: terminal.number,
+    deliveredEvidenceIds: terminal.deliveredEvidenceIds,
+  };
 }

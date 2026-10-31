@@ -1,8 +1,8 @@
 # LLM
 
-`@daphne/llm` is Daphne's shared model-access package. It sends requests, validates provider responses, counts input tokens and normalizes reported token usage. Its current implementation uses the OpenAI Responses API; semantic-split and future workflows reuse it through public exports instead of implementing provider HTTP calls themselves.
+`@daphne/llm` is Daphne's shared model-access package. It sends requests, validates provider responses, counts input tokens, continues model/tool conversations and normalizes reported token usage. Its current implementation uses the OpenAI Responses API; semantic-split and intentions reuse it through public exports.
 
-The package has no runtime package or workspace dependencies. It uses Node's native `fetch` and `AbortSignal` for HTTP, caller cancellation and request deadlines. It does not load credentials from the environment, own prompts or conversation history, execute tools, import telemetry libraries, or write artifacts.
+The package has no runtime package or workspace dependencies. It uses Node's native `fetch` and `AbortSignal` for HTTP, caller cancellation and request deadlines. Workflows supply prompts, schemas, conversation state, capacity limits, recording callbacks and tool executors. The package manages the continuation protocol over that state; evidence, acceptance policy, environment loading, telemetry and artifacts remain with callers.
 
 ## Main APIs
 
@@ -39,6 +39,36 @@ const reply = await model.generate(request);
 
 ## Main types and response behavior
 
+`runModelConversation(conversation, options)` continues one caller-owned history until a terminal reply. `ModelConversation` contains only `history` and the set of previously seen `callIds`. `ModelConversationOptions<Turn>` borrows an existing client and signal, request settings without `input`, positive validated `maxInputTokens`/`maxRequestBytes` capacities, and two callbacks:
+
+- `recordTurn(reply, inputTokens): Turn` synchronously retains each completed reply and returns its exact reference. It can also confirm domain-specific delivery. Recording failures propagate; this callback is required work, unlike the optional model-call observer.
+- `executeTool(call, turn): Promise<string>` executes a requested tool using that retained turn for any diagnostic records, then returns serialized output. The executor and client must honor the supplied signal. Failures propagate unchanged.
+
+For example, with an existing client and domain callbacks:
+
+```ts
+import { runModelConversation } from '@daphne/llm';
+
+const conversation = {
+  history: [{ role: 'user', content: 'Investigate this change.' }],
+  callIds: new Set<string>(),
+};
+
+const turn = await runModelConversation(conversation, {
+  model,
+  signal,
+  request: { instructions, tools },
+  maxInputTokens,
+  maxRequestBytes,
+  recordTurn,
+  executeTool,
+});
+```
+
+The helper checks serialized request size, counts the complete request on every turn, generates, records the reply, and appends all provider output before executing tools sequentially. It rejects reused call IDs within the same conversation. Tool results are appended as native `function_call_output` items. The supplied history and call-ID set are updated in place and can be reused after the caller appends repair feedback; use separate state for separate conversations.
+
+Completed terminal turns are returned even if cancellation arrived with generation, allowing an outer evaluator to retain the candidate and reject acceptance. Aborted tool-request turns are recorded but start no tools. Completed replies/tool outputs remain available after later failure. The helper adds no timeout, call quota, retry, candidate counting or domain validation. Intentions wraps it with evidence delivery and writer/reviewer records; semantic split retains its direct generation path and reuse of the unchanged initial token count.
+
 - `ModelRequest`: instructions, string or message-array input, an optional strict JSON response schema, native function definitions, parallel-call settings and an output-token cap. The workflow owns the schema and validates its domain rules after generation; see [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 - `ModelReply`: extracted answer `text`, validated reasoning/assistant/function-call `output` items, optional `functionCalls`, and the raw `response`. Commentary is excluded from answer text but retained in output. For subsequent turns, replay complete output items rather than reconstructing history from text; see [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state).
 - `ModelCallObservation`: call kind, per-kind sequence number, timing, outcome and raw response JSON. Its model name uses the provider's returned name when available, otherwise the requested name. Requests and credentials are excluded. The synchronous callback runs after every attempted request, including response-validation failures; observer exceptions cannot replace the call's outcome.
@@ -53,6 +83,6 @@ Usage parsing is intentionally separate from generation validation. A successful
 2. The adapter records the attempt, sends it with authorization and a 120-second deadline, then validates the count or completed response.
 3. The observer receives timing, status and any parsed response JSON. The workflow decides what to retain and whether another turn is needed.
 
-Both operations use low reasoning effort. Generation uses `store: false` and defaults to a 4,096-token output ceiling, including reasoning tokens; callers may set `max_output_tokens`. Counting omits this output cap. These are current adapter settings, not provider requirements; see the [Responses API reference](https://developers.openai.com/api/reference/typescript/resources/responses/methods/create). Refusals, incomplete replies, unsupported output items and empty final answers fail explicitly. Transport failures are not retried. The adapter supports text, structured text and native function-call responses. Tool-only replies may have empty text. Each call must name a supplied function and contain a JSON argument object; its output `id` and `call_id` are preserved. Tool requests include encrypted reasoning for replay. Callers execute tools and append the complete `output` array plus native `function_call_output` items before the next turn. Streaming and tool execution remain outside this adapter.
+Both operations use low reasoning effort. Generation uses `store: false` and defaults to a 4,096-token output ceiling, including reasoning tokens; callers may set `max_output_tokens`. Counting omits this output cap. These are current adapter settings, not provider requirements; see the [Responses API reference](https://developers.openai.com/api/reference/typescript/resources/responses/methods/create). Refusals, incomplete replies, unsupported output items and empty final answers fail explicitly. Transport failures are not retried. The adapter supports text, structured text and native function-call responses. Tool-only replies may have empty text. Each call must name a supplied function and contain a JSON argument object; its output `id` and `call_id` are preserved. Tool requests include encrypted reasoning for replay. `runModelConversation` handles replay and sequential invocation of caller-owned tools; callers using `generate` directly manage their own continuation. Streaming remains outside this adapter.
 
-Prompts, history, input budgets, semantic validation and correction limits belong to workflows such as [semantic-split](../semantic-split/README.md). Evidence packing belongs to context-engine; environment loading, telemetry export and persistence belong to applications. See the [workspace architecture](../../docs/architecture.md) and [LLM ownership decision](../../docs/adr/0004-shared-llm-package.md).
+Prompts, conversation identity and lifetime, capacity configuration, semantic validation and revision policy belong to workflows such as [semantic-split](../semantic-split/README.md) and [intentions](../intentions/README.md). Evidence packing belongs to context-engine; environment loading, telemetry export and persistence belong to applications. Offline conversation tests cover replay, ordering, cancellation, capacity failures and original callback/provider errors. See the [workspace architecture](../../docs/architecture.md) and [LLM ownership decision](../../docs/adr/0004-shared-llm-package.md).

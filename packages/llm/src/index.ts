@@ -1,4 +1,9 @@
 export { createOpenAI, ModelError } from './openai.js';
+export { runModelConversation } from './conversation.js';
+export type {
+  ModelConversation,
+  ModelConversationOptions,
+} from './conversation.js';
 export type {
   ModelFunctionTool,
   ModelFunctionCall,
