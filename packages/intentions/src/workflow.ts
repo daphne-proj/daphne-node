@@ -74,6 +74,7 @@ export async function runIntentions(
   } = options;
   const { signal, maxCandidates, deadlineAt } = budget;
   let activeConversation: IntentionConversation | null = null;
+
   const model = createOpenAI(apiKey, modelName, signal, (event) => {
     if (activeConversation) {
       onModelCall?.({

@@ -33,12 +33,24 @@ export interface ModelConversationOptions<Turn> {
 }
 
 /*
- * Count each complete request, record its reply, replay every provider output
- * item and execute tool calls sequentially until a terminal reply. Return the
- * exact caller-retained turn, even if cancellation arrived with that reply, so an
- * outer evaluator can retain its candidate before rejecting acceptance. Aborted
- * tool-request replies are recorded but never start tools. Completed outputs stay
- * in the supplied history on later failure; errors propagate without retries.
+ * Ask the model for a reply, execute any requested tools one at a time, and send
+ * their results back until a reply requests no tools. Check the full request's
+ * byte and token limits before each generation.
+ *
+ * Inversion of control: this loop decides when the caller's callbacks run.
+ * After each successful generation, call the caller's synchronous recordTurn
+ * callback to save the reply and obtain its turn record. Pass that same record
+ * to executeTool so tool activity can be linked to the reply that requested it.
+ * When a reply requests no tools, return its record. The caller decides whether
+ * the reply's content is acceptable.
+ *
+ * Append provider output and completed tool results to the caller's history.
+ * Keep those entries if a later operation fails; propagate errors without retrying.
+ *
+ * If cancellation arrives with a completed reply, still record it. If it requests
+ * no tools, return its record so the caller can preserve it for diagnostics, then
+ * check cancellation before accepting it. If it requests tools, check cancellation
+ * before starting them; recording a reply does not authorize further work.
  */
 export async function runModelConversation<Turn>(
   conversation: ModelConversation,
@@ -76,6 +88,8 @@ export async function runModelConversation<Turn>(
 
     const reply = await model.generate(request);
     const turn = recordTurn(reply, inputTokens);
+
+    /* Messages and tool results sent back to the model */
     conversation.history.push(...reply.output);
 
     const calls = reply.functionCalls ?? [];
@@ -96,7 +110,6 @@ export async function runModelConversation<Turn>(
       });
     }
 
-    /* Allow cancellation timers to run even when model and tool callbacks resolve immediately. */
     await setImmediate();
   }
 }

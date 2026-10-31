@@ -33,8 +33,12 @@ export interface IntentionConversation extends ModelConversation {
   candidateNumber: number;
   instructions: string;
   schema: { name: string; schema: object };
+
+  /* A successful reply confirmed these sources reached this conversation. */
   deliveredEvidenceIds: Set<string>;
+  /* Delivery receipts await this conversation's next successful reply. */
   pendingDeliveries: IntentionEvidenceDelivery[];
+  /* Completed tools await confirmation that their outputs were delivered. */
   pendingTools: Extract<IntentionToolRecord, { status: 'complete' }>[];
 }
 
@@ -88,14 +92,34 @@ export function checkIntentionCancellation(signal: AbortSignal): void {
 }
 
 /*
- * Add intentions delivery and diagnostic records to LLM's conversation protocol.
- * Tool continuations produce one candidate; the workflow's evaluator-optimizer
- * loop owns validation and candidate counting.
- * For example, a source-read result becomes citable only after the next successful
- * generation receives it. Failed requests leave receipts pending; completed turns
- * and tools remain in progress on failure. A terminal reply is returned even when
- * cancellation arrives with it, allowing the runner to retain the candidate before
- * rejecting acceptance. An aborted tool-request reply never starts more tools.
+ * Continue one writer or reviewer conversation until the model replies without
+ * requesting tools. runIntentions uses that reply as a writer candidate;
+ * reviewIntentionCandidate uses it as a review report. Those callers validate
+ * the content and decide whether it can be accepted.
+ *
+ * Delegate request counting, model calls, history replay and sequential tools to
+ * runModelConversation. Its callbacks record each completed turn and tool outcome
+ * in runtime.progress, with the role, conversation and candidate that produced it.
+ *
+ * A tool request is part of a model reply. Daphne runs the requested tool after
+ * receiving that reply, then includes its result in the next request in the same
+ * conversation. Reading a new source therefore stores it before the model sees it.
+ * Treat a successful reply to that next request as confirmation of delivery, and
+ * save the confirmed source IDs on the turn for later citation validation. Failed
+ * requests leave delivery unconfirmed.
+ *
+ * Writer and reviewer histories are separate. A source sent only to the reviewer
+ * cannot be cited by the writer until a writer request includes it and succeeds.
+ *
+ * Mutate the supplied conversation and shared progress in place. Reuse the writer
+ * across revisions, but create a separate conversation for each review. Execute
+ * conversations sequentially when sharing the client, evidence store and budget.
+ *
+ * Return the terminal turn's number and evidence snapshot; its full reply remains
+ * in progress.turns. Errors propagate while completed work stays recorded, and
+ * failed requests leave pending delivery unconfirmed. If cancellation arrives
+ * with a terminal reply, still return it so the caller can retain it before
+ * rejecting acceptance. Cancellation prevents starting further tools.
  */
 export async function runIntentionConversation(
   conversation: IntentionConversation,
@@ -104,6 +128,10 @@ export async function runIntentionConversation(
   const { model, engine, executeTool, budget, maxInputTokens, progress } =
     runtime;
 
+  /*
+   * Identify the active conversation before counting or generating so model-call
+   * records, including failures, carry its role, conversation ID and candidate number.
+   */
   runtime.onConversation?.(conversation);
 
   const terminal = await runModelConversation(conversation, {
@@ -135,6 +163,8 @@ export async function runIntentionConversation(
         }
       }
 
+      /* These tools already ran; this successful
+      reply confirms delivery of their outputs in its request. */
       for (const tool of conversation.pendingTools) {
         tool.delivered = true;
 
