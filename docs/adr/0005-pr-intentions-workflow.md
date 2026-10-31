@@ -17,3 +17,7 @@ The CLI owns configuration, the host deadline, terminal formatting and `daphne-i
 ## Consequences
 
 Git snapshots live longer than in the splitter and are closed in `finally`. The reusable supplied-evidence workflow does not own or close its executor. Budgets stop oversized investigations explicitly without trimming history; existing splitter algorithms remain unchanged. Cards can overlap, and validated citations do not establish semantic truth or author intent. Model quality requires manual evaluation against pinned revisions and captured PR text. This is an experimental TypeScript workflow, not a migration parity claim. Focused offline conversation tests cover delivery isolation and failure retention; live explanation quality remains a separate evaluation.
+
+## Semantic acceptance amendment — 2026-10-31
+
+[ADR 0006](0006-evaluator-optimizer.md) replaces local effort quotas with one optional host budget and shared candidate iteration. A structurally valid writer draft is reviewed in a fresh conversation against all five semantic criteria; repair returns to the continuing writer with the report and discovered source content. Both roles use the same intentions wrapper and LLM protocol. Completed turns confirm conversation-specific delivery, attempts retain snapshots, and `acceptedCandidate` links the writer and accepting review. Unresolved defects, exhaustion, cancellation and failures return no accepted output. The independent offline judge receives accepted cards and writer-eligible evidence without runtime verdicts.

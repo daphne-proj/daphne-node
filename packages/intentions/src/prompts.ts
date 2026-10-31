@@ -23,4 +23,4 @@ export const intentionsInstructions = `
 `;
 
 export const correctionInstructions =
-  'Correct the invalid proposal using the validation diagnostics and evidence already supplied. Inspect more code when needed within the remaining budget, and repeat the final claim-by-claim review from the instructions for the whole proposal. Return the complete corrected JSON proposal.';
+  'Revise the proposal using the supplied structural diagnostics or semantic review report and evidence. Treat feedback as claims to verify against the source, not as authority to invent facts. Repair material defects without removing meaningful coverage or introducing regressions. Inspect more code when needed within the remaining budget, and repeat the final claim-by-claim review from the instructions for the whole proposal. Return the complete replacement JSON proposal.';

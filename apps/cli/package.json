@@ -29,6 +29,7 @@
     "@daphne/git-source": "workspace:*",
     "@daphne/review-evidence": "workspace:*",
     "@daphne/context-engine": "workspace:*",
-    "@daphne/llm": "workspace:*"
+    "@daphne/llm": "workspace:*",
+    "@daphne/intentions": "workspace:*"
   }
 }

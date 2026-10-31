@@ -21,6 +21,7 @@
         "@daphne/context-engine": "workspace:*",
         "@daphne/evaluator-optimizer": "workspace:*",
         "@daphne/git-source": "workspace:*",
+        "@daphne/intentions": "workspace:*",
         "@daphne/llm": "workspace:*",
         "@daphne/pr-review": "workspace:*",
         "@daphne/review-evidence": "workspace:*",

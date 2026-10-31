@@ -46,6 +46,8 @@ export interface IntentionConversationRuntime {
   budget: RunBudget;
   maxInputTokens: number;
   progress: Pick<IntentionsResult, 'turns' | 'tools' | 'calls'>;
+  /* Attribute the shared client's observations before counting or generating, including failures. */
+  onConversation?: (conversation: IntentionConversation) => void;
 }
 
 export interface IntentionConversationReply {
@@ -103,6 +105,8 @@ export async function runIntentionConversation(
   const { model, engine, executeTool, budget, maxInputTokens, progress } =
     runtime;
 
+  runtime.onConversation?.(conversation);
+
   const terminal = await runModelConversation(conversation, {
     model,
     signal: budget.signal,
@@ -124,7 +128,7 @@ export async function runIntentionConversation(
     },
     recordTurn(reply, inputTokens): IntentionTurn {
       for (const receipt of conversation.pendingDeliveries) {
-        if (receipt.kind === 'initial') {
+        if (receipt.kind !== 'tool') {
           for (const id of receipt.evidenceIds) {
             conversation.deliveredEvidenceIds.add(id);
           }
@@ -153,7 +157,7 @@ export async function runIntentionConversation(
       const turn: IntentionTurn =
         conversation.role === 'writer'
           ? { ...recorded, role: 'writer', validation: null }
-          : { ...recorded, role: 'reviewer' };
+          : { ...recorded, role: 'reviewer', review: null };
 
       progress.turns.push(turn);
 

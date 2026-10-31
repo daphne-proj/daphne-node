@@ -6,7 +6,7 @@ import { parsePullRequestUrl } from '@daphne/pr-review';
 import { analyzePullRequestIntentions } from '@daphne/pr-review/intentions';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
 import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
-import type { ModelCallObservation } from '@daphne/llm';
+import type { IntentionModelCallObservation } from '@daphne/intentions';
 import { formatCommandOutput } from './command-output.js';
 import type { CommandOutputRow } from './command-output.js';
 import { CliInputError, describeFailure } from './errors.js';
@@ -108,7 +108,7 @@ export async function runIntentionsPr(
   const directory = await createRunDirectory(options.output);
   const artifactPath = join(directory, 'run.json');
   const githubToken = process.env.GITHUB_TOKEN;
-  const modelCalls: ModelCallObservation[] = [];
+  const modelCalls: IntentionModelCallObservation[] = [];
   const startedAt = new Date();
   const startedMs = performance.now();
 
@@ -159,6 +159,9 @@ export async function runIntentionsPr(
     response: result.response,
     modelCalls: modelCalls.map((call) => ({
       kind: call.kind,
+      role: call.role,
+      candidateNumber: call.candidateNumber,
+      conversationId: call.conversationId,
       number: call.number,
       model: call.model,
       status: call.status,

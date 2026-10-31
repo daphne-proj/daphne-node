@@ -7,6 +7,7 @@ import type {
   IntentionsOptions,
   IntentionsProposal,
   IntentionsResult,
+  IntentionEvaluation,
 } from './contracts.js';
 import {
   assembleEvidence,
@@ -29,17 +30,34 @@ import { intentionsLimits } from './limits.js';
 import { correctionInstructions, intentionsInstructions } from './prompts.js';
 import { validateIntentions } from './proposal.js';
 import { intentionsSchema } from './schema.js';
+import { reviewIntentionCandidate } from './review/review.js';
+import type { IntentionReview } from './review/contracts.js';
+
+type IntentionFeedback =
+  | { kind: 'structural'; diagnostics: string[] }
+  | {
+      kind: 'semantic';
+      reviewTurnNumber: number;
+      report: IntentionReview;
+      evidenceIds: string[];
+    };
+
+interface IntentionAcceptance {
+  proposal: IntentionsProposal;
+  writerTurnNumber: number;
+  reviewTurnNumber: number;
+}
 
 type IntentionsProgress = Omit<
   IntentionsResult,
-  'status' | 'proposal' | 'response' | 'error'
+  'status' | 'proposal' | 'response' | 'acceptedCandidate' | 'error'
 >;
 
 /*
  * Investigate one supplied comparison using the host's budget and borrowed tools.
  * The shared runner counts terminal writer proposals; tool continuations retain
- * their own turns without consuming candidate slots. Structural validation is
- * the acceptance criterion here. Failure and cancellation retain completed work
+ * their own turns without consuming candidate slots. Every structurally valid
+ * draft receives a fresh semantic review. Failure and cancellation retain completed work
  * while returning null accepted output; the host owns cleanup and publication.
  */
 export async function runIntentions(
@@ -55,10 +73,19 @@ export async function runIntentions(
     onModelCall,
   } = options;
   const { signal, maxCandidates, deadlineAt } = budget;
-  const model = createOpenAI(apiKey, modelName, signal, onModelCall);
+  let activeConversation: IntentionConversation | null = null;
+  const model = createOpenAI(apiKey, modelName, signal, (event) => {
+    if (activeConversation) {
+      onModelCall?.({
+        ...event,
+        role: activeConversation.role,
+        candidateNumber: activeConversation.candidateNumber,
+        conversationId: activeConversation.conversationId,
+      });
+    }
+  });
 
   let engine: ContextEngine | null = null;
-  let writerConversation: IntentionConversation | null = null;
 
   const progress: IntentionsProgress = {
     comparison: null,
@@ -66,7 +93,7 @@ export async function runIntentions(
     limits: { ...intentionsLimits, maxInputTokens },
     evidence: null,
     hunks: [],
-    deliveredEvidenceIds: [],
+    attempts: [],
     tools: [],
     turns: [],
     limitations: [],
@@ -80,9 +107,6 @@ export async function runIntentions(
     return {
       ...progress,
       evidence,
-      deliveredEvidenceIds: [
-        ...(writerConversation?.deliveredEvidenceIds ?? []),
-      ],
       calls: { ...model.calls, tools: progress.calls.tools },
       limitations: [
         ...progress.limitations,
@@ -122,6 +146,7 @@ export async function runIntentions(
         status: 'complete',
         proposal: { intentions: [], warnings: [] },
         response: null,
+        acceptedCandidate: null,
       };
     }
 
@@ -152,7 +177,6 @@ export async function runIntentions(
       },
       initial.includedEvidenceIds,
     );
-    writerConversation = writer;
 
     const runtime: IntentionConversationRuntime = {
       model,
@@ -161,23 +185,44 @@ export async function runIntentions(
       budget,
       maxInputTokens,
       progress,
+      onConversation(conversation) {
+        activeConversation = conversation;
+      },
     };
+    const evaluations = new Map<number, IntentionEvaluation>();
 
     const result = await runEvaluatorOptimizer<
       IntentionCandidate,
-      string[],
-      { proposal: IntentionsProposal; response: Record<string, unknown> }
+      IntentionFeedback,
+      IntentionAcceptance
     >({
       budget,
       async produce(production, { number }) {
         writer.candidateNumber = number;
 
         if (production.kind === 'revision') {
+          const feedback = production.feedback;
+          let context: string | undefined;
+
+          if (feedback.kind === 'semantic') {
+            const packet = assembleEvidence(
+              runtime.engine,
+              feedback.evidenceIds,
+            );
+            context = packet.renderedContext;
+            writer.pendingDeliveries.push({
+              kind: 'review_feedback',
+              reviewTurnNumber: feedback.reviewTurnNumber,
+              evidenceIds: packet.includedEvidenceIds,
+            });
+          }
+
           writer.history.push({
             role: 'user',
             content: JSON.stringify({
               instruction: correctionInstructions,
-              diagnostics: production.feedback,
+              feedback,
+              context,
             }),
           });
         }
@@ -189,7 +234,7 @@ export async function runIntentions(
           deliveredEvidenceIds: reply.deliveredEvidenceIds,
         };
       },
-      evaluate(candidate) {
+      async evaluate(candidate, { number }) {
         const turn = progress.turns[candidate.writerTurnNumber - 1];
 
         if (!turn || turn.role !== 'writer') {
@@ -207,25 +252,101 @@ export async function runIntentions(
         });
         turn.validation = validation;
 
-        if (validation.status === 'valid') {
+        if (validation.status === 'invalid') {
+          progress.diagnostics.push(...validation.diagnostics);
+          evaluations.set(number, {
+            kind: 'structural',
+            status: 'revise',
+            diagnostics: validation.diagnostics,
+          });
+
           return {
-            status: 'accept',
-            value: {
-              proposal: validation.proposal,
-              response: turn.reply.response,
+            status: 'revise',
+            feedback: {
+              kind: 'structural',
+              diagnostics: validation.diagnostics,
             },
           };
         }
 
-        progress.diagnostics.push(...validation.diagnostics);
-        return { status: 'revise', feedback: validation.diagnostics };
+        const review = await reviewIntentionCandidate(candidate, {
+          ...runtime,
+          input: captured,
+          hunks: progress.hunks,
+          limitations: [
+            ...progress.limitations,
+            ...retrievalLimitations(runtime.engine.getEvidenceSnapshot()),
+          ],
+        });
+        const reviewTurnNumber = review.turn.number;
+        evaluations.set(number, {
+          kind: 'semantic',
+          status: review.decision.status,
+          reviewTurnNumber,
+        });
+
+        switch (review.decision.status) {
+          case 'accept':
+            return {
+              status: 'accept',
+              value: {
+                proposal: validation.proposal,
+                writerTurnNumber: turn.number,
+                reviewTurnNumber,
+              },
+            };
+          case 'stop':
+            return review.decision;
+          case 'revise':
+            return {
+              status: 'revise',
+              feedback: {
+                kind: 'semantic',
+                reviewTurnNumber,
+                report: review.report,
+                /* Send source bytes the reviewer discovered, including evidence for proposal-wide omissions. */
+                evidenceIds: review.turn.deliveredEvidenceIds.filter(
+                  (id) => !candidate.deliveredEvidenceIds.includes(id),
+                ),
+              },
+            };
+        }
       },
     });
 
+    progress.attempts = result.attempts.map((attempt) => ({
+      number: attempt.number,
+      ...attempt.candidate,
+      evaluation:
+        attempt.evaluation === null
+          ? null
+          : (evaluations.get(attempt.number) ?? null),
+    }));
+
     switch (result.status) {
-      case 'accepted':
+      case 'accepted': {
         checkIntentionCancellation(signal);
-        return { ...collected(), status: 'complete', ...result.value };
+        const { proposal, writerTurnNumber, reviewTurnNumber } = result.value;
+        const turn = progress.turns[writerTurnNumber - 1];
+
+        if (!turn || turn.role !== 'writer') {
+          throw new ModelError(
+            'The accepted proposal has no recorded writer turn.',
+          );
+        }
+
+        return {
+          ...collected(),
+          status: 'complete',
+          proposal,
+          response: turn.reply.response,
+          acceptedCandidate: {
+            candidateNumber: turn.candidateNumber,
+            writerTurnNumber,
+            reviewTurnNumber,
+          },
+        };
+      }
       case 'failed':
         progress.diagnostics.push('Intentions ' + result.stage + ' failed.');
         throw result.error;
@@ -258,6 +379,7 @@ export async function runIntentions(
       status: 'failed',
       proposal: null,
       response: null,
+      acceptedCandidate: null,
       error,
     };
   }

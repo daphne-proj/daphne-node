@@ -350,9 +350,9 @@ export default defineConfig(
             ...libraryImportRestrictions,
             {
               regex:
-                '^(?!@daphne/(?:context-engine|evaluator-optimizer|llm|review-evidence/contracts)$|\\./proposal\\.js$)',
+                '^(?!@daphne/(?:context-engine|evaluator-optimizer|llm|review-evidence/contracts)$|\\./(?:proposal|review/contracts)\\.js$)',
               message:
-                'Workflow contracts may reference only context, run budget, model, evidence and proposal types.',
+                'Workflow contracts may reference only context, run budget, model, evidence, proposal and review types.',
             },
             {
               group: ['**'],

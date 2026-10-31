@@ -9,6 +9,7 @@ import type {
   ModelReply,
 } from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
+import type { IntentionReview } from './review/contracts.js';
 import type {
   ByteRange,
   Change,
@@ -112,8 +113,15 @@ export interface IntentionsOptions {
   budget: RunBudget;
   maxInputTokens: number;
   executeTool: (request: unknown) => Promise<ToolResult>;
-  onModelCall?: (event: ModelCallObservation) => void;
+  onModelCall?: (event: IntentionModelCallObservation) => void;
 }
+
+/* Attribute successful and failed requests to their conversation without resetting client counters. */
+export type IntentionModelCallObservation = ModelCallObservation & {
+  role: 'writer' | 'reviewer';
+  candidateNumber: number;
+  conversationId: string;
+};
 
 /*
  * Gives validateIntentions the captured facts needed to check model output.
@@ -179,11 +187,17 @@ export type IntentionToolRecord = {
 /*
  * Records evidence confirmed by a completed request. Initial source IDs name
  * source bytes in that conversation's initial message; tool receipts refer to
- * earlier completed tools in the same conversation. Counting alone adds none.
+ * earlier completed tools in the same conversation. Review feedback names source
+ * bytes sent from the previous reviewer to the writer. Counting alone adds none.
  */
 export type IntentionEvidenceDelivery =
   | { kind: 'initial'; evidenceIds: readonly string[] }
-  | { kind: 'tool'; toolNumber: number };
+  | { kind: 'tool'; toolNumber: number }
+  | {
+      kind: 'review_feedback';
+      reviewTurnNumber: number;
+      evidenceIds: readonly string[];
+    };
 
 /*
  * Preserve one provider reply with its conversation and source-delivery snapshot.
@@ -202,8 +216,32 @@ export type IntentionTurn = {
   reply: ModelReply;
 } & (
   | { role: 'writer'; validation: IntentionsValidation | null }
-  | { role: 'reviewer' }
+  | { role: 'reviewer'; review: IntentionReview | null }
 );
+
+/* Completed checks reference their retained report; an interrupted evaluation is null on its attempt. */
+export type IntentionEvaluation =
+  | { kind: 'structural'; status: 'revise'; diagnostics: string[] }
+  | {
+      kind: 'semantic';
+      status: 'accept' | 'revise' | 'stop';
+      reviewTurnNumber: number;
+    };
+
+/* One-based candidates count terminal writer drafts, not reviewer replies or tool continuations. */
+export interface IntentionAttempt {
+  number: number;
+  writerTurnNumber: number;
+  deliveredEvidenceIds: readonly string[];
+  evaluation: IntentionEvaluation | null;
+}
+
+/* Select the accepted writer and its approving reviewer even when the final reply is a review. */
+export interface AcceptedIntentionCandidate {
+  candidateNumber: number;
+  writerTurnNumber: number;
+  reviewTurnNumber: number;
+}
 
 /*
  * Returns the accepted proposal or failure together with the evidence and
@@ -224,7 +262,7 @@ export type IntentionsResult = {
   };
   evidence: EvidenceSnapshot | null;
   hunks: IntentionHunkEvidence[];
-  deliveredEvidenceIds: string[];
+  attempts: IntentionAttempt[];
   tools: IntentionToolRecord[];
   turns: IntentionTurn[];
   limitations: ContextNotice[];
@@ -235,6 +273,13 @@ export type IntentionsResult = {
       status: 'complete';
       proposal: IntentionsProposal;
       response: Record<string, unknown> | null;
+      acceptedCandidate: AcceptedIntentionCandidate | null;
     }
-  | { status: 'failed'; proposal: null; response: null; error: unknown }
+  | {
+      status: 'failed';
+      proposal: null;
+      response: null;
+      acceptedCandidate: null;
+      error: unknown;
+    }
 );

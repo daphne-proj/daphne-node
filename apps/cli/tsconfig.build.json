@@ -30,6 +30,9 @@
     },
     {
       "path": "../../packages/llm/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/intentions/tsconfig.build.json"
     }
   ]
 }

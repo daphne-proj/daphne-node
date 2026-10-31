@@ -16,7 +16,7 @@ import { evaluateSplitCaseArtifact } from './evaluate.js';
 import { itemScoreNames, toSplitEvaluations } from './langfuse-scores.js';
 import * as parse from '../parse.js';
 import { writeJsonArtifact } from '../artifacts.js';
-import { parseSplitBudget } from './budget.js';
+import { parseRunBudget } from '../run-budget.js';
 
 type SavedCase = {
   prepared: PreparedSplitCase;
@@ -148,7 +148,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
       report,
       model,
       maxInputTokens,
-      budget: parseSplitBudget(artifact.value.budget),
+      budget: parseRunBudget(artifact.value.budget),
       calls: {
         count: parse.integer(calls.count, 'artifact.calls.count'),
         generate: parse.integer(calls.generate, 'artifact.calls.generate'),

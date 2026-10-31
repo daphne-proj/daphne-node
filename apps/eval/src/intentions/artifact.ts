@@ -1,6 +1,5 @@
 import { open } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
-import { validateIntentions } from '@daphne/intentions';
 import type { IntentionsProposal } from '@daphne/intentions';
 import type { RetainedSource } from '@daphne/context-engine';
 import type {
@@ -9,6 +8,8 @@ import type {
   ReviewIdentity,
 } from '@daphne/review-evidence/contracts';
 import { parseIntentionEvidence, parseNotices } from './evidence.js';
+import { parseIntentionTrace } from './artifact-trace.js';
+import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
 /*
@@ -136,76 +137,35 @@ function decodeArtifact(
     );
   }
 
-  const turns = parse.array(investigation.turns, 'investigation.turns');
-  let proposalText = '{"intentions":[],"warnings":[]}';
-  let finalInstructions: string | null = null;
-
-  if (evidence.changes.length === 0) {
-    if (turns.length !== 0) {
-      throw new parse.EvaluationError(
-        'An empty comparison must not contain generation turns.',
-      );
-    }
-  } else {
-    const final = turns.at(-1);
-
-    if (final === undefined) {
-      throw new parse.EvaluationError(
-        'A complete nonempty run requires a final model turn.',
-      );
-    }
-
-    const turn = parse.object(final, 'final turn');
-    const reply = parse.object(turn.reply, 'final reply');
-    proposalText = parse.text(reply.text, 'final reply.text', true);
-    finalInstructions = instructions(reply.response, 'final reply.response');
-
-    if (
-      reply.functionCalls !== undefined &&
-      parse.array(reply.functionCalls, 'final reply.functionCalls').length > 0
-    ) {
-      return {
-        artifactHash,
-        generationInstructions,
-        status: 'invalid_output',
-        packet: null,
-        diagnostics: ['The final reply still contains pending tool calls.'],
-      };
-    }
-  }
-
   if (
-    generationInstructions !== null &&
-    finalInstructions !== null &&
-    generationInstructions !== finalInstructions
+    !isDeepStrictEqual(
+      parseRunBudget(artifact.budget),
+      parseRunBudget(investigation.budget),
+    )
   ) {
     throw new parse.EvaluationError(
-      'Saved generation instructions disagree between the final response copies.',
+      'The artifact and investigation budgets disagree.',
     );
   }
 
-  const savedInstructions = generationInstructions ?? finalInstructions;
-  const validation = validateIntentions(proposalText, { ...evidence, pr });
+  const accepted = parseIntentionTrace(investigation, { ...evidence, pr });
 
-  if (validation.status === 'invalid') {
-    return {
-      artifactHash,
-      generationInstructions: savedInstructions,
-      status: 'invalid_output',
-      packet: null,
-      diagnostics: validation.diagnostics,
-    };
-  }
-
-  /* Saved cards contain resolved source text; compare them with fresh resolution of the raw final reply. */
   if (
-    !isDeepStrictEqual(artifact.proposal, validation.proposal) ||
-    !isDeepStrictEqual(investigation.proposal, validation.proposal)
+    !isDeepStrictEqual(artifact.proposal, accepted.proposal) ||
+    !isDeepStrictEqual(investigation.proposal, accepted.proposal) ||
+    !isDeepStrictEqual(artifact.response, accepted.response) ||
+    !isDeepStrictEqual(investigation.response, accepted.response)
   ) {
     throw new parse.EvaluationError(
-      'The accepted proposal disagrees with the freshly validated final reply.',
+      'Accepted output disagrees with its validated writer reply and accepting review.',
     );
   }
+
+  const delivered = new Set(accepted.deliveredEvidenceIds);
+  const savedInstructions = instructions(
+    accepted.response,
+    'accepted writer response',
+  );
 
   return {
     artifactHash,
@@ -217,12 +177,14 @@ function decodeArtifact(
       metadata: { title: pr.title, body: pr.body },
       changes: evidence.changes,
       hunks: evidence.hunks,
-      sources: evidence.sources,
+      sources: evidence.sources.filter(({ evidenceId }) =>
+        delivered.has(evidenceId),
+      ),
       limitations: [
         ...parseNotices(artifact.limitations, 'artifact.limitations'),
         ...parseNotices(investigation.limitations, 'investigation.limitations'),
       ],
-      proposal: validation.proposal,
+      proposal: accepted.proposal,
     },
   };
 }
@@ -230,7 +192,7 @@ function decodeArtifact(
 /*
  * Reads one local v1 run without repository or model calls. For example,
  * loadIntentionArtifact('outputs/intentions/run.json') returns a judge packet
- * only after revalidating source provenance and the final proposal. Malformed
+ * only after revalidating source delivery, the selected writer and its review. Malformed
  * or oversized input throws; failed runs and invalid output remain explicit
  * report outcomes. The file and retained evidence have fixed host-side caps.
  */

@@ -88,7 +88,7 @@ bun run eval -- split-pr run \
   --concurrency 1
 ```
 
-This explicitly calls OpenAI and writes experiments to Langfuse. Configure `OPENAI_API_KEY` and the three Langfuse variables below in your environment or root `.env`. Defaults are model `gpt-6.1-sol`, input budget `16384`, three independent trials and concurrency `2`; override them with `--model`, `--max-input-tokens`, `--trials` and `--concurrency`. The partition is required, every selected case must be reviewed, and the output directory must be new with an existing parent. Validation happens before credential loading or telemetry. The run uses frozen evidence without fetching GitHub or exposing labels to the splitter.
+This explicitly calls OpenAI and writes experiments to Langfuse. Configure `OPENAI_API_KEY` and the three Langfuse variables below in your environment or root `.env`. Defaults are model `gpt-6.1-sol`, input budget `16384`, three independent trials and concurrency `2`; override them with `--model`, `--max-input-tokens`, `--trials` and `--concurrency`. The partition is required, every selected case must be reviewed, and the output directory must be new with an existing parent. Validation happens before credential loading or telemetry. The run uses frozen evidence without fetching GitHub or exposing labels to the splitter. Optional `--max-candidates N` and `--run-timeout-ms N` flags select one global policy for each case run; neither has a default. Each case resolves a fresh budget when its task starts, retaining the original deadline through preparation, model work and publication. The manifest records the selected policy and each result records its resolved budget. These settings are separate from per-request input/output capacities.
 
 Each trial number creates one native experiment, with one item per selected case. Item scores are `completed`, `accepted`, `constraints_passed`, `together_rate`, `separate_rate`, `corrections`, `count_calls` and `generate_calls`. Unavailable rates use categorical `not_applicable`. The run's `accepted_rate` includes every scheduled case in its denominator, including missing or failed work. Acceptance means structurally valid output; `constraints_passed` additionally checks the reviewed relationships.
 
@@ -135,10 +135,10 @@ The build includes these smoke files because the command imports them. It preser
 ## Judge saved intention cards
 
 ```sh
-make intentions-eval ARTIFACT=outputs/intentions-20261027-233537-54278/run.json
+make intentions-eval ARTIFACT=outputs/intentions-CURRENT/run.json
 ```
 
-This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It revalidates the artifact and citations before judging with the shared [rubric](../prompts/intentions.md). It does not regenerate intentions, fetch repository context or upload to Langfuse.
+This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It reconstructs delivery per conversation, revalidates raw writer proposals and reviewer reports, and requires exact accepted-writer/review linkage before judging with the shared [rubric](../prompts/intentions.md). Failed host runs are never judged. The judge sees only accepted cards, writer-eligible evidence and writer instructions; runtime verdicts, iteration counts and model identity are excluded. Obsolete artifact shapes are rejected rather than interpreted through a compatibility path; historical comparisons require separate inspection. It does not regenerate intentions, fetch repository context or upload to Langfuse.
 
 Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. `MODEL=NAME` overrides the default judge model. When the saved provider response lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
 

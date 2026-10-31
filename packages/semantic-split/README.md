@@ -1,6 +1,6 @@
 # Semantic split
 
-`@daphne/semantic-split` groups a PR's changes by **intention**: edits that serve one purpose belong together even across files, while unrelated purposes stay separate. It owns prompts, grouping history and proposal validation; `@daphne/evaluator-optimizer` owns iteration and the shared run budget. PR acquisition, Git cleanup and artifact persistence belong to its callers, including PR review and evaluation.
+`@daphne/semantic-split` groups a PR's changes into coherent, independently reviewable responsibilities, keeping required dependencies together across files and unrelated changes separate. It owns prompts, grouping history and proposal validation; `@daphne/evaluator-optimizer` owns iteration and the shared run budget. PR acquisition, Git cleanup and artifact persistence belong to its callers, including PR review and evaluation.
 
 ## Main APIs
 

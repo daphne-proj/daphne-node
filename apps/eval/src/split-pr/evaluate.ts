@@ -9,7 +9,7 @@ import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { parseSplitEvidence } from './evidence.js';
 import { scoreSplitResult, splitScorerVersion } from './score.js';
 import { summarizeSplitCase } from './validation.js';
-import { parseSplitBudget } from './budget.js';
+import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
 function artifactResult(
@@ -49,7 +49,7 @@ function artifactResult(
     );
   }
 
-  const budget = parseSplitBudget(input.budget);
+  const budget = parseRunBudget(input.budget);
   const attemptTexts = parse
     .array(input.attempts, 'artifact.attempts')
     .map((value, index) => {

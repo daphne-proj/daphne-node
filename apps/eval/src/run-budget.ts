@@ -1,8 +1,8 @@
 import type { RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
-import { EvaluationError, integer, object } from '../parse.js';
+import { EvaluationError, integer, object } from './parse.js';
 
 /* Saved runs must declare their resolved limits explicitly; omitted fields are not unlimited budgets. */
-export function parseSplitBudget(value: unknown): RunBudgetSnapshot {
+export function parseRunBudget(value: unknown): RunBudgetSnapshot {
   const input = object(value, 'artifact.budget');
   const maxCandidates =
     input.maxCandidates === null
