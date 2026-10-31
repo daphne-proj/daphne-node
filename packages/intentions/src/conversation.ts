@@ -114,7 +114,8 @@ export async function runIntentionConversation(
     request: {
       instructions: conversation.instructions,
       tools: intentionsTools,
-      parallel_tool_calls: false,
+      /* Batch independent reads into one reply; the shared loop executes them sequentially. */
+      parallel_tool_calls: true,
       max_output_tokens: intentionsLimits.maxOutputTokens,
       text: {
         format: {
