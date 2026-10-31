@@ -1,12 +1,12 @@
 import { createContextEngine } from '@daphne/context-engine';
 import type { ContextEngine } from '@daphne/context-engine';
+import { runEvaluatorOptimizer } from '@daphne/evaluator-optimizer';
 import { createOpenAI, ModelError } from '@daphne/llm';
-import type { ModelRequest } from '@daphne/llm';
 import type {
   IntentionsInput,
   IntentionsOptions,
+  IntentionsProposal,
   IntentionsResult,
-  IntentionTurn,
 } from './contracts.js';
 import {
   assembleEvidence,
@@ -15,44 +15,33 @@ import {
   retainDiff,
   retrievalLimitations,
 } from './context.js';
+import {
+  checkIntentionCancellation,
+  createIntentionConversation,
+  runIntentionConversation,
+} from './conversation.js';
+import type {
+  IntentionCandidate,
+  IntentionConversation,
+  IntentionConversationRuntime,
+} from './conversation.js';
 import { intentionsLimits } from './limits.js';
 import { correctionInstructions, intentionsInstructions } from './prompts.js';
 import { validateIntentions } from './proposal.js';
 import { intentionsSchema } from './schema.js';
-import { executeIntentionTool, intentionsTools } from './tools.js';
 
 type IntentionsProgress = Omit<
   IntentionsResult,
   'status' | 'proposal' | 'response' | 'error'
 >;
 
-function checkCancellation(signal: AbortSignal): void {
-  if (signal.aborted) {
-    throw new ModelError(
-      'The intentions investigation was cancelled or timed out.',
-    );
-  }
-}
-
-function modelRequest(history: Record<string, unknown>[]): ModelRequest {
-  return {
-    instructions: intentionsInstructions,
-    input: history,
-    tools: intentionsTools,
-    parallel_tool_calls: false,
-    max_output_tokens: intentionsLimits.maxOutputTokens,
-    text: {
-      format: {
-        type: 'json_schema',
-        name: 'intentions_proposal',
-        strict: true,
-        schema: intentionsSchema,
-      },
-    },
-  };
-}
-
-/* The host lends retrieval for this call and owns its lifetime, cancellation and persistence. */
+/*
+ * Investigate one supplied comparison using the host's budget and borrowed tools.
+ * The shared runner counts terminal writer proposals; tool continuations retain
+ * their own turns without consuming candidate slots. Structural validation is
+ * the acceptance criterion here. Failure and cancellation retain completed work
+ * while returning null accepted output; the host owns cleanup and publication.
+ */
 export async function runIntentions(
   input: IntentionsInput,
   options: IntentionsOptions,
@@ -60,18 +49,20 @@ export async function runIntentions(
   const {
     apiKey,
     model: modelName,
-    signal,
+    budget,
     maxInputTokens,
     executeTool,
     onModelCall,
   } = options;
-
+  const { signal, maxCandidates, deadlineAt } = budget;
   const model = createOpenAI(apiKey, modelName, signal, onModelCall);
 
   let engine: ContextEngine | null = null;
+  let writerConversation: IntentionConversation | null = null;
 
   const progress: IntentionsProgress = {
     comparison: null,
+    budget: { maxCandidates, deadlineAt },
     limits: { ...intentionsLimits, maxInputTokens },
     evidence: null,
     hunks: [],
@@ -89,6 +80,9 @@ export async function runIntentions(
     return {
       ...progress,
       evidence,
+      deliveredEvidenceIds: [
+        ...(writerConversation?.deliveredEvidenceIds ?? []),
+      ],
       calls: { ...model.calls, tools: progress.calls.tools },
       limitations: [
         ...progress.limitations,
@@ -98,7 +92,7 @@ export async function runIntentions(
   }
 
   try {
-    checkCancellation(signal);
+    checkIntentionCancellation(signal);
 
     if (!Number.isSafeInteger(maxInputTokens) || maxInputTokens < 1) {
       throw new ModelError(
@@ -120,6 +114,7 @@ export async function runIntentions(
 
     progress.limitations = initialLimitations(captured.changes);
     retainDiff(captured, engine, progress.hunks);
+    checkIntentionCancellation(signal);
 
     if (captured.changes.length === 0) {
       return {
@@ -134,160 +129,122 @@ export async function runIntentions(
       engine,
       progress.hunks.flatMap((hunk) => hunk.evidenceIds),
     );
-
-    const history: Record<string, unknown>[] = [
+    const writer = createIntentionConversation(
       {
-        role: 'user',
-        content: JSON.stringify({
-          pr: captured.pr,
-          identity: engine.identity,
-          changes: captured.changes,
-          hunks: progress.hunks,
-          limitations: progress.limitations,
-          context: initial.renderedContext,
-        }),
+        role: 'writer',
+        conversationId: 'writer',
+        candidateNumber: 1,
+        instructions: intentionsInstructions,
+        schema: { name: 'intentions_proposal', schema: intentionsSchema },
+        history: [
+          {
+            role: 'user',
+            content: JSON.stringify({
+              pr: captured.pr,
+              identity: engine.identity,
+              changes: captured.changes,
+              hunks: progress.hunks,
+              limitations: progress.limitations,
+              context: initial.renderedContext,
+            }),
+          },
+        ],
       },
-    ];
-
-    const delivered = new Set<string>();
-    const pendingEvidenceIds = new Set(initial.includedEvidenceIds);
-
-    const callIds = new Set<string>();
-    let corrections = 0;
-
-    while (model.calls.generate < intentionsLimits.maxGenerations) {
-      checkCancellation(signal);
-      const request = modelRequest(history);
-
-      if (
-        Buffer.byteLength(JSON.stringify(request)) >
-        intentionsLimits.maxRequestBytes
-      ) {
-        throw new ModelError(
-          'The complete intentions request exceeds the 8 MiB byte budget.',
-        );
-      }
-
-      /* Count the instructions, schema, tools and entire replay history on every turn. */
-      const inputTokens = await model.count(request);
-      checkCancellation(signal);
-
-      if (inputTokens > maxInputTokens) {
-        throw new ModelError(
-          'The intentions request exceeds the input token budget.',
-        );
-      }
-
-      const reply = await model.generate(request);
-      const turn: IntentionTurn = {
-        number: progress.turns.length + 1,
-        inputTokens,
-        reply,
-        validation: null,
-      };
-      progress.turns.push(turn);
-
-      /* A completed model turn confirms delivery; assembled or token-counted bytes alone do not. */
-      for (const id of pendingEvidenceIds) {
-        delivered.add(id);
-      }
-
-      pendingEvidenceIds.clear();
-      progress.deliveredEvidenceIds = [...delivered];
-
-      for (const tool of progress.tools) {
-        if (tool.status === 'complete') {
-          tool.delivered = true;
-        }
-      }
-
-      checkCancellation(signal);
-
-      history.push(...reply.output);
-      const calls = reply.functionCalls ?? [];
-
-      if (calls.length > 0) {
-        for (const call of calls) {
-          if (callIds.has(call.call_id)) {
-            throw new ModelError(
-              'The model reused a function call ID from an earlier turn.',
-            );
-          }
-
-          callIds.add(call.call_id);
-        }
-
-        for (const call of calls) {
-          checkCancellation(signal);
-
-          if (progress.calls.tools >= intentionsLimits.maxToolCalls) {
-            throw new ModelError(
-              'The intentions investigation exhausted its tool-call budget.',
-            );
-          }
-
-          progress.calls.tools += 1;
-          const record = await executeIntentionTool(call, engine, executeTool);
-          progress.tools.push(record);
-
-          if (record.status === 'failed') {
-            throw record.error;
-          }
-
-          history.push({
-            type: 'function_call_output',
-            call_id: call.call_id,
-            output: record.output,
-          });
-
-          for (const id of record.includedEvidenceIds) {
-            pendingEvidenceIds.add(id);
-          }
-        }
-
-        /* Text accompanying pending calls is not a final proposal. */
-        continue;
-      }
-
-      const validation = validateIntentions(reply.text, {
-        identity: engine.identity,
-        changes: captured.changes,
-        pr: captured.pr,
-        sources: engine.getEvidenceSnapshot().sources,
-        deliveredEvidenceIds: progress.deliveredEvidenceIds,
-      });
-      turn.validation = validation;
-
-      if (validation.status === 'valid') {
-        return {
-          ...collected(),
-          status: 'complete',
-          proposal: validation.proposal,
-          response: reply.response,
-        };
-      }
-
-      progress.diagnostics.push(...validation.diagnostics);
-
-      if (corrections >= intentionsLimits.maxCorrections) {
-        throw new ModelError(
-          'The intentions proposal remained invalid after one correction.',
-        );
-      }
-
-      corrections += 1;
-      history.push({
-        role: 'user',
-        content: JSON.stringify({
-          instruction: correctionInstructions,
-          diagnostics: validation.diagnostics,
-        }),
-      });
-    }
-
-    throw new ModelError(
-      'The intentions investigation exhausted its generation budget.',
+      initial.includedEvidenceIds,
     );
+    writerConversation = writer;
+
+    const runtime: IntentionConversationRuntime = {
+      model,
+      engine,
+      executeTool,
+      budget,
+      maxInputTokens,
+      progress,
+    };
+
+    const result = await runEvaluatorOptimizer<
+      IntentionCandidate,
+      string[],
+      { proposal: IntentionsProposal; response: Record<string, unknown> }
+    >({
+      budget,
+      async produce(production, { number }) {
+        writer.candidateNumber = number;
+
+        if (production.kind === 'revision') {
+          writer.history.push({
+            role: 'user',
+            content: JSON.stringify({
+              instruction: correctionInstructions,
+              diagnostics: production.feedback,
+            }),
+          });
+        }
+
+        const reply = await runIntentionConversation(writer, runtime);
+
+        return {
+          writerTurnNumber: reply.turnNumber,
+          deliveredEvidenceIds: reply.deliveredEvidenceIds,
+        };
+      },
+      evaluate(candidate) {
+        const turn = progress.turns[candidate.writerTurnNumber - 1];
+
+        if (!turn || turn.role !== 'writer') {
+          throw new ModelError(
+            'The intentions candidate has no recorded writer turn.',
+          );
+        }
+
+        const validation = validateIntentions(turn.reply.text, {
+          identity: captured.identity,
+          changes: captured.changes,
+          pr: captured.pr,
+          sources: runtime.engine.getEvidenceSnapshot().sources,
+          deliveredEvidenceIds: candidate.deliveredEvidenceIds,
+        });
+        turn.validation = validation;
+
+        if (validation.status === 'valid') {
+          return {
+            status: 'accept',
+            value: {
+              proposal: validation.proposal,
+              response: turn.reply.response,
+            },
+          };
+        }
+
+        progress.diagnostics.push(...validation.diagnostics);
+        return { status: 'revise', feedback: validation.diagnostics };
+      },
+    });
+
+    switch (result.status) {
+      case 'accepted':
+        checkIntentionCancellation(signal);
+        return { ...collected(), status: 'complete', ...result.value };
+      case 'failed':
+        progress.diagnostics.push('Intentions ' + result.stage + ' failed.');
+        throw result.error;
+      case 'cancelled':
+        throw new ModelError(
+          'The intentions investigation was cancelled or timed out.',
+          { cause: result.cause === null ? result.reason : result.cause },
+        );
+      case 'stopped':
+        throw new ModelError(
+          'The intentions proposal stopped: ' + result.reason,
+        );
+      case 'exhausted':
+        throw new ModelError(
+          'The intentions proposal remained invalid after ' +
+            String(result.attempts.length) +
+            ' candidates; the configured run ceiling was reached.',
+        );
+    }
   } catch (error) {
     /* Keep completed replies, tool results and evidence even when no output can be accepted. */
     progress.diagnostics.push(

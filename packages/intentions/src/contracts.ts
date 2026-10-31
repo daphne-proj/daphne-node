@@ -8,6 +8,7 @@ import type {
   ModelFunctionCall,
   ModelReply,
 } from '@daphne/llm';
+import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import type {
   ByteRange,
   Change,
@@ -99,15 +100,16 @@ export interface IntentionsInput {
 }
 
 /*
- * Gives runIntentions its model, cancellation, budget and borrowed evidence
+ * Gives runIntentions its model, shared run budget and borrowed evidence
  * executor. For example, executeTool(request) returns a ToolResult for a model
  * lookup. The executor must validate the unknown request before repository I/O;
- * runIntentions requires maxInputTokens to be a positive safe integer.
+ * runIntentions requires maxInputTokens to be a positive safe integer. Bind the
+ * executor to budget.signal so acquisition, model calls and tools share cancellation.
  */
 export interface IntentionsOptions {
   apiKey: string;
   model: string;
-  signal: AbortSignal;
+  budget: RunBudget;
   maxInputTokens: number;
   executeTool: (request: unknown) => Promise<ToolResult>;
   onModelCall?: (event: ModelCallObservation) => void;
@@ -156,6 +158,11 @@ export interface IntentionHunkEvidence {
  * on success; delivered becomes true only after a later model turn receives it.
  */
 export type IntentionToolRecord = {
+  number: number;
+  role: 'writer' | 'reviewer';
+  candidateNumber: number;
+  conversationId: string;
+  turnNumber: number;
   call: ModelFunctionCall;
   request: Record<string, unknown> | null;
 } & (
@@ -170,17 +177,33 @@ export type IntentionToolRecord = {
 );
 
 /*
- * Records one generated reply and its token cost so runIntentions can explain
- * its progress and validate a final proposal. For example, validation: null
- * means the reply requested tools, while a proposal reply carries an
- * IntentionsValidation result. Turns remain in IntentionsResult on failure.
+ * Records evidence confirmed by a completed request. Initial source IDs name
+ * source bytes in that conversation's initial message; tool receipts refer to
+ * earlier completed tools in the same conversation. Counting alone adds none.
  */
-export interface IntentionTurn {
+export type IntentionEvidenceDelivery =
+  | { kind: 'initial'; evidenceIds: readonly string[] }
+  | { kind: 'tool'; toolNumber: number };
+
+/*
+ * Preserve one provider reply with its conversation and source-delivery snapshot.
+ * For example, a writer tool turn has validation: null; terminal validation may
+ * also remain null if cancellation skips evaluation. Tool references use number,
+ * while generationNumber identifies the shared client's generation call.
+ */
+export type IntentionTurn = {
   number: number;
+  candidateNumber: number;
+  conversationId: string;
+  generationNumber: number;
+  deliveries: IntentionEvidenceDelivery[];
+  deliveredEvidenceIds: readonly string[];
   inputTokens: number;
   reply: ModelReply;
-  validation: IntentionsValidation | null;
-}
+} & (
+  | { role: 'writer'; validation: IntentionsValidation | null }
+  | { role: 'reviewer' }
+);
 
 /*
  * Returns the accepted proposal or failure together with the evidence and
@@ -191,12 +214,10 @@ export interface IntentionTurn {
  */
 export type IntentionsResult = {
   comparison: Omit<IntentionsInput, 'hunks'> | null;
+  budget: RunBudgetSnapshot;
   limits: {
     maxInputTokens: number;
     maxOutputTokens: number;
-    maxGenerations: number;
-    maxToolCalls: number;
-    maxCorrections: number;
     maxContextBytes: number;
     maxRetainedBytes: number;
     maxRequestBytes: number;

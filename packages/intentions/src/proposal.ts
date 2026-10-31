@@ -7,70 +7,20 @@ import type {
   IntentionsValidation,
   IntentionsValidationContext,
 } from './contracts.js';
-
-function object(
-  value: unknown,
-  keys: readonly string[],
-): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('Expected a JSON object.');
-  }
-
-  const result = Object.fromEntries(Object.entries(value));
-
-  if (
-    Object.keys(result).length !== keys.length ||
-    keys.some((key) => !Object.hasOwn(result, key))
-  ) {
-    throw new Error(`Expected exactly these fields: ${keys.join(', ')}.`);
-  }
-
-  return result;
-}
-
-function text(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    !value.trim() ||
-    value.includes('\0') ||
-    Buffer.from(value).toString('utf8') !== value
-  ) {
-    throw new Error('Expected nonempty UTF-8 text.');
-  }
-
-  return value;
-}
-
-function array(value: unknown, minimum = 0): unknown[] {
-  if (!Array.isArray(value) || value.length < minimum) {
-    throw new Error(
-      `Expected an array with at least ${String(minimum)} items.`,
-    );
-  }
-
-  return value;
-}
-
-function offset(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error('Citation offsets must be nonnegative safe integers.');
-  }
-
-  return value;
-}
+import { intentionsOutputSchema } from './schema.js';
+import type {
+  RawIntentionCitation,
+  RawIntentionClaim,
+  RawIntentionReason,
+} from './schema.js';
 
 function citation(
-  value: unknown,
+  value: RawIntentionCitation,
   context: IntentionsValidationContext,
   side?: Side,
 ): IntentionCitation {
-  if (typeof value !== 'object' || value === null || !('kind' in value)) {
-    throw new Error('Expected a code or change citation.');
-  }
-
   if (value.kind === 'change') {
-    const input = object(value, ['kind', 'changeId']);
-    const changeId = text(input.changeId);
+    const { changeId } = value;
 
     if (!context.changes.some((change) => change.id === changeId)) {
       throw new Error(`Unknown cited change: ${changeId}.`);
@@ -79,12 +29,7 @@ function citation(
     return { kind: 'change', changeId };
   }
 
-  if (value.kind !== 'code') {
-    throw new Error('Unknown citation kind.');
-  }
-
-  const input = object(value, ['kind', 'evidenceId', 'range']);
-  const evidenceId = text(input.evidenceId);
+  const { evidenceId, range } = value;
   const retained = context.sources.find(
     (source) => source.evidenceId === evidenceId,
   );
@@ -111,11 +56,6 @@ function citation(
     );
   }
 
-  const selected = object(input.range, ['startByte', 'endByte']);
-  const range = {
-    startByte: offset(selected.startByte),
-    endByte: offset(selected.endByte),
-  };
   const bytes = Buffer.from(sourceText);
   const start = range.startByte - ref.range.startByte;
   const end = range.endByte - ref.range.startByte;
@@ -150,61 +90,37 @@ function citation(
 }
 
 function claim(
-  value: unknown,
+  value: RawIntentionClaim,
   context: IntentionsValidationContext,
   side: Side,
 ): IntentionClaim {
-  const input = object(value, ['text', 'citations']);
-
   return {
-    text: text(input.text),
-    citations: array(input.citations, 1).map((item) =>
-      citation(item, context, side),
-    ),
+    text: value.text,
+    citations: value.citations.map((item) => citation(item, context, side)),
   };
 }
 
 function reason(
-  value: unknown,
+  value: RawIntentionReason,
   context: IntentionsValidationContext,
 ): IntentionReason {
-  if (typeof value !== 'object' || value === null || !('basis' in value)) {
-    throw new Error('Expected a stated, inferred or unknown reason.');
-  }
-
   if (value.basis === 'unknown') {
-    object(value, ['basis']);
     return { basis: 'unknown' };
   }
-
-  const input = object(value, ['basis', 'text', 'citations']);
-  const explanation = text(input.text);
-  const references = array(input.citations, 1);
 
   if (value.basis === 'inferred') {
     return {
       basis: 'inferred',
-      text: explanation,
-      citations: references.map((item) => citation(item, context)),
+      text: value.text,
+      citations: value.citations.map((item) => citation(item, context)),
     };
-  }
-
-  if (value.basis !== 'stated') {
-    throw new Error('Unknown reason basis.');
   }
 
   return {
     basis: 'stated',
-    text: explanation,
-    citations: references.map((item) => {
-      const reference = object(item, ['field', 'quote']);
-      const { field } = reference;
-      const quote = text(reference.quote);
-
-      if (
-        (field !== 'title' && field !== 'body') ||
-        !context.pr[field]?.includes(quote)
-      ) {
+    text: value.text,
+    citations: value.citations.map(({ field, quote }) => {
+      if (!context.pr[field]?.includes(quote)) {
         throw new Error(
           'An author-stated reason must quote the captured PR title or body exactly.',
         );
@@ -215,25 +131,50 @@ function reason(
   };
 }
 
+/*
+ * Decode and validate a writer proposal, then resolve citations from delivered
+ * evidence. For example, a valid raw code range gains its exact source bytes.
+ * Shape failures include field paths; contextual failures remain diagnostics,
+ * and neither path mutates text or trusts model-supplied source content.
+ */
 export function validateIntentions(
   textInput: string,
   context: IntentionsValidationContext,
 ): IntentionsValidation {
+  let value: unknown;
+
   try {
-    const parsed: unknown = JSON.parse(textInput);
-    const input = object(parsed, ['intentions', 'warnings']);
-    const intentions = array(
-      input.intentions,
-      context.changes.length === 0 ? 0 : 1,
-    ).map((value): Intention => {
-      const card = object(value, [
-        'title',
-        'changeIds',
-        'before',
-        'after',
-        'why',
-      ]);
-      const changeIds = array(card.changeIds, 1).map(text);
+    value = JSON.parse(textInput);
+  } catch (error) {
+    return {
+      status: 'invalid',
+      diagnostics: [
+        error instanceof Error ? error.message : 'Invalid intentions JSON.',
+      ],
+    };
+  }
+
+  const parsed = intentionsOutputSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return {
+      status: 'invalid',
+      diagnostics: parsed.error.issues.map(
+        (issue) =>
+          `${issue.path.map(String).join('.') || 'proposal'}: ${issue.message}`,
+      ),
+    };
+  }
+
+  try {
+    const input = parsed.data;
+
+    if (context.changes.length > 0 && input.intentions.length === 0) {
+      throw new Error('A nonempty inventory requires at least one intention.');
+    }
+
+    const intentions = input.intentions.map((card): Intention => {
+      const { changeIds } = card;
 
       if (
         new Set(changeIds).size !== changeIds.length ||
@@ -247,7 +188,7 @@ export function validateIntentions(
       }
 
       return {
-        title: text(card.title),
+        title: card.title,
         changeIds,
         before: claim(card.before, context, 'base'),
         after: claim(card.after, context, 'head'),
@@ -257,7 +198,7 @@ export function validateIntentions(
 
     return {
       status: 'valid',
-      proposal: { intentions, warnings: array(input.warnings).map(text) },
+      proposal: { intentions, warnings: input.warnings },
     };
   } catch (error) {
     return {

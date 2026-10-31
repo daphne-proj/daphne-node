@@ -4,6 +4,8 @@ import { loadEnvFile } from 'node:process';
 import { parseArgs } from 'node:util';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { analyzePullRequestIntentions } from '@daphne/pr-review/intentions';
+import { createRunBudget } from '@daphne/evaluator-optimizer';
+import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 import type { ModelCallObservation } from '@daphne/llm';
 import { formatCommandOutput } from './command-output.js';
 import type { CommandOutputRow } from './command-output.js';
@@ -11,7 +13,7 @@ import { CliInputError, describeFailure } from './errors.js';
 import { serializeInvestigation } from './intentions-report.js';
 import { createRunDirectory, writeArtifact } from './output.js';
 
-interface IntentionsOptions {
+interface IntentionsOptions extends RunBudgetPolicy {
   pr: string;
   output: string;
   model: string;
@@ -30,6 +32,8 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
         output: { type: 'string' },
         model: { type: 'string', default: 'gpt-6-sol' },
         'max-input-tokens': { type: 'string', default: '256000' },
+        'max-candidates': { type: 'string' },
+        'run-timeout-ms': { type: 'string' },
       },
     });
     const maxInputTokens = Number(values['max-input-tokens']);
@@ -50,17 +54,23 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
       output: values.output,
       model: values.model,
       maxInputTokens,
+      ...(values['max-candidates'] === undefined
+        ? {}
+        : { maxCandidates: Number(values['max-candidates']) }),
+      ...(values['run-timeout-ms'] === undefined
+        ? {}
+        : { timeoutMs: Number(values['run-timeout-ms']) }),
     };
   } catch {
     throw new CliInputError(
-      'Usage: intentions --pr URL --output NEW_DIRECTORY [--model MODEL] [--max-input-tokens NUMBER]',
+      'Usage: intentions --pr URL --output NEW_DIRECTORY [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
 
 /*
  * Runs the PR workflow for the CLI, for example after parseIntentionsArgs(args).
- * The output directory must be new. Cancellation or the ten-minute deadline
+ * The output directory must be new. Cancellation or the optional run deadline
  * stops the workflow, which closes Git before returning its collected work.
  * Save that work even on failure and print indented JSON; exit 0 requires both
  * a complete workflow and successful artifact publication. Setup errors throw
@@ -70,6 +80,19 @@ export async function runIntentionsPr(
   options: IntentionsOptions,
   signal: AbortSignal,
 ): Promise<number> {
+  let budget;
+
+  try {
+    budget = createRunBudget(options, signal);
+  } catch (error) {
+    if (error instanceof RangeError) {
+      throw new CliInputError(error.message);
+    }
+
+    throw error;
+  }
+
+  budget.signal.throwIfAborted();
   const ref = parsePullRequestUrl(options.pr);
 
   if (existsSync('.env')) {
@@ -85,11 +108,6 @@ export async function runIntentionsPr(
   const directory = await createRunDirectory(options.output);
   const artifactPath = join(directory, 'run.json');
   const githubToken = process.env.GITHUB_TOKEN;
-  const hostDeadlineMs = 600_000;
-  const runSignal = AbortSignal.any([
-    signal,
-    AbortSignal.timeout(hostDeadlineMs),
-  ]);
   const modelCalls: ModelCallObservation[] = [];
   const startedAt = new Date();
   const startedMs = performance.now();
@@ -108,7 +126,7 @@ export async function runIntentionsPr(
     apiKey,
     model: options.model,
     maxInputTokens: options.maxInputTokens,
-    signal: runSignal,
+    budget,
     ...(githubToken === undefined ? {} : { githubToken }),
     onModelCall: (call) => {
       modelCalls.push(call);
@@ -123,7 +141,10 @@ export async function runIntentionsPr(
     pr: ref.url,
     model: options.model,
     maxInputTokens: options.maxInputTokens,
-    hostDeadlineMs,
+    budget: {
+      maxCandidates: budget.maxCandidates,
+      deadlineAt: budget.deadlineAt,
+    },
     metadata: result.metadata,
     identity: result.identity,
     changes: result.changes,
@@ -161,7 +182,7 @@ export async function runIntentionsPr(
       directory,
       'run.json',
       report,
-      report.status === 'complete' ? runSignal : undefined,
+      report.status === 'complete' ? budget.signal : undefined,
     );
   } catch (error) {
     /*

@@ -89,10 +89,20 @@ function toolRequest(call: ModelFunctionCall): Record<string, unknown> {
   return Object.freeze({ ...args, name: call.name });
 }
 
+/*
+ * Execute a model lookup through the pinned, budget-bound executor and retain its
+ * evidence. Origin links the result to its requesting conversation and turn; for
+ * example, a writer read stays undelivered until that writer receives its output.
+ * Return execution or validation failures as records so completed work survives.
+ */
 export async function executeIntentionTool(
   call: ModelFunctionCall,
   engine: ContextEngine,
   executeTool: IntentionsOptions['executeTool'],
+  origin: Pick<
+    IntentionToolRecord,
+    'number' | 'role' | 'candidateNumber' | 'conversationId' | 'turnNumber'
+  >,
 ): Promise<IntentionToolRecord> {
   let request: Record<string, unknown> | null = null;
   let result: ToolResult | null = null;
@@ -124,6 +134,7 @@ export async function executeIntentionTool(
     });
 
     return {
+      ...origin,
       status: 'complete',
       call,
       request,
@@ -133,6 +144,6 @@ export async function executeIntentionTool(
       delivered: false,
     };
   } catch (error) {
-    return { status: 'failed', call, request, result, error };
+    return { ...origin, status: 'failed', call, request, result, error };
   }
 }
