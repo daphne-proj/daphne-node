@@ -40,25 +40,6 @@ test('replays every output item and sequential tool result, returning the retain
   );
 });
 
-test.each(['same reply', 'later reply'] as const)(
-  'rejects duplicate call IDs in the %s before executing that batch',
-  async (location) => {
-    const replies =
-      location === 'same reply'
-        ? [replyWithCalls('a', 'a')]
-        : [replyWithCalls('a'), replyWithCalls('a')];
-    const harness = conversationHarness(replies);
-
-    await expect(
-      runModelConversation(harness.conversation, harness.options),
-    ).rejects.toThrow(/reused.*call ID/);
-    expect(harness.turns).toHaveLength(replies.length);
-    expect(harness.executeTool).toHaveBeenCalledTimes(
-      location === 'same reply' ? 0 : 1,
-    );
-  },
-);
-
 test('retains completed tools and replies when a later generation fails', async () => {
   const harness = conversationHarness([replyWithCalls('a')]);
   const failure = new Error('provider failed');

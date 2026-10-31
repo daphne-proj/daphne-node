@@ -23,7 +23,7 @@ export interface IntentionCandidate {
 }
 
 /*
- * Keep replay, call IDs and unconfirmed delivery local to one conversation.
+ * Keep replay and unconfirmed delivery local to one conversation.
  * A continuing writer updates candidateNumber before each proposal attempt;
  * a reviewer uses a separate instance even when both borrow the same runtime.
  */
@@ -75,7 +75,6 @@ export function createIntentionConversation(
       { kind: 'initial', evidenceIds: [...initialEvidenceIds] },
     ],
     pendingTools: [],
-    callIds: new Set(),
   };
 }
 

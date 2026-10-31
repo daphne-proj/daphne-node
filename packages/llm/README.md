@@ -39,7 +39,7 @@ const reply = await model.generate(request);
 
 ## Main types and response behavior
 
-`runModelConversation(conversation, options)` continues one caller-owned history until a terminal reply. `ModelConversation` contains only `history` and the set of previously seen `callIds`. `ModelConversationOptions<Turn>` borrows an existing client and signal, request settings without `input`, positive validated `maxInputTokens`/`maxRequestBytes` capacities, and two callbacks:
+`runModelConversation(conversation, options)` continues one caller-owned history until a terminal reply. `ModelConversation` contains only `history`. `ModelConversationOptions<Turn>` borrows an existing client and signal, request settings without `input`, positive validated `maxInputTokens`/`maxRequestBytes` capacities, and two callbacks:
 
 - `recordTurn(reply, inputTokens): Turn` synchronously retains each completed reply and returns its exact reference. It can also confirm domain-specific delivery. Recording failures propagate; this callback is required work, unlike the optional model-call observer.
 - `executeTool(call, turn): Promise<string>` executes a requested tool using that retained turn for any diagnostic records, then returns serialized output. The executor and client must honor the supplied signal. Failures propagate unchanged.
@@ -51,7 +51,6 @@ import { runModelConversation } from '@daphne/llm';
 
 const conversation = {
   history: [{ role: 'user', content: 'Investigate this change.' }],
-  callIds: new Set<string>(),
 };
 
 const turn = await runModelConversation(conversation, {
@@ -65,7 +64,7 @@ const turn = await runModelConversation(conversation, {
 });
 ```
 
-The helper checks serialized request size, counts the complete request on every turn, generates, records the reply, and appends all provider output before executing tools sequentially. It rejects reused call IDs within the same conversation. Tool results are appended as native `function_call_output` items. The supplied history and call-ID set are updated in place and can be reused after the caller appends repair feedback; use separate state for separate conversations.
+The helper checks serialized request size, counts the complete request on every turn, generates, records the reply, and appends all provider output before executing tools sequentially. Tool results are appended as native `function_call_output` items using the provider's call IDs. The supplied history is updated in place and can be reused after the caller appends repair feedback; use separate histories for separate conversations.
 
 Completed terminal turns are returned even if cancellation arrived with generation, allowing an outer evaluator to retain the candidate and reject acceptance. Aborted tool-request turns are recorded but start no tools. Completed replies/tool outputs remain available after later failure. The helper adds no timeout, call quota, retry, candidate counting or domain validation. Intentions wraps it with evidence delivery and writer/reviewer records; semantic split retains its direct generation path and reuse of the unchanged initial token count.
 

@@ -66,7 +66,6 @@ export function conversationHarness(replies: ModelReply[]) {
 
   const conversation: ModelConversation = {
     history: [{ role: 'user', content: 'Investigate.' }],
-    callIds: new Set(),
   };
 
   const recordTurn = vi.fn((reply: ModelReply, inputTokens: number) => {

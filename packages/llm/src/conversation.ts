@@ -9,12 +9,10 @@ import type {
 
 /*
  * One caller-owned conversation, continued in place across terminal replies.
- * For example, append repair feedback to history before calling again; keep the
- * same call-ID set so later replies cannot reuse an earlier tool invocation.
+ * For example, append repair feedback to history before calling again.
  */
 export interface ModelConversation {
   history: Record<string, unknown>[];
-  callIds: Set<string>;
 }
 
 /*
@@ -86,22 +84,11 @@ export async function runModelConversation<Turn>(
       return turn;
     }
 
-    signal.throwIfAborted();
-
-    for (const call of calls) {
-      if (conversation.callIds.has(call.call_id)) {
-        throw new ModelError(
-          'The model reused a function call ID in this conversation.',
-        );
-      }
-
-      conversation.callIds.add(call.call_id);
-    }
-
     for (const call of calls) {
       signal.throwIfAborted();
 
       const output = await executeTool(call, turn);
+
       conversation.history.push({
         type: 'function_call_output',
         call_id: call.call_id,
