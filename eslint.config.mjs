@@ -78,6 +78,7 @@ export default defineConfig(
     '**/coverage/**',
     '**/fixtures/**',
     '.agents/**',
+    'outputs/**',
   ]),
   {
     files: ['**/*.{ts,mjs}'],
