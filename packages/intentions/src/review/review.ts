@@ -1,3 +1,4 @@
+import { ContextLimitError } from '@daphne/context-engine';
 import { ModelError } from '@daphne/llm';
 import type { ContextNotice } from '@daphne/review-evidence/contracts';
 import type { IntentionHunkEvidence, IntentionsInput } from '../contracts.js';
@@ -7,11 +8,13 @@ import {
   createIntentionConversation,
   runIntentionConversation,
 } from '../conversation.js';
+import { intentionsLimits } from '../limits.js';
 import type {
   IntentionCandidate,
   IntentionConversationRuntime,
 } from '../conversation.js';
 import { intentionReviewInstructions } from './prompts.js';
+import { toReviewProposal } from './input.js';
 import { intentionReviewSchema } from './schema.js';
 import {
   deriveIntentionReviewDecision,
@@ -29,6 +32,9 @@ export interface IntentionReviewRuntime extends IntentionConversationRuntime {
  * the same client, evidence store and budget. Seed actual writer-delivered source
  * content, not its reasoning or prior verdicts. A malformed/failed review throws
  * without retry; the conversation has already retained completed replies/tools.
+ * Keep the initial diff in a stable first message and the current candidate in
+ * the next one. Both packets must fit the same context allowance together, and
+ * their sources must exactly match the candidate's delivery snapshot.
  */
 export async function reviewIntentionCandidate(
   candidate: IntentionCandidate,
@@ -46,10 +52,48 @@ export async function reviewIntentionCandidate(
     );
   }
 
-  const initial = assembleEvidence(
+  const diffIds = new Set(runtime.hunks.flatMap((hunk) => hunk.evidenceIds));
+  const deliveredIds = new Set(candidate.deliveredEvidenceIds);
+
+  if (
+    deliveredIds.size !== candidate.deliveredEvidenceIds.length ||
+    [...diffIds].some((id) => !deliveredIds.has(id))
+  ) {
+    throw new ModelError(
+      'Review evidence must contain every initial diff source without duplicate IDs.',
+    );
+  }
+
+  const initial = assembleEvidence(runtime.engine, [...diffIds], []);
+  const supplemental = assembleEvidence(
     runtime.engine,
-    candidate.deliveredEvidenceIds,
+    candidate.deliveredEvidenceIds.filter((id) => !diffIds.has(id)),
   );
+
+  if (
+    initial.byteCount + supplemental.byteCount >
+    intentionsLimits.maxContextBytes
+  ) {
+    throw new ContextLimitError(
+      'packet',
+      'Combined reviewer evidence exceeds the context packet capacity.',
+    );
+  }
+
+  const includedIds = new Set([
+    ...initial.includedEvidenceIds,
+    ...supplemental.includedEvidenceIds,
+  ]);
+
+  if (
+    includedIds.size !== deliveredIds.size ||
+    candidate.deliveredEvidenceIds.some((id) => !includedIds.has(id))
+  ) {
+    throw new ModelError(
+      'Reviewer packets must contain exactly the writer-delivered evidence.',
+    );
+  }
+
   const conversation = createIntentionConversation(
     {
       role: 'reviewer',
@@ -65,14 +109,20 @@ export async function reviewIntentionCandidate(
             pr: runtime.input.pr,
             changes: runtime.input.changes,
             hunks: runtime.hunks,
-            limitations: runtime.limitations,
-            proposal: writer.validation.proposal,
             context: initial.renderedContext,
+          }),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            limitations: runtime.limitations,
+            proposal: toReviewProposal(writer.validation.proposal),
+            context: supplemental.renderedContext,
           }),
         },
       ],
     },
-    initial.includedEvidenceIds,
+    candidate.deliveredEvidenceIds,
   );
 
   const reply = await runIntentionConversation(conversation, runtime);

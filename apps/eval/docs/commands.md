@@ -153,3 +153,70 @@ Use the new CLI on PRs 1–8 in `daphne-proj/pr-review-test`. Run cases explicit
 For each artifact, record the pinned commits from `identity` and captured PR title/body from `metadata`. Inspect the cards against both revisions, noting missing or duplicate intentions, inaccurate before/after claims, unsupported reasons, citation quality and reported omissions. Include failed runs and their diagnostics. Record native `modelCalls[].usage` and per-call/overall timing; missing usage is unknown. Split pair labels cannot grade explanation quality, and saved diff-only fixtures cannot provide unchanged-code investigation.
 
 Compare repeated runs only when pinned revisions and captured PR metadata match. Record qualitative findings rather than treating structural acceptance as semantic correctness. Live quality remains unverified until these runs and their human review are recorded.
+
+## Compare intentions token efficiency
+
+Keep payload efficiency separate from reviewer-quality changes. Hold writer and
+reviewer instructions, schemas, models, acceptance policy, evidence requirements
+and budgets fixed. Both baseline and optimized arms must use the current batched
+tool setting; the older nine-run experiment predates batching and is diagnostic
+evidence, not a comparable live baseline.
+
+First measure saved trajectories offline in a fresh ignored
+`outputs/intentions-token-efficiency-<UTC>/` directory. Compare the original
+payload, compact reviewer citations, current-page tool navigation and stable
+reviewer message layout as separate stages. Record serialized request bytes by
+role, source/navigation bytes, query repetitions and artifact-reader results.
+Preserve the original artifacts. Reconstruction holds model replies and tool
+choices fixed: fewer bytes do not establish fewer tokens, lower cost or preserved
+semantic quality. Include all writer-delivered sources, even those no card cites.
+
+Before paid execution, prepare a manifest with exact PR URLs, target/base/head
+commits, captured PR metadata, baseline/candidate source snapshots and hashes,
+prompt/schema hashes, runtime versions, settings, fresh output paths and execution
+order. Confirm the selected models remain available. Acquire the pinned revisions
+and compare metadata before generation; the PR CLI resolves current remote state,
+so a URL alone does not freeze the case. Stop on mismatches and verify the resulting
+artifact again. A dirty-state flag alone is not a source snapshot.
+
+The first proposed pilot is three known PRs × two arms × one run: **six workflows**
+and **at most six independent judgments**, requiring authorization for that
+manifest before calls begin. Use `gpt-6-sol` with low reasoning, 256,000 input
+capacity, 16,384 output capacity, three candidates and a shared 600,000 ms deadline
+per workflow. Use the unchanged intentions judge with `gpt-6.1-sol` and its existing
+600,000 ms timeout. Run sequentially and alternate which arm goes first by PR;
+record cache reuse conditions without claiming fresh caches. Build each isolated
+source state before using the compiled CLI with `--max-candidates 3` and
+`--run-timeout-ms 600000`. These limits do not impose a fixed number of model
+continuations or a dollar ceiling.
+
+Retain failed workflows and judge failures without automatic replacement samples.
+Revalidate accepted artifacts with `loadIntentionArtifact`, then use the existing
+judge command and rubric. Record human/source inspection effort separately; add
+no unallocated model adjudication. Report clean independently assessed accepted
+outputs per scheduled workflow, inadequate accepted outputs, unassessed outputs
+and failures. One run per PR is a pilot, not a general quality estimate.
+
+For every scheduled run, report writer, reviewer and writer-revision usage;
+generation counts, tools per generation, terminal candidates, failures and
+latency; and separate independent-judge consumption. Count-endpoint calls are
+requests, not another copy of generation usage. Read cache writes from raw
+provider responses because normalized `TokenUsage` does not retain that field.
+Missing usage breakdowns remain unknown. Calculate dollars only with verified
+rates and disjoint ordinary-input, cache-read and cache-write quantities; never
+charge inclusive input again or treat cached input as free.
+
+Batching can be measured separately with three additional baseline workflows,
+changing only `parallel_tool_calls` to false, under a separate allocation. An
+explicit-cache experiment also needs its own allocation and a model-specific,
+isolated patch after verifying current count/generate support. Keep implicit
+continuation caching, record the request shape and cache writes as well as reads,
+and do not ship a global provider option or silently substitute models. Stable
+prefix bytes alone do not prove a cache hit.
+
+Record three distinct conclusions: mechanical payload reduction, observed live
+efficiency and independently assessed quality. Reduced observed input or cost with
+preserved provenance and no confirmed material quality regression supports further
+use. Missing assessments, inconsistent results or a worse quality/cost tradeoff
+remain inconclusive; byte reduction or cache-hit percentage alone cannot select
+the winning workflow.

@@ -18,6 +18,7 @@ export type {
   TokenBudget,
   DiffContextHunk,
   DiffContextPage,
+  QueryPageSelection,
   AssembleInput,
   ContextPacket,
 } from './contracts.js';

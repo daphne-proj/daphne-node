@@ -76,10 +76,25 @@ export interface DiffContextPage {
   readonly inputTokens: number;
 }
 
-/* Order evidence IDs by priority because assembly admits a whole prefix and reports the remaining selected IDs as omitted. */
+/*
+ * Select navigation from one retained page without changing source selection.
+ * Assembly requires a known query and its original zero-based page index; for
+ * example, pageIndex: 1 selects the second page even when the first is omitted.
+ */
+export interface QueryPageSelection {
+  readonly queryId: string;
+  readonly pageIndex: number;
+}
+
+/*
+ * Order evidence IDs by priority because assembly admits a whole prefix and
+ * reports the rest as omitted. queryPages selects navigation independently:
+ * absent includes all history, [] includes none, and duplicate pairs fail.
+ */
 export interface AssembleInput {
   readonly evidenceIds: readonly string[];
   readonly maxBytes: number;
+  readonly queryPages?: readonly QueryPageSelection[];
 }
 
 /* Pair the exact rendered payload with its omissions and measurements so callers can distinguish selected evidence from included evidence. */

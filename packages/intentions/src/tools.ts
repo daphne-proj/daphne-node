@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import type { ContextEngine } from '@daphne/context-engine';
 import type { ModelFunctionCall, ModelFunctionTool } from '@daphne/llm';
 import type { ToolResult } from '@daphne/review-evidence/contracts';
@@ -124,7 +125,23 @@ export async function executeIntentionTool(
     const evidenceIds = result.entries.flatMap((entry) =>
       entry.kind === 'source' ? [engine.addSource(entry.source)] : [],
     );
-    const packet = assembleEvidence(engine, evidenceIds);
+    const normalizedRequest = { ...result.request, cursor: null };
+    const query = engine
+      .getEvidenceSnapshot()
+      .queries.find((query) =>
+        isDeepStrictEqual(query.request, normalizedRequest),
+      );
+    /* A retry can refer to an earlier page, so select by cursor, not position. */
+    const cursor = result.request.cursor;
+    const pageIndex = query?.pages.findIndex((page) => page.cursor === cursor);
+
+    if (!query || pageIndex === undefined || pageIndex < 0) {
+      throw new Error('The retained tool result has no matching query page.');
+    }
+
+    const packet = assembleEvidence(engine, evidenceIds, [
+      { queryId: query.queryId, pageIndex },
+    ]);
     const output = JSON.stringify({
       request: result.request,
       completeness: result.completeness,

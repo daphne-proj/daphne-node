@@ -47,6 +47,14 @@ and generated provider JSON Schema; `contracts.ts` infers report types;
 `validation.ts` checks contextual integrity and derives the decision;
 `review.ts` coordinates one review through the intentions conversation wrapper.
 
+`input.ts` projects the validated proposal into the reviewer's input. Code
+citations retain their evidence IDs and absolute UTF-8 byte ranges, while the
+source packet supplies the actual bytes once per evidence ID. Repeated citations
+therefore do not repeat source text inside every card. All writer-delivered
+evidence remains available, including uncited source needed to detect omissions.
+Public results, saved validated proposals and independent judge packets retain
+their enriched citations with source text.
+
 ## Conversation boundaries
 
 Writer and reviewer share one model client, evidence store, and run budget, but
@@ -62,6 +70,20 @@ and feedback go to its generator. Daphne retains the full writer history instead
 of rebuilding a prompt containing previous result texts. Fresh review context
 avoids carrying forward the writer's reasoning or earlier verdicts; it does not
 guarantee an unbiased or correct assessment.
+
+The reviewer's first user message contains only the pinned identity, PR metadata,
+inventory, hunks and original diff sources. Its bytes stay identical across
+candidates in the same run. The next message supplies current limitations, the
+compact proposal, additional writer-delivered sources and the full navigation
+snapshot. Each source ID appears in exactly one initial packet, and delivery
+receipts preserve the writer's original ID order. Missing diff sources fail
+instead of introducing retained evidence the writer never received.
+
+Both evidence packets share the existing 8 MiB context capacity; splitting the
+messages does not grant a second allowance. Complete-request byte and token
+limits still apply. This layout makes the prefix stable but does not establish
+provider cache reuse or a cost reduction. Model-specific cache experiments belong
+in the separate evaluation procedure, not a global provider option.
 
 Tool continuations may
 require several LLM calls; only terminal writer proposals consume candidate
