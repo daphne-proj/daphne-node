@@ -55,6 +55,39 @@ evidence remains available, including uncited source needed to detect omissions.
 Public results, saved validated proposals and independent judge packets retain
 their enriched citations with source text.
 
+## Review procedure and proportional effort
+
+The reviewer checks each card's material claims and scope, then checks whether
+the citations attached to each field actually support those claims. Truth and
+citation sufficiency are separate: a true statement can still need a better
+citation. Conversely, a short range can be sufficient. A visible call can support
+an ordering claim without a separate read of the callee's implementation; a
+claim about the callee's internal behavior may require that read.
+
+The reviewer then distinguishes an author-stated purpose from a supported
+inference or unknown motivation, and examines consequential coverage and
+coherence across the proposal. Material findings explain what behavior, condition,
+capability or relationship the reader would misunderstand, or what support for a
+material claim is missing. Incidental file narration and wording preferences do
+not justify blocking acceptance. Qualifications must preserve meaningful coverage.
+
+Repairs follow the same contract as the writer validator: `before` code citations
+use BASE, `after` code citations use HEAD, inferred reasons can cite either, and
+stated reasons quote captured PR text exactly. For example, a comparison that needs
+old code should cite it in `before` or an inferred reason, rather than adding a
+BASE citation to `after`. Source merely present in the shared ledger is not
+writer-citable; feedback transfers newly delivered reviewer evidence, including
+source supporting proposal-wide omissions.
+
+The procedure starts with delivered source and requests additional context only
+for material gaps. It requires concise findings in the existing report, with no
+new claim ledger, extra critic or reasoning transcript. It still checks every
+candidate and all five dimensions. Missing evidence can be repaired through
+retrieval or supported qualification; unresolved stops are reserved for material
+correctness that cannot be restored. These instructions aim to reduce both missed
+defects and unnecessary repair work, but live quality and token savings require
+the separate controlled comparison described in the evaluation guide.
+
 ## Conversation boundaries
 
 Writer and reviewer share one model client, evidence store, and run budget, but

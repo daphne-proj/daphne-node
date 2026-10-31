@@ -220,3 +220,69 @@ preserved provenance and no confirmed material quality regression supports furth
 use. Missing assessments, inconsistent results or a worse quality/cost tradeoff
 remain inconclusive; byte reduction or cache-hit percentage alone cannot select
 the winning workflow.
+
+## Compare reviewer instructions on the optimized workflow
+
+Use the token-efficient implementation in both arms, changing only reviewer
+instructions. Preserve the writer prompt, judge rubric, schemas, models,
+reasoning, batched tools, delivery rules and budgets. For uncommitted work, retain
+source hashes and a patch including new files; HEAD alone cannot identify the
+baseline. Build the two states separately when evaluation is authorized. The old
+nine-run experiment is development evidence, not this comparison's baseline.
+
+Before evaluation, have a selector who is not authoring the prompt choose and pin
+six unexamined PRs across at least two unrelated repositories. Keep related change
+families and near-duplicates together. Include small and complex changes with
+different rationale and evidence needs; select by those properties, not observed
+failures. Keep holdout source and outcomes away from the prompt author until the
+candidate is frozen. A different PR number alone does not make a case unseen.
+
+The proposed allocation is six known-case workflows (three original PRs × two
+arms), followed by 24 holdout workflows (six PRs × two arms × two repetitions).
+Use the same settings as the token-efficiency pilot: `gpt-6-sol`, low reasoning,
+256,000 input and 16,384 output capacity, three candidates and 600,000 ms per
+workflow. The unchanged independent judge uses `gpt-6.1-sol` and its existing
+600,000 ms timeout. Freeze exact source/prompt hashes, case metadata, assessment
+rules, counterbalanced or randomized execution order, concurrency, output paths
+and an authorized allocation before calls. These 30 workflows are a separate
+proposal, not an extension authorized by the six-run efficiency pilot.
+
+Allow at most 60 independent judgments for first valid drafts and distinct
+accepted outputs; reuse a judgment only when the full candidate packet is
+identical. Accepted outputs use the existing artifact reader and judge command.
+First drafts use a separately labeled diagnostic assessment with the same rubric,
+runner and parser after revalidation against that turn's delivered evidence.
+Resolve imports against the relevant isolated build; do not manufacture accepted
+artifacts or expose runtime feedback, arm labels or model identity to the judge.
+Failed workflows can have diagnostic first-draft assessments, never accepted
+output assessments. Retain judge failures and evidence limitations explicitly.
+
+Name and budget a separate source adjudicator for every structurally valid
+evaluated candidate, at most 90 in this allocation. Hide runtime and judge
+findings until initial adequacy classifications are recorded, then reconcile
+disagreements. Log additional source inspection and whether the adjudicator is a
+person or a fresh-context model; allocate any paid adjudication calls separately.
+If this inspection is unaffordable, reduce the protocol before unblinding. Do not
+inspect only suspicious repairs or treat unexamined candidates as adequate.
+
+Report known and unseen results separately, including per-case variation. The
+primary measure is source-adjudicated adequate accepted outputs per scheduled
+workflow; judge-clean output yield remains a separate diagnostic. Also report
+materially defective acceptances, unnecessary revisions among adjudicated adequate
+candidates, true repairs, introduced defects, unresolved outcomes, failures and
+assessment gaps. Distinguish pre-existing defects noticed later from defects
+introduced by repair. Unknown classifications remain unknown, and rates with no
+eligible denominator are undefined. Keep ordinal dimension scores separate.
+
+Compare full workflow usage and latency by role, including failed runs and reviews
+of already adequate drafts, using the cache and cost accounting described above.
+Improved unseen adequate-result yield without an observed increase in material
+false acceptance or unnecessary revision supports adoption; sparse or conflicting
+results, incomplete assessment or disproportionate cost remain inconclusive.
+Keep the frozen prompt throughout holdout execution and do not replace failed
+sample slots. Once a holdout result informs prompt changes, that set becomes
+development evidence and a future generalization claim needs new unseen cases.
+
+Implementation and source review do not execute or qualify this protocol. When
+the user defers testing, record checks and live evaluation as unrun; complete the
+case manifest and obtain authorization before subsequent paid execution.
