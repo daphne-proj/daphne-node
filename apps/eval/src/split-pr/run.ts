@@ -47,6 +47,29 @@ export async function runSplitEvaluation(
   positiveInteger(options.trials, '--trials');
   positiveInteger(options.concurrency, '--concurrency');
   positiveInteger(options.maxInputTokens, '--max-input-tokens');
+
+  if (options.maxCandidates !== undefined) {
+    positiveInteger(options.maxCandidates, '--max-candidates');
+  }
+
+  if (options.timeoutMs !== undefined) {
+    positiveInteger(options.timeoutMs, '--run-timeout-ms');
+
+    if (options.timeoutMs > 2_147_483_647) {
+      throw new EvaluationError(
+        '--run-timeout-ms: must not exceed 2147483647.',
+      );
+    }
+  }
+
+  const budgetPolicy = {
+    ...(options.maxCandidates === undefined
+      ? {}
+      : { maxCandidates: options.maxCandidates }),
+    ...(options.timeoutMs === undefined
+      ? {}
+      : { timeoutMs: options.timeoutMs }),
+  };
   const outputDirectory = resolve(options.outputDirectory);
 
   if (await isGoldenDatasetPath(outputDirectory)) {
@@ -89,6 +112,7 @@ export async function runSplitEvaluation(
       model: options.model,
       maxInputTokens: options.maxInputTokens,
     },
+    budgetPolicy,
     scorerVersion: splitScorerVersion,
     promptHash: sha256(
       JSON.stringify([

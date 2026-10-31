@@ -1,9 +1,8 @@
 import type { Change } from '@daphne/review-evidence/contracts';
+import { proposalOutputSchema } from './schema.js';
+import type { Proposal } from './schema.js';
 
-export interface Proposal {
-  groups: { title: string; reason: string; unitIds: string[] }[];
-  warnings: string[];
-}
+export type { Proposal } from './schema.js';
 
 export type ProposalValidation =
   | { status: 'valid'; proposal: Proposal }
@@ -34,10 +33,7 @@ export function getExpectedUnitIds(
   return unitIds;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
+/* Shape parsing preserves text; coverage still uses the original inventory and encounter order. */
 export function validateProposal(
   text: string,
   expectedUnitIds: ReadonlySet<string>,
@@ -54,51 +50,24 @@ export function validateProposal(
     return { status: 'invalid_json', message: error.message };
   }
 
-  if (
-    !isObject(value) ||
-    Object.keys(value).some((key) => !['groups', 'warnings'].includes(key)) ||
-    !Array.isArray(value.groups) ||
-    !Array.isArray(value.warnings) ||
-    !value.warnings.every((warning: unknown) => typeof warning === 'string')
-  ) {
+  const parsed = proposalOutputSchema.safeParse(value);
+
+  if (!parsed.success) {
     return {
       status: 'invalid_shape',
-      message:
-        'Expected an object containing only groups and warnings arrays, with strings in warnings.',
+      message: parsed.error.issues
+        .map(
+          (issue) =>
+            `${issue.path.map(String).join('.') || 'proposal'}: ${issue.message}`,
+        )
+        .join('; '),
     };
   }
 
-  const groups: Proposal['groups'] = [];
-
-  for (const group of value.groups) {
-    if (
-      !isObject(group) ||
-      Object.keys(group).some(
-        (key) => !['title', 'reason', 'unitIds'].includes(key),
-      ) ||
-      typeof group.title !== 'string' ||
-      !group.title.trim() ||
-      typeof group.reason !== 'string' ||
-      !Array.isArray(group.unitIds) ||
-      group.unitIds.length === 0 ||
-      !group.unitIds.every((id: unknown) => typeof id === 'string')
-    ) {
-      return {
-        status: 'invalid_shape',
-        message: `Group ${String(groups.length + 1)} must contain only a nonblank title, a string reason, and a nonempty unitIds array of strings.`,
-      };
-    }
-
-    groups.push({
-      title: group.title,
-      reason: group.reason,
-      unitIds: group.unitIds,
-    });
-  }
-
+  const proposal = parsed.data;
   const counts = new Map<string, number>();
 
-  for (const group of groups) {
+  for (const group of proposal.groups) {
     for (const id of group.unitIds) {
       counts.set(id, (counts.get(id) ?? 0) + 1);
     }
@@ -126,5 +95,5 @@ export function validateProposal(
     return { status: 'invalid_coverage', missingIds, duplicateIds, unknownIds };
   }
 
-  return { status: 'valid', proposal: { groups, warnings: value.warnings } };
+  return { status: 'valid', proposal };
 }

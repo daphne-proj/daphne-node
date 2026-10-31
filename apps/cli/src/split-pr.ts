@@ -4,12 +4,14 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { splitPullRequest } from '@daphne/pr-review/split';
+import { createRunBudget } from '@daphne/evaluator-optimizer';
+import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 import { formatCommandOutput } from './command-output.js';
 import type { CommandOutputRow } from './command-output.js';
 import { CliInputError, describeFailure } from './errors.js';
 import { ArtifactError, createRunDirectory, writeArtifact } from './output.js';
 
-interface SplitOptions {
+interface SplitOptions extends RunBudgetPolicy {
   pr: string;
   output: string;
   model: string;
@@ -27,6 +29,8 @@ export function parseSplitArgs(args: string[]): SplitOptions {
         output: { type: 'string' },
         model: { type: 'string', default: 'gpt-6.1-sol' },
         'max-input-tokens': { type: 'string', default: '16384' },
+        'max-candidates': { type: 'string' },
+        'run-timeout-ms': { type: 'string' },
       },
     });
     const maxInputTokens = Number(values['max-input-tokens']);
@@ -47,18 +51,39 @@ export function parseSplitArgs(args: string[]): SplitOptions {
       output: values.output,
       model: values.model,
       maxInputTokens,
+      ...(values['max-candidates'] === undefined
+        ? {}
+        : { maxCandidates: Number(values['max-candidates']) }),
+      ...(values['run-timeout-ms'] === undefined
+        ? {}
+        : { timeoutMs: Number(values['run-timeout-ms']) }),
     };
   } catch {
     throw new CliInputError(
-      'Usage: split-pr --pr URL --output DIRECTORY [--model MODEL] [--max-input-tokens NUMBER]',
+      'Usage: split-pr --pr URL --output DIRECTORY [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
 
+/* Start the global budget before preparation and keep its signal through accepted artifact publication. */
 export async function runSplitPr(
   options: SplitOptions,
   signal: AbortSignal,
 ): Promise<number> {
+  let budget;
+
+  try {
+    budget = createRunBudget(options, signal);
+  } catch (error) {
+    if (error instanceof RangeError) {
+      throw new CliInputError(error.message);
+    }
+
+    throw error;
+  }
+
+  budget.signal.throwIfAborted();
+
   const ref = parsePullRequestUrl(options.pr);
 
   if (existsSync('.env')) {
@@ -88,7 +113,7 @@ export async function runSplitPr(
     apiKey,
     model: options.model,
     maxInputTokens: options.maxInputTokens,
-    signal,
+    budget,
     ...(githubToken === undefined ? {} : { githubToken }),
     onPage: (page, pageNumber) => {
       process.stderr.write(
@@ -105,7 +130,7 @@ export async function runSplitPr(
     pr: ref.url,
     model: options.model,
     maxInputTokens: options.maxInputTokens,
-    maxCorrections: result.maxCorrections,
+    budget: result.budget,
     identity: result.identity,
     changes: result.changes,
     hunks: result.hunks.map(({ change, hunkIndex, sources }) => ({
@@ -126,7 +151,7 @@ export async function runSplitPr(
       directory,
       'run.json',
       report,
-      report.status === 'complete' ? signal : undefined,
+      report.status === 'complete' ? budget.signal : undefined,
       { overwrite: true },
     );
   } catch (error) {

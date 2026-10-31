@@ -350,9 +350,9 @@ export default defineConfig(
             ...libraryImportRestrictions,
             {
               regex:
-                '^(?!@daphne/(?:context-engine|llm|review-evidence/contracts)$|\\./proposal\\.js$)',
+                '^(?!@daphne/(?:context-engine|evaluator-optimizer|llm|review-evidence/contracts)$|\\./proposal\\.js$)',
               message:
-                'Workflow contracts may reference only context, model, evidence and proposal types.',
+                'Workflow contracts may reference only context, run budget, model, evidence and proposal types.',
             },
             {
               group: ['**'],
@@ -380,9 +380,9 @@ export default defineConfig(
             ...libraryImportRestrictions,
             {
               regex:
-                '^@daphne/(?!(?:context-engine|llm|review-evidence/contracts)$)',
+                '^@daphne/(?!(?:context-engine|evaluator-optimizer|llm|review-evidence/contracts)$)',
               message:
-                'Investigation workflows use supplied evidence, context assembly and model calls.',
+                'Investigation workflows use supplied evidence, context assembly, the shared runner and model calls.',
             },
             {
               group: ['@daphne/review-evidence/contracts'],

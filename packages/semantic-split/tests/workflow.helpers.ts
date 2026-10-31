@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { createOpenAI } from '@daphne/llm';
 import type { ModelReply, ModelRequest } from '@daphne/llm';
+import { createRunBudget } from '@daphne/evaluator-optimizer';
 import type {
   SemanticSplitInput,
   SemanticSplitOptions,
@@ -65,7 +66,7 @@ export function setupWorkflow(ids: string[] = ['a']) {
     apiKey: 'test-key',
     model: 'test-model',
     maxInputTokens: 128,
-    signal: controller.signal,
+    budget: createRunBudget({}, controller.signal),
   };
 
   const count = vi
