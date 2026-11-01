@@ -6,6 +6,7 @@
 
 - `runIntentions(input, options)` runs one investigation under the caller's run budget and returns accepted cards or a failure with collected work.
 - `validateIntentions(text, context)` validates model JSON and resolves code citations from retained source bytes. It returns a valid proposal or diagnostic messages.
+- `toIntentionProposalInput(proposal)` projects a validated proposal for runtime reviewers or independent judges, keeping citation IDs and byte ranges while leaving source text in the separately supplied evidence packet. It does not mutate the enriched proposal used for artifact and report validation; supply all delivered sources, including uncited evidence needed to find omissions.
 - `parseIntentionReview(value, context)` validates current cards, delivered evidence and hunk-linked coverage, deriving dimension statuses locally; `deriveIntentionReviewDecision(report)` applies the same blocking policy in the workflow and artifact reader.
 
 The validation context comes from the captured comparison and context-engine snapshot, with the source IDs actually delivered by the host. The package exports their input, result and card types. Provider schemas, prompts, limits and loop helpers stay internal.

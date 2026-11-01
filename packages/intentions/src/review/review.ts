@@ -18,7 +18,7 @@ import type {
   IntentionReviewer,
   IntentionReviewTurnNumbers,
 } from './contracts.js';
-import { toReviewProposal } from './input.js';
+import { toIntentionProposalInput } from './input.js';
 import { intentionReviewers, intentionReviewerSchemas } from './schema.js';
 import {
   deriveIntentionReviewDecision,
@@ -113,7 +113,7 @@ export async function reviewIntentionCandidate(
       role: 'user',
       content: JSON.stringify({
         limitations: input.limitations,
-        proposal: toReviewProposal(writer.validation.proposal),
+        proposal: toIntentionProposalInput(writer.validation.proposal),
         context: supplemental.renderedContext,
       }),
     },

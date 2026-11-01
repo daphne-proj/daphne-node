@@ -12,6 +12,7 @@ import { summarizeIntentionQuality } from './quality.js';
 import { formatIntentionEvaluation } from './presentation.js';
 import { loadIntentionGoldCase, prepareGoldPacket } from './gold-case.js';
 import { goldJudgmentSchema, parseGoldJudgment } from './gold-judgment.js';
+import { toIntentionJudgeInput } from './judge-input.js';
 
 const usage =
   'Usage: eval intentions judge|eval --artifact PATH --output NEW_DIRECTORY --model NAME [--case PATH (required for eval)] [--generation-prompt PATH]';
@@ -151,7 +152,7 @@ export async function runIntentionsCommand(
 
     const request = {
       generationInstructions,
-      packet,
+      packet: packet === null ? null : toIntentionJudgeInput(packet),
       ...(gold === null
         ? {}
         : {

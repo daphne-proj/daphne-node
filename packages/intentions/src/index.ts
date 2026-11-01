@@ -1,5 +1,6 @@
 export { runIntentions } from './workflow.js';
 export { validateIntentions } from './proposal.js';
+export { toIntentionProposalInput } from './review/input.js';
 export {
   parseIntentionReview,
   parseIntentionReviewerReport,

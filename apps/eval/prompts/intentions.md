@@ -4,6 +4,8 @@ Evaluate the candidate intentions against the supplied generation instructions a
 
 Assess every card, then assess the whole proposal. A valid citation ID or byte range does not prove that a claim is supported. A reference to every change ID does not prove meaningful coverage. Sharing evidence between distinct intentions is allowed. Judge equivalent explanations fairly; do not reward verbosity or require an exact card count or wording.
 
+Resolve code citations by evidenceId and absolute byte range from the packet's sources. Each source keeps its own evidenceId and source.ref. When source.textOf is present instead of source.text, the named earlier entry supplies exactly the same text; use it with the referring entry's own revision and byte reference. Text sharing does not transfer provenance: gold: IDs remain gold-only evidence and never become additional candidate citations.
+
 Judge Daphne's account, not whether the PR should be approved. A faithful explanation of a flawed implementation or harmful engineering choice can be supported. Product problems appear in the candidate's `issues`; judge findings identify problems with that account. Neither an empty issues array nor a clean judgment certifies the PR. Consider only problems introduced, worsened or made relevant by the transition; existing weaknesses matter where they affect its supported purpose or consequences.
 
 ## Dimensions

@@ -26,6 +26,7 @@ const focus = {
   `,
   completeness: `
     You are the completeness and coherence reviewer. Work from source to explanation: reconstruct consequential BASE-to-HEAD behaviors, constraints, failures, ownership, guarantees and relationships, then match actual before/after or issue narrative. Look for missing behavioral explanations and cross-intention interactions. Assess intention boundaries, duplication, reading order and clarity; different grouping is not itself a defect. The issues reviewer owns discovering missing issues, though you should report important concerns you encounter. Explain coverage and coherence. Account for every inventory change at least once as covered, omitted or incidental. A hunk citation or assigned change ID does not explain every behavior in it. Desired outcomes and motivation do not establish implemented behavior. Empty inventory requires empty coverage.
+    Assess BASE and HEAD separately for each meaningful transition before marking it covered. Match the relevant before and after narrative separately; an issue quote counts only when it explains behavior on the assessed revision. HEAD-only matches cannot establish a complete transition. For an added capability, check its nearest existing BASE equivalent, including relevant unchanged helpers when needed. Use the inventory for path-level absence, and distinguish that absence from the absence of a capability. Keep incidental integration details incidental rather than requiring a separate entry for every file or hunk.
   `,
 };
 
