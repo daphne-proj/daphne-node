@@ -142,7 +142,7 @@ This command makes a live Codex CLI call using the saved run's original generati
 
 Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. `MODEL=NAME` overrides the default judge model. When the saved provider response lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
 
-`input.json` uses `daphne-intentions-judge-input-v2` and preserves the judge prompt, schema and provenance hashes. `report.json` uses `daphne-intentions-judge-v2` and records the structured judgment, diagnostics, execution details and `quality` summary. Both record `rubricVersion: 3` for the 1–5 scale. Historical judge reports are neither rewritten nor reparsed under the new rubric; a regrade creates a fresh artifact. Failed runs and invalid outputs receive reports without a judge call. Low scores still yield a completed evaluation; malformed input, cancellation, missing or invalid judgments and publication failures exit unsuccessfully. Oversized judge input fails explicitly without truncating evidence. Unreadable or oversized artifact files fail before output creation; readable but invalid artifact data produces invalid_output with no judge call.
+Make prints only dimension scores and saves judge output in `OUTPUT/evaluation/`, with console output in `OUTPUT/evaluation.log`. `input.json` uses `daphne-intentions-judge-input-v2` and preserves the judge prompt, schema and provenance hashes. `report.json` uses `daphne-intentions-judge-v2` and records the structured judgment, diagnostics, execution details and `quality` summary. Both record `rubricVersion: 3` for the 1–5 scale. Gold reports also record `goldRubricVersion: 2`. Historical judge reports are neither rewritten nor reparsed under the new rubric; a regrade creates a fresh artifact. Failed runs and invalid outputs receive reports without a judge call. Low scores still yield a completed evaluation; malformed input, cancellation, missing or invalid judgments and publication failures exit unsuccessfully. Oversized judge input fails explicitly without truncating evidence. Unreadable or oversized artifact files fail before output creation; readable but invalid artifact data produces invalid_output with no judge call.
 
 `quality` reports accuracy, citationSupport, coverage and combined priority as
 `pass`, `issues_found` or `unassessed`. Scores 1–4 mean issues, 5 means pass and null
@@ -348,3 +348,50 @@ evaluation, corrected versus introduced defects, completion/failure rates and
 usage by role. A newly discovered pre-existing defect is not a repair regression.
 No quality or token-efficiency improvement is established by source review or
 typechecking, and success on these known PRs does not establish generalization.
+
+## Evaluate saved intentions against gold
+
+Use `make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json`
+to build, validate the case, generate fresh intentions for its PR and evaluate them.
+The Make target uses `MODEL` (default `gpt-6.1-sol`) for generation and judging,
+and `MAX_INPUT_TOKENS=256000` for generation. It creates a dedicated
+`outputs/intentions-eval-<timestamp>-<pid>/` folder, or uses the optional `OUTPUT`.
+Generated artifacts go in `generation/`, judge input and reports in `evaluation/`,
+and console logs in `generation.log` and `evaluation.log`. The terminal prints only
+dimension scores (1–5 or null) and `requiredBehaviorCoverage` (0–1 or null).
+Failures exit unsuccessfully and identify the error or saved log.
+Generation requires `OPENAI_API_KEY`; judging uses Codex CLI authentication.
+PR revisions and evidence must still match the frozen case before judging.
+
+Optional `ARTIFACT=PATH` skips generation and regrades a saved run. `OUTPUT` and
+`GENERATION_PROMPT` work as for ordinary judging. With `ARTIFACT` but no `CASE`,
+the Make target continues to run `intentions judge`.
+
+The underlying `intentions eval` command grades a saved artifact directly:
+
+```sh
+bun run build
+bun run eval -- intentions eval \
+  --case apps/eval/datasets/intentions/cases/pr_1.json \
+  --artifact outputs/intentions-CURRENT/run.json \
+  --output outputs/intentions-gold-CURRENT \
+  --model YOUR_JUDGE_MODEL
+```
+
+It checks the frozen case and accepted v2 artifact before invoking the existing
+Codex runner. Case/evidence hashes, source consistency, revisions, PR text,
+inventory and original hunks must match. Gold sources are additional evidence
+for truth assessment only, never replacements for the candidate's attached
+citations. The existing `intentions judge` command and its report contract remain
+unchanged. `--case` is required for `eval` and rejected by `judge`.
+
+A fresh output directory receives `daphne-intentions-gold-input-v1` input and a
+`daphne-intentions-gold-report-v1` report. Reports separate primary quality and required
+behavior coverage, preserve missing assessments and failures, and mark draft
+labels provisional. The first PR 1 case awaits human review. Evaluation makes a
+live model call only for a valid accepted artifact; no generation or Langfuse
+upload occurs. Exit 0 means completed grading, even when quality is poor.
+
+See the [dataset guide](../datasets/intentions/README.md) for annotation, evidence
+storage, output fields and limitations. The suite file is a catalog, not another
+CLI mode. Paid calibration and unseen evaluation are not implied by setup checks.
