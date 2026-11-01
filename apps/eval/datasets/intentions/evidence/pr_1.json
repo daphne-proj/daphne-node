@@ -1,0 +1,2451 @@
+{
+  "format": "daphne-intentions-gold-evidence-v1",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/1",
+  "identity": {
+    "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "93076efe37909ef3f36480170048cc9387aa29be"
+  },
+  "metadata": {
+    "title": "Add idempotent checkout and order operations dashboard",
+    "body": "Adds a cross-cutting commerce change for Daphne PR analysis:\n\n- tenant-scoped checkout idempotency, retry tracking, and payload-conflict rejection;\n- API and worker integrations for retryable checkout;\n- an order operations dashboard with filtering, status, totals, and responsive styling;\n- tenant-scoped order read models and summaries;\n- SQL migrations and representative seed data for orders and idempotency records.\n\nThe change spans 36 files across UI, business logic, API/worker boundaries, and data definitions so it can exercise semantic grouping and evidence traversal.\n\nValidation: `npm run build`\n"
+  },
+  "changes": [
+    {
+      "id": "change-1",
+      "beforePath": "README.md",
+      "afterPath": "README.md",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 19,
+          "beforeLineCount": 0,
+          "afterStartLine": 20,
+          "afterLineCount": 7
+        }
+      ]
+    },
+    {
+      "id": "change-2",
+      "beforePath": null,
+      "afterPath": "apps/admin/admin.css",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 12
+        }
+      ]
+    },
+    {
+      "id": "change-3",
+      "beforePath": null,
+      "afterPath": "apps/admin/package.json",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-4",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/html.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 9
+        }
+      ]
+    },
+    {
+      "id": "change-5",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/index.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 8
+        }
+      ]
+    },
+    {
+      "id": "change-6",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/money-view.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 3
+        }
+      ]
+    },
+    {
+      "id": "change-7",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/order-dashboard.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 14
+        }
+      ]
+    },
+    {
+      "id": "change-8",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/order-filters.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 14
+        }
+      ]
+    },
+    {
+      "id": "change-9",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/order-table.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 17
+        }
+      ]
+    },
+    {
+      "id": "change-10",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/page-shell.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 5
+        }
+      ]
+    },
+    {
+      "id": "change-11",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/status-badge.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 3
+        }
+      ]
+    },
+    {
+      "id": "change-12",
+      "beforePath": null,
+      "afterPath": "apps/admin/src/summary-cards.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 11
+        }
+      ]
+    },
+    {
+      "id": "change-13",
+      "beforePath": null,
+      "afterPath": "apps/admin/tsconfig.json",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-14",
+      "beforePath": "apps/api/src/checkout-handler.ts",
+      "afterPath": "apps/api/src/checkout-handler.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 2,
+          "beforeLineCount": 0,
+          "afterStartLine": 3,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 7,
+          "beforeLineCount": 1,
+          "afterStartLine": 8,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 9,
+          "beforeLineCount": 1,
+          "afterStartLine": 10,
+          "afterLineCount": 2
+        }
+      ]
+    },
+    {
+      "id": "change-15",
+      "beforePath": null,
+      "afterPath": "apps/api/src/idempotency-header.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 5
+        }
+      ]
+    },
+    {
+      "id": "change-16",
+      "beforePath": "apps/api/src/index.ts",
+      "afterPath": "apps/api/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 4,
+          "beforeLineCount": 0,
+          "afterStartLine": 5,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-17",
+      "beforePath": "apps/worker/src/index.ts",
+      "afterPath": "apps/worker/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 2,
+          "beforeLineCount": 0,
+          "afterStartLine": 3,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-18",
+      "beforePath": null,
+      "afterPath": "apps/worker/src/retry-checkout-worker.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 9
+        }
+      ]
+    },
+    {
+      "id": "change-19",
+      "beforePath": null,
+      "afterPath": "data/migrations/001_orders.sql",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 15
+        }
+      ]
+    },
+    {
+      "id": "change-20",
+      "beforePath": null,
+      "afterPath": "data/migrations/002_idempotency_records.sql",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 8
+        }
+      ]
+    },
+    {
+      "id": "change-21",
+      "beforePath": null,
+      "afterPath": "data/seed.sql",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 4
+        }
+      ]
+    },
+    {
+      "id": "change-22",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/checkout-attempt-repository.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 20
+        }
+      ]
+    },
+    {
+      "id": "change-23",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/checkout-attempt.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 7
+        }
+      ]
+    },
+    {
+      "id": "change-24",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/checkout-request.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 15
+        }
+      ]
+    },
+    {
+      "id": "change-25",
+      "beforePath": "packages/checkout/src/checkout-service.ts",
+      "afterPath": "packages/checkout/src/checkout-service.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 6,
+          "beforeLineCount": 0,
+          "afterStartLine": 7,
+          "afterLineCount": 4
+        },
+        {
+          "beforeStartLine": 14,
+          "beforeLineCount": 0,
+          "afterStartLine": 19,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 28,
+          "beforeLineCount": 0,
+          "afterStartLine": 34,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 31,
+          "beforeLineCount": 0,
+          "afterStartLine": 39,
+          "afterLineCount": 16
+        },
+        {
+          "beforeStartLine": 40,
+          "beforeLineCount": 1,
+          "afterStartLine": 63,
+          "afterLineCount": 4
+        },
+        {
+          "beforeStartLine": 45,
+          "beforeLineCount": 0,
+          "afterStartLine": 72,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 61,
+          "beforeLineCount": 0,
+          "afterStartLine": 89,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 65,
+          "beforeLineCount": 1,
+          "afterStartLine": 93,
+          "afterLineCount": 12
+        }
+      ]
+    },
+    {
+      "id": "change-26",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/idempotency-conflict.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 7
+        }
+      ]
+    },
+    {
+      "id": "change-27",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/idempotency-record.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 9
+        }
+      ]
+    },
+    {
+      "id": "change-28",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/idempotency-repository.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 17
+        }
+      ]
+    },
+    {
+      "id": "change-29",
+      "beforePath": "packages/checkout/src/index.ts",
+      "afterPath": "packages/checkout/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 2,
+          "beforeLineCount": 0,
+          "afterStartLine": 3,
+          "afterLineCount": 3
+        },
+        {
+          "beforeStartLine": 3,
+          "beforeLineCount": 0,
+          "afterStartLine": 7,
+          "afterLineCount": 3
+        },
+        {
+          "beforeStartLine": 5,
+          "beforeLineCount": 0,
+          "afterStartLine": 12,
+          "afterLineCount": 3
+        }
+      ]
+    },
+    {
+      "id": "change-30",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/order-query.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 20
+        }
+      ]
+    },
+    {
+      "id": "change-31",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/order-read-model.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 23
+        }
+      ]
+    },
+    {
+      "id": "change-32",
+      "beforePath": "packages/checkout/src/order-repository.ts",
+      "afterPath": "packages/checkout/src/order-repository.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 17,
+          "beforeLineCount": 0,
+          "afterStartLine": 18,
+          "afterLineCount": 4
+        }
+      ]
+    },
+    {
+      "id": "change-33",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/order-summary.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 19
+        }
+      ]
+    },
+    {
+      "id": "change-34",
+      "beforePath": "packages/checkout/src/order.ts",
+      "afterPath": "packages/checkout/src/order.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 12,
+          "beforeLineCount": 0,
+          "afterStartLine": 13,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-35",
+      "beforePath": "packages/checkout/src/system.ts",
+      "afterPath": "packages/checkout/src/system.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 6,
+          "beforeLineCount": 0,
+          "afterStartLine": 7,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 7,
+          "beforeLineCount": 0,
+          "afterStartLine": 10,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 13,
+          "beforeLineCount": 0,
+          "afterStartLine": 17,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 20,
+          "beforeLineCount": 1,
+          "afterStartLine": 25,
+          "afterLineCount": 4
+        }
+      ]
+    },
+    {
+      "id": "change-36",
+      "beforePath": "tsconfig.json",
+      "afterPath": "tsconfig.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 8,
+          "beforeLineCount": 0,
+          "afterStartLine": 9,
+          "afterLineCount": 1
+        }
+      ]
+    }
+  ],
+  "hunks": [
+    {
+      "changeId": "change-1",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-1",
+        "evidence-2"
+      ]
+    },
+    {
+      "changeId": "change-2",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-3"
+      ]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-4"
+      ]
+    },
+    {
+      "changeId": "change-4",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-5"
+      ]
+    },
+    {
+      "changeId": "change-5",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-6"
+      ]
+    },
+    {
+      "changeId": "change-6",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-7"
+      ]
+    },
+    {
+      "changeId": "change-7",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-8"
+      ]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-9"
+      ]
+    },
+    {
+      "changeId": "change-9",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-10"
+      ]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-11"
+      ]
+    },
+    {
+      "changeId": "change-11",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-12"
+      ]
+    },
+    {
+      "changeId": "change-12",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-13"
+      ]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-14"
+      ]
+    },
+    {
+      "changeId": "change-14",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-15",
+        "evidence-16"
+      ]
+    },
+    {
+      "changeId": "change-14",
+      "hunkIndex": 1,
+      "evidenceIds": [
+        "evidence-17",
+        "evidence-18"
+      ]
+    },
+    {
+      "changeId": "change-14",
+      "hunkIndex": 2,
+      "evidenceIds": [
+        "evidence-19",
+        "evidence-20"
+      ]
+    },
+    {
+      "changeId": "change-15",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-21"
+      ]
+    },
+    {
+      "changeId": "change-16",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-22",
+        "evidence-23"
+      ]
+    },
+    {
+      "changeId": "change-17",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-24",
+        "evidence-25"
+      ]
+    },
+    {
+      "changeId": "change-18",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-26"
+      ]
+    },
+    {
+      "changeId": "change-19",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-27"
+      ]
+    },
+    {
+      "changeId": "change-20",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-28"
+      ]
+    },
+    {
+      "changeId": "change-21",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-29"
+      ]
+    },
+    {
+      "changeId": "change-22",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-30"
+      ]
+    },
+    {
+      "changeId": "change-23",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-31"
+      ]
+    },
+    {
+      "changeId": "change-24",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-32"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-33",
+        "evidence-34"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 1,
+      "evidenceIds": [
+        "evidence-35",
+        "evidence-36"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 2,
+      "evidenceIds": [
+        "evidence-37",
+        "evidence-38"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 3,
+      "evidenceIds": [
+        "evidence-39",
+        "evidence-40"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 4,
+      "evidenceIds": [
+        "evidence-41",
+        "evidence-42"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 5,
+      "evidenceIds": [
+        "evidence-43",
+        "evidence-44"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 6,
+      "evidenceIds": [
+        "evidence-45",
+        "evidence-46"
+      ]
+    },
+    {
+      "changeId": "change-25",
+      "hunkIndex": 7,
+      "evidenceIds": [
+        "evidence-47",
+        "evidence-48"
+      ]
+    },
+    {
+      "changeId": "change-26",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-49"
+      ]
+    },
+    {
+      "changeId": "change-27",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-50"
+      ]
+    },
+    {
+      "changeId": "change-28",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-51"
+      ]
+    },
+    {
+      "changeId": "change-29",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-52",
+        "evidence-53"
+      ]
+    },
+    {
+      "changeId": "change-29",
+      "hunkIndex": 1,
+      "evidenceIds": [
+        "evidence-54",
+        "evidence-55"
+      ]
+    },
+    {
+      "changeId": "change-29",
+      "hunkIndex": 2,
+      "evidenceIds": [
+        "evidence-56",
+        "evidence-57"
+      ]
+    },
+    {
+      "changeId": "change-30",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-58"
+      ]
+    },
+    {
+      "changeId": "change-31",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-59"
+      ]
+    },
+    {
+      "changeId": "change-32",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-60",
+        "evidence-61"
+      ]
+    },
+    {
+      "changeId": "change-33",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-62"
+      ]
+    },
+    {
+      "changeId": "change-34",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-63",
+        "evidence-64"
+      ]
+    },
+    {
+      "changeId": "change-35",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-65",
+        "evidence-66"
+      ]
+    },
+    {
+      "changeId": "change-35",
+      "hunkIndex": 1,
+      "evidenceIds": [
+        "evidence-67",
+        "evidence-68"
+      ]
+    },
+    {
+      "changeId": "change-35",
+      "hunkIndex": 2,
+      "evidenceIds": [
+        "evidence-69",
+        "evidence-70"
+      ]
+    },
+    {
+      "changeId": "change-35",
+      "hunkIndex": 3,
+      "evidenceIds": [
+        "evidence-71",
+        "evidence-72"
+      ]
+    },
+    {
+      "changeId": "change-36",
+      "hunkIndex": 0,
+      "evidenceIds": [
+        "evidence-73",
+        "evidence-74"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "evidenceId": "evidence-1",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 767,
+            "endByte": 767
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-2",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "README.md",
+          "blobId": "3b657f5ef56052607ea2072e10b9916b2770f860",
+          "range": {
+            "startByte": 767,
+            "endByte": 1120
+          }
+        },
+        "text": "\nCheckout retries are scoped by tenant and idempotency key. Reusing a key with a\ndifferent payload is rejected before inventory or payment state changes.\n\nThe admin application renders a tenant-scoped order operations dashboard from\nthe checkout read model. SQL migrations document the persisted order and\nidempotency constraints used by the same flow.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-3",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/admin.css",
+          "blobId": "700d1e1c32060154b9a68161f3083576587a485a",
+          "range": {
+            "startByte": 0,
+            "endByte": 1175
+          }
+        },
+        "text": ":root { color-scheme: light; font-family: system-ui, sans-serif; background: #f4f6f8; color: #17202a; }\nbody { margin: 0; } main { max-width: 1100px; margin: auto; padding: 2rem; }\nheader p { color: #59636e; margin-bottom: .25rem; } h1 { margin-top: 0; }\n.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }\n.summary article, .filters, table, .empty { background: white; border: 1px solid #dce1e6; border-radius: .5rem; padding: 1rem; }\n.summary strong, .summary span { display: block; } .summary strong { font-size: 1.5rem; }\n.filters { display: flex; gap: 1rem; margin: 1rem 0; align-items: end; }\n.filters label { display: grid; gap: .35rem; } input, select, button { padding: .5rem; }\ntable { width: 100%; border-collapse: collapse; } th, td { padding: .75rem; text-align: left; border-bottom: 1px solid #edf0f2; }\n.status { border-radius: 999px; padding: .2rem .55rem; text-transform: capitalize; }\n.status--paid { background: #d9f5e5; color: #126b3a; } .status--cancelled { background: #fde2e2; color: #922; }\n@media (max-width: 700px) { .summary { grid-template-columns: 1fr 1fr; } .filters { align-items: stretch; flex-direction: column; } }\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-4",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/package.json",
+          "blobId": "bee886dcf7634c5f29c9ca4c630f4c6b108ab9fe",
+          "range": {
+            "startByte": 0,
+            "endByte": 63
+          }
+        },
+        "text": "{\"name\":\"@daphne-test/admin\",\"version\":\"1.0.0\",\"private\":true}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-5",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/html.ts",
+          "blobId": "3d27f6e74192c597237ac6e8808f96acd8f86e8a",
+          "range": {
+            "startByte": 0,
+            "endByte": 227
+          }
+        },
+        "text": "export function escapeHtml(value: string): string {\n  return value.replace(/[&<>\"']/g, (character) => ({\n    '&': '&amp;',\n    '<': '&lt;',\n    '>': '&gt;',\n    '\"': '&quot;',\n    \"'\": '&#39;',\n  })[character] ?? character);\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-6",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/index.ts",
+          "blobId": "4da0d963b8385f804773c1fb6d0aca0e9c7776fb",
+          "range": {
+            "startByte": 0,
+            "endByte": 248
+          }
+        },
+        "text": "export * from './html';\nexport * from './money-view';\nexport * from './order-dashboard';\nexport * from './order-filters';\nexport * from './order-table';\nexport * from './page-shell';\nexport * from './status-badge';\nexport * from './summary-cards';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-7",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/money-view.ts",
+          "blobId": "5e0eb1a17320a55ac31897a1ce2bbc4e8f6b8a90",
+          "range": {
+            "startByte": 0,
+            "endByte": 156
+          }
+        },
+        "text": "export function formatMoney(cents: number): string {\n  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-8",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/order-dashboard.ts",
+          "blobId": "4477991f47f8276c7e85cb7886ad7a778ab1d1c1",
+          "range": {
+            "startByte": 0,
+            "endByte": 730
+          }
+        },
+        "text": "import { OrderFilters, OrderQueryService, summarizeOrders } from '../../../packages/checkout/src';\nimport { renderOrderFilters } from './order-filters';\nimport { renderOrderTable } from './order-table';\nimport { renderPage } from './page-shell';\nimport { renderSummaryCards } from './summary-cards';\n\nexport class OrderDashboard {\n  constructor(private readonly queries: OrderQueryService) {}\n\n  render(tenantId: string, filters: OrderFilters = {}): string {\n    const orders = this.queries.list(tenantId, filters);\n    return renderPage('Order operations', `<header><p>Commerce operations</p><h1>Orders</h1></header>${renderSummaryCards(summarizeOrders(orders))}${renderOrderFilters(filters)}${renderOrderTable(orders)}`);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-9",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/order-filters.ts",
+          "blobId": "009d72a35bb7a725afb692eacd4a05a1b395a326",
+          "range": {
+            "startByte": 0,
+            "endByte": 679
+          }
+        },
+        "text": "import { OrderFilters } from '../../../packages/checkout/src';\n\nexport function renderOrderFilters(filters: OrderFilters): string {\n  const selected = (state: string) => filters.state === state ? ' selected' : '';\n  return `<form class=\"filters\" method=\"get\">\n    <label>Status <select name=\"state\">\n      <option value=\"\">All</option>\n      <option value=\"paid\"${selected('paid')}>Paid</option>\n      <option value=\"cancelled\"${selected('cancelled')}>Cancelled</option>\n    </select></label>\n    <label>Minimum total <input name=\"minimumTotalCents\" type=\"number\" min=\"0\" value=\"${filters.minimumTotalCents ?? ''}\"></label>\n    <button type=\"submit\">Apply</button>\n  </form>`;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-10",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/order-table.ts",
+          "blobId": "1ed4956dfff95c95ca8c410ab9e5fd9ef5206c03",
+          "range": {
+            "startByte": 0,
+            "endByte": 952
+          }
+        },
+        "text": "import { OrderListItem } from '../../../packages/checkout/src';\nimport { escapeHtml } from './html';\nimport { formatMoney } from './money-view';\nimport { renderStatusBadge } from './status-badge';\n\nexport function renderOrderTable(orders: OrderListItem[]): string {\n  if (orders.length === 0) return '<div class=\"empty\">No orders match these filters.</div>';\n  const rows = orders.map((order) => `<tr>\n    <td>${escapeHtml(order.id)}</td>\n    <td>${escapeHtml(order.customerId)}</td>\n    <td>${escapeHtml(order.sku)} × ${order.quantity}</td>\n    <td>${formatMoney(order.totalCents)}</td>\n    <td>${renderStatusBadge(order.state)}</td>\n    <td><time datetime=\"${new Date(order.placedAt).toISOString()}\">${new Date(order.placedAt).toLocaleString('en-US')}</time></td>\n  </tr>`).join('');\n  return `<table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Placed</th></tr></thead><tbody>${rows}</tbody></table>`;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-11",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/page-shell.ts",
+          "blobId": "8bac1ea184ceeb5b56de7852872f9df600a0ef11",
+          "range": {
+            "startByte": 0,
+            "endByte": 374
+          }
+        },
+        "text": "import { escapeHtml } from './html';\n\nexport function renderPage(title: string, content: string): string {\n  return `<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>${escapeHtml(title)}</title><link rel=\"stylesheet\" href=\"/admin.css\"></head><body><main>${content}</main></body></html>`;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-12",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/status-badge.ts",
+          "blobId": "38ba47448b51b41710601e9a630029ce39bf0d32",
+          "range": {
+            "startByte": 0,
+            "endByte": 141
+          }
+        },
+        "text": "export function renderStatusBadge(state: 'paid' | 'cancelled'): string {\n  return `<span class=\"status status--${state}\">${state}</span>`;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-13",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/src/summary-cards.ts",
+          "blobId": "5255d3b93ee98e789481a0d6f2b3aecd8623edca",
+          "range": {
+            "startByte": 0,
+            "endByte": 582
+          }
+        },
+        "text": "import { OrderSummary } from '../../../packages/checkout/src';\nimport { formatMoney } from './money-view';\n\nexport function renderSummaryCards(summary: OrderSummary): string {\n  return `<section class=\"summary\">\n    <article><strong>${summary.orderCount}</strong><span>Orders</span></article>\n    <article><strong>${summary.paidCount}</strong><span>Paid</span></article>\n    <article><strong>${summary.cancelledCount}</strong><span>Cancelled</span></article>\n    <article><strong>${formatMoney(summary.paidRevenueCents)}</strong><span>Paid revenue</span></article>\n  </section>`;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-14",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/admin/tsconfig.json",
+          "blobId": "a700d0f4832f6af2f0ee9ca0c8f95b1a3eaa9b38",
+          "range": {
+            "startByte": 0,
+            "endByte": 125
+          }
+        },
+        "text": "{\"extends\":\"../../packages/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-15",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "a4da0b31599e8966bf7df1948b73e32867c96b4d",
+          "range": {
+            "startByte": 137,
+            "endByte": 137
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-16",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "767c5a2de48681b1e1884d7bdf20f934ec9363c2",
+          "range": {
+            "startByte": 137,
+            "endByte": 199
+          }
+        },
+        "text": "import { requireIdempotencyKey } from './idempotency-header';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-17",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "a4da0b31599e8966bf7df1948b73e32867c96b4d",
+          "range": {
+            "startByte": 231,
+            "endByte": 318
+          }
+        },
+        "text": "  handle(principal: Principal | undefined, input: Omit<PlaceOrderInput, 'tenantId'>) {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-18",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "767c5a2de48681b1e1884d7bdf20f934ec9363c2",
+          "range": {
+            "startByte": 293,
+            "endByte": 444
+          }
+        },
+        "text": "  handle(principal: Principal | undefined, input: Omit<PlaceOrderInput, 'tenantId' | 'idempotencyKey'>, headers: Record<string, string | undefined>) {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-19",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "a4da0b31599e8966bf7df1948b73e32867c96b4d",
+          "range": {
+            "startByte": 365,
+            "endByte": 437
+          }
+        },
+        "text": "    return this.checkout.place({ ...input, tenantId: actor.tenantId });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-20",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "767c5a2de48681b1e1884d7bdf20f934ec9363c2",
+          "range": {
+            "startByte": 491,
+            "endByte": 638
+          }
+        },
+        "text": "    const idempotencyKey = requireIdempotencyKey(headers);\n    return this.checkout.place({ ...input, tenantId: actor.tenantId, idempotencyKey });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-21",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/api/src/idempotency-header.ts",
+          "blobId": "51e194bd1fcf06287ddf76993778cc7f3d7a08fb",
+          "range": {
+            "startByte": 0,
+            "endByte": 235
+          }
+        },
+        "text": "export function requireIdempotencyKey(headers: Record<string, string | undefined>): string {\n  const key = headers['idempotency-key']?.trim();\n  if (!key || key.length > 128) throw new Error('invalid idempotency key');\n  return key;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-22",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/index.ts",
+          "blobId": "2832b3a50b8805ef8d67705408ecec981e4c27a4",
+          "range": {
+            "startByte": 120,
+            "endByte": 120
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-23",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/api/src/index.ts",
+          "blobId": "65db718ccb4347ef6c82cb774fbc77852adabc5b",
+          "range": {
+            "startByte": 120,
+            "endByte": 158
+          }
+        },
+        "text": "export * from './idempotency-header';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-24",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/worker/src/index.ts",
+          "blobId": "9c04e3b6306db6200f063a879a232e64c22e3ed2",
+          "range": {
+            "startByte": 68,
+            "endByte": 68
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-25",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/worker/src/index.ts",
+          "blobId": "9517bc036716a063898683516b96873de81c8c0d",
+          "range": {
+            "startByte": 68,
+            "endByte": 109
+          }
+        },
+        "text": "export * from './retry-checkout-worker';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-26",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/worker/src/retry-checkout-worker.ts",
+          "blobId": "c777adb7518b3cf683041d714c011a19763e2b54",
+          "range": {
+            "startByte": 0,
+            "endByte": 280
+          }
+        },
+        "text": "import { CheckoutService, RetryableCheckoutRequest } from '../../../packages/checkout/src';\n\nexport class RetryCheckoutWorker {\n  constructor(private readonly checkout: CheckoutService) {}\n\n  run(request: RetryableCheckoutRequest) {\n    return this.checkout.place(request);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-27",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "data/migrations/001_orders.sql",
+          "blobId": "8916cc59a021bc8821310cb930b8597ad27a88d9",
+          "range": {
+            "startByte": 0,
+            "endByte": 507
+          }
+        },
+        "text": "CREATE TABLE orders (\n  id TEXT PRIMARY KEY,\n  tenant_id TEXT NOT NULL,\n  customer_id TEXT NOT NULL,\n  sku TEXT NOT NULL,\n  quantity INTEGER NOT NULL CHECK (quantity > 0),\n  total_cents INTEGER NOT NULL CHECK (total_cents >= 0),\n  payment_id TEXT NOT NULL UNIQUE,\n  reservation_id TEXT NOT NULL UNIQUE,\n  event_id TEXT NOT NULL UNIQUE,\n  state TEXT NOT NULL CHECK (state IN ('paid', 'cancelled')),\n  placed_at INTEGER NOT NULL\n);\n\nCREATE INDEX orders_tenant_placed_at ON orders (tenant_id, placed_at DESC);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-28",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "data/migrations/002_idempotency_records.sql",
+          "blobId": "f0d5809e0d48a485ea674fcab8a348e6ba7e0d9a",
+          "range": {
+            "startByte": 0,
+            "endByte": 239
+          }
+        },
+        "text": "CREATE TABLE idempotency_records (\n  tenant_id TEXT NOT NULL,\n  idempotency_key TEXT NOT NULL,\n  request_fingerprint TEXT NOT NULL,\n  result_json TEXT NOT NULL,\n  recorded_at INTEGER NOT NULL,\n  PRIMARY KEY (tenant_id, idempotency_key)\n);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-29",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "data/seed.sql",
+          "blobId": "ae998f191a66b16e44133c7cfaa4d67ddcd86e2d",
+          "range": {
+            "startByte": 0,
+            "endByte": 424
+          }
+        },
+        "text": "INSERT INTO orders (id, tenant_id, customer_id, sku, quantity, total_cents, payment_id, reservation_id, event_id, state, placed_at)\nVALUES\n  ('seed-order-1', 'acme', 'customer-1', 'widget', 2, 5000, 'seed-payment-1', 'seed-reservation-1', 'seed-event-1', 'paid', 1798761600000),\n  ('seed-order-2', 'acme', 'customer-2', 'gadget', 1, 3200, 'seed-payment-2', 'seed-reservation-2', 'seed-event-2', 'cancelled', 1798848000000);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-30",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-attempt-repository.ts",
+          "blobId": "ab7b88d2ad6c6124430e8d3d02d475ec7cd3195a",
+          "range": {
+            "startByte": 0,
+            "endByte": 599
+          }
+        },
+        "text": "import { CheckoutAttempt } from './checkout-attempt';\n\nexport class CheckoutAttemptRepository {\n  private readonly values: CheckoutAttempt[] = [];\n\n  start(attempt: CheckoutAttempt): void {\n    this.values.push(attempt);\n  }\n\n  finish(id: string, state: 'rejected' | 'completed', reason?: string): void {\n    const attempt = this.values.find((candidate) => candidate.id === id);\n    if (!attempt) throw new Error('checkout attempt not found');\n    attempt.state = state;\n    attempt.reason = reason;\n  }\n\n  all(): CheckoutAttempt[] {\n    return this.values.map((attempt) => ({ ...attempt }));\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-31",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-attempt.ts",
+          "blobId": "7fa1050ba9e88338f7086f30f7506fa7e73ee18b",
+          "range": {
+            "startByte": 0,
+            "endByte": 164
+          }
+        },
+        "text": "export interface CheckoutAttempt {\n  id: string;\n  tenantId: string;\n  idempotencyKey?: string;\n  state: 'started' | 'rejected' | 'completed';\n  reason?: string;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-32",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-request.ts",
+          "blobId": "e94a7604b66a3b4ba1fb108dd303fb8b2f796311",
+          "range": {
+            "startByte": 0,
+            "endByte": 362
+          }
+        },
+        "text": "import { PlaceOrderInput } from './checkout-service';\n\nexport interface RetryableCheckoutRequest extends PlaceOrderInput {\n  idempotencyKey: string;\n}\n\nexport function requestFingerprint(input: PlaceOrderInput): string {\n  return JSON.stringify([\n    input.customerId,\n    input.sku,\n    input.quantity,\n    input.unitPriceCents,\n    input.promotionBps,\n  ]);\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-33",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 295,
+            "endByte": 295
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-34",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 295,
+            "endByte": 555
+          }
+        },
+        "text": "import { requestFingerprint } from './checkout-request';\nimport { CheckoutAttemptRepository } from './checkout-attempt-repository';\nimport { IdempotencyRepository } from './idempotency-repository';\nimport { IdempotencyConflict } from './idempotency-conflict';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-35",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 460,
+            "endByte": 460
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-36",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 720,
+            "endByte": 747
+          }
+        },
+        "text": "  idempotencyKey?: string;\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-37",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 874,
+            "endByte": 874
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-38",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 1161,
+            "endByte": 1276
+          }
+        },
+        "text": "    private readonly idempotency: IdempotencyRepository,\n    private readonly attempts: CheckoutAttemptRepository,\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-39",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 934,
+            "endByte": 934
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-40",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 1336,
+            "endByte": 1869
+          }
+        },
+        "text": "    if (input.idempotencyKey) {\n      const existing = this.idempotency.find(input.tenantId, input.idempotencyKey);\n      if (existing) {\n        if (existing.requestFingerprint !== requestFingerprint(input)) {\n          throw new IdempotencyConflict(input.idempotencyKey);\n        }\n        return existing.result;\n      }\n    }\n    const attemptId = this.ids.next('attempt');\n    this.attempts.start({\n      id: attemptId,\n      tenantId: input.tenantId,\n      idempotencyKey: input.idempotencyKey,\n      state: 'started',\n    });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-41",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 1207,
+            "endByte": 1281
+          }
+        },
+        "text": "    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-42",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 2142,
+            "endByte": 2303
+          }
+        },
+        "text": "    if (!reservation) {\n      this.attempts.finish(attemptId, 'rejected', 'insufficient_stock');\n      return { ok: false, reason: 'insufficient_stock' };\n    }\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-43",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 1510,
+            "endByte": 1510
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-44",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 2532,
+            "endByte": 2598
+          }
+        },
+        "text": "      this.attempts.finish(attemptId, 'rejected', charge.reason);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-45",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 1921,
+            "endByte": 1921
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-46",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 3009,
+            "endByte": 3043
+          }
+        },
+        "text": "      placedAt: this.clock.now(),\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-47",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 2065,
+            "endByte": 2129
+          }
+        },
+        "text": "    return { ok: true, orderId, totalCents: total.totalCents };\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-48",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 3187,
+            "endByte": 3593
+          }
+        },
+        "text": "    const result = { ok: true as const, orderId, totalCents: total.totalCents };\n    this.attempts.finish(attemptId, 'completed');\n    if (input.idempotencyKey) {\n      this.idempotency.save({\n        tenantId: input.tenantId,\n        key: input.idempotencyKey,\n        requestFingerprint: requestFingerprint(input),\n        result,\n        recordedAt: this.clock.now(),\n      });\n    }\n    return result;\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-49",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/idempotency-conflict.ts",
+          "blobId": "5267045593e04d0c06bead9155de1a94e8de3e9c",
+          "range": {
+            "startByte": 0,
+            "endByte": 207
+          }
+        },
+        "text": "export class IdempotencyConflict extends Error {\n  readonly code = 'idempotency_conflict';\n\n  constructor(readonly key: string) {\n    super('idempotency key was already used for a different request');\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-50",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/idempotency-record.ts",
+          "blobId": "b2e4cb01d5f829bb92a67c2646d5c93c15a3bd86",
+          "range": {
+            "startByte": 0,
+            "endByte": 210
+          }
+        },
+        "text": "import { PlaceOrderResult } from './checkout-service';\n\nexport interface IdempotencyRecord {\n  tenantId: string;\n  key: string;\n  requestFingerprint: string;\n  result: PlaceOrderResult;\n  recordedAt: number;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-51",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/idempotency-repository.ts",
+          "blobId": "f7c87aeb0a96e9072751204ef24410a0762bcbbc",
+          "range": {
+            "startByte": 0,
+            "endByte": 480
+          }
+        },
+        "text": "import { IdempotencyRecord } from './idempotency-record';\n\nexport class IdempotencyRepository {\n  private readonly records = new Map<string, IdempotencyRecord>();\n\n  find(tenantId: string, key: string): IdempotencyRecord | undefined {\n    return this.records.get(`${tenantId}:${key}`);\n  }\n\n  save(record: IdempotencyRecord): void {\n    this.records.set(`${record.tenantId}:${record.key}`, record);\n  }\n\n  all(): IdempotencyRecord[] {\n    return [...this.records.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-52",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 76,
+            "endByte": 76
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-53",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "2289f7d721bde59d8b1f28bb69cd9b010ef1b52f",
+          "range": {
+            "startByte": 76,
+            "endByte": 195
+          }
+        },
+        "text": "export * from './checkout-attempt';\nexport * from './checkout-attempt-repository';\nexport * from './checkout-request';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-54",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 108,
+            "endByte": 108
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-55",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "2289f7d721bde59d8b1f28bb69cd9b010ef1b52f",
+          "range": {
+            "startByte": 227,
+            "endByte": 347
+          }
+        },
+        "text": "export * from './idempotency-record';\nexport * from './idempotency-repository';\nexport * from './idempotency-conflict';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-56",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 169,
+            "endByte": 169
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-57",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "2289f7d721bde59d8b1f28bb69cd9b010ef1b52f",
+          "range": {
+            "startByte": 408,
+            "endByte": 508
+          }
+        },
+        "text": "export * from './order-query';\nexport * from './order-read-model';\nexport * from './order-summary';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-58",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/order-query.ts",
+          "blobId": "9f364819d8227fb0ceca10afb1a26e642597e2c9",
+          "range": {
+            "startByte": 0,
+            "endByte": 721
+          }
+        },
+        "text": "import { OrderListItem, toOrderListItem } from './order-read-model';\nimport { OrderRepository } from './order-repository';\n\nexport interface OrderFilters {\n  state?: 'paid' | 'cancelled';\n  minimumTotalCents?: number;\n}\n\nexport class OrderQueryService {\n  constructor(private readonly orders: OrderRepository) {}\n\n  list(tenantId: string, filters: OrderFilters = {}): OrderListItem[] {\n    return this.orders\n      .forTenant(tenantId)\n      .filter((order) => !filters.state || order.state === filters.state)\n      .filter((order) => filters.minimumTotalCents === undefined || order.totalCents >= filters.minimumTotalCents)\n      .sort((left, right) => right.placedAt - left.placedAt)\n      .map(toOrderListItem);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-59",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/order-read-model.ts",
+          "blobId": "4216c5070232fd5b4af915ac10fcbca11bdb8a93",
+          "range": {
+            "startByte": 0,
+            "endByte": 479
+          }
+        },
+        "text": "import { Order } from './order';\n\nexport interface OrderListItem {\n  id: string;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  totalCents: number;\n  state: Order['state'];\n  placedAt: number;\n}\n\nexport function toOrderListItem(order: Order): OrderListItem {\n  return {\n    id: order.id,\n    customerId: order.customerId,\n    sku: order.sku,\n    quantity: order.quantity,\n    totalCents: order.totalCents,\n    state: order.state,\n    placedAt: order.placedAt,\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-60",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "68af85d1019803a76ea9f6c525a723f526a4c293",
+          "range": {
+            "startByte": 435,
+            "endByte": 435
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-61",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "22b76ad8c09138903f16c038b1aef5d8afa302d5",
+          "range": {
+            "startByte": 435,
+            "endByte": 551
+          }
+        },
+        "text": "\n  forTenant(tenantId: string): Order[] {\n    return this.all().filter((order) => order.tenantId === tenantId);\n  }\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-62",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/order-summary.ts",
+          "blobId": "fb468a6d21c2ee6ef8aa41ffe2fdca1693d8fce9",
+          "range": {
+            "startByte": 0,
+            "endByte": 601
+          }
+        },
+        "text": "import { OrderListItem } from './order-read-model';\n\nexport interface OrderSummary {\n  orderCount: number;\n  paidCount: number;\n  cancelledCount: number;\n  paidRevenueCents: number;\n}\n\nexport function summarizeOrders(orders: OrderListItem[]): OrderSummary {\n  return {\n    orderCount: orders.length,\n    paidCount: orders.filter((order) => order.state === 'paid').length,\n    cancelledCount: orders.filter((order) => order.state === 'cancelled').length,\n    paidRevenueCents: orders\n      .filter((order) => order.state === 'paid')\n      .reduce((total, order) => total + order.totalCents, 0),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-63",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order.ts",
+          "blobId": "4dd1e30a50b0cb223b9690df305fb3b80afdb101",
+          "range": {
+            "startByte": 319,
+            "endByte": 319
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-64",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/order.ts",
+          "blobId": "3be7592b619e6a3f8061fa8ff1c723d04208d3cc",
+          "range": {
+            "startByte": 319,
+            "endByte": 339
+          }
+        },
+        "text": "  placedAt: number;\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-65",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 314,
+            "endByte": 314
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-66",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "574e716d58fb142ccad1d508e556a06790acd668",
+          "range": {
+            "startByte": 314,
+            "endByte": 455
+          }
+        },
+        "text": "import { CheckoutAttemptRepository } from './checkout-attempt-repository';\nimport { IdempotencyRepository } from './idempotency-repository';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-67",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 368,
+            "endByte": 368
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-68",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "574e716d58fb142ccad1d508e556a06790acd668",
+          "range": {
+            "startByte": 509,
+            "endByte": 560
+          }
+        },
+        "text": "import { OrderQueryService } from './order-query';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-69",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 613,
+            "endByte": 613
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-70",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "574e716d58fb142ccad1d508e556a06790acd668",
+          "range": {
+            "startByte": 805,
+            "endByte": 908
+          }
+        },
+        "text": "  const idempotency = new IdempotencyRepository();\n  const attempts = new CheckoutAttemptRepository();\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-71",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 727,
+            "endByte": 824
+          }
+        },
+        "text": "    checkout: new CheckoutService(inventory, payments, orders, outbox, clock, dependencies.ids),\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-72",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "574e716d58fb142ccad1d508e556a06790acd668",
+          "range": {
+            "startByte": 1022,
+            "endByte": 1222
+          }
+        },
+        "text": "    idempotency,\n    attempts,\n    orderQueries: new OrderQueryService(orders),\n    checkout: new CheckoutService(inventory, payments, orders, outbox, clock, dependencies.ids, idempotency, attempts),\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-73",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "tsconfig.json",
+          "blobId": "a90da7b0dec66e6d2970396077eda4615845f0c1",
+          "range": {
+            "startByte": 209,
+            "endByte": 209
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-74",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "tsconfig.json",
+          "blobId": "8a1de924e88f98e6ddd55e9ba39a47640e748bc2",
+          "range": {
+            "startByte": 209,
+            "endByte": 239
+          }
+        },
+        "text": "    { \"path\": \"apps/admin\" },\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-75",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-76",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "a82e43210fe27dee91349159657d81281082f219",
+          "range": {
+            "startByte": 1007,
+            "endByte": 3599
+          }
+        },
+        "text": "    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n    private readonly idempotency: IdempotencyRepository,\n    private readonly attempts: CheckoutAttemptRepository,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    if (input.idempotencyKey) {\n      const existing = this.idempotency.find(input.tenantId, input.idempotencyKey);\n      if (existing) {\n        if (existing.requestFingerprint !== requestFingerprint(input)) {\n          throw new IdempotencyConflict(input.idempotencyKey);\n        }\n        return existing.result;\n      }\n    }\n    const attemptId = this.ids.next('attempt');\n    this.attempts.start({\n      id: attemptId,\n      tenantId: input.tenantId,\n      idempotencyKey: input.idempotencyKey,\n      state: 'started',\n    });\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) {\n      this.attempts.finish(attemptId, 'rejected', 'insufficient_stock');\n      return { ok: false, reason: 'insufficient_stock' };\n    }\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      this.attempts.finish(attemptId, 'rejected', charge.reason);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      placedAt: this.clock.now(),\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    const result = { ok: true as const, orderId, totalCents: total.totalCents };\n    this.attempts.finish(attemptId, 'completed');\n    if (input.idempotencyKey) {\n      this.idempotency.save({\n        tenantId: input.tenantId,\n        key: input.idempotencyKey,\n        requestFingerprint: requestFingerprint(input),\n        result,\n        recordedAt: this.clock.now(),\n      });\n    }\n    return result;\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-77",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "a4da0b31599e8966bf7df1948b73e32867c96b4d",
+          "range": {
+            "startByte": 0,
+            "endByte": 443
+          }
+        },
+        "text": "import { CheckoutService, PlaceOrderInput } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\n\nexport class CheckoutHandler {\n  constructor(private readonly checkout: CheckoutService) {}\n\n  handle(principal: Principal | undefined, input: Omit<PlaceOrderInput, 'tenantId'>) {\n    const actor = requirePrincipal(principal);\n    return this.checkout.place({ ...input, tenantId: actor.tenantId });\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-78",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "head",
+          "commit": "93076efe37909ef3f36480170048cc9387aa29be",
+          "path": "apps/api/src/checkout-handler.ts",
+          "blobId": "767c5a2de48681b1e1884d7bdf20f934ec9363c2",
+          "range": {
+            "startByte": 0,
+            "endByte": 644
+          }
+        },
+        "text": "import { CheckoutService, PlaceOrderInput } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\nimport { requireIdempotencyKey } from './idempotency-header';\n\nexport class CheckoutHandler {\n  constructor(private readonly checkout: CheckoutService) {}\n\n  handle(principal: Principal | undefined, input: Omit<PlaceOrderInput, 'tenantId' | 'idempotencyKey'>, headers: Record<string, string | undefined>) {\n    const actor = requirePrincipal(principal);\n    const idempotencyKey = requireIdempotencyKey(headers);\n    return this.checkout.place({ ...input, tenantId: actor.tenantId, idempotencyKey });\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-79",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "68af85d1019803a76ea9f6c525a723f526a4c293",
+          "range": {
+            "startByte": 0,
+            "endByte": 437
+          }
+        },
+        "text": "import { Order } from './order';\n\nexport class OrderRepository {\n  private readonly orders = new Map<string, Order>();\n\n  save(order: Order): void {\n    this.orders.set(order.id, order);\n  }\n\n  findForTenant(tenantId: string, orderId: string): Order | undefined {\n    const order = this.orders.get(orderId);\n    return order?.tenantId === tenantId ? order : undefined;\n  }\n\n  all(): Order[] {\n    return [...this.orders.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-80",
+      "source": {
+        "ref": {
+          "sessionId": "995ae961-4870-4b56-8814-c9a815229286",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/sales-report.ts",
+          "blobId": "36db8da6c4c933077fe9758472a1952e40405e05",
+          "range": {
+            "startByte": 0,
+            "endByte": 239
+          }
+        },
+        "text": "import { OrderRepository } from './order-repository';\n\nexport function capturedRevenue(orders: OrderRepository): number {\n  return orders.all().filter((order) => order.state === 'paid').reduce((sum, order) => sum + order.totalCents, 0);\n}\n"
+      }
+    }
+  ]
+}

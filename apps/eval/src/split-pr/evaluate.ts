@@ -9,6 +9,7 @@ import { loadSplitCase, loadSplitSuite } from './dataset.js';
 import { parseSplitEvidence } from './evidence.js';
 import { scoreSplitResult, splitScorerVersion } from './score.js';
 import { summarizeSplitCase } from './validation.js';
+import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
 function artifactResult(
@@ -48,12 +49,7 @@ function artifactResult(
     );
   }
 
-  if (input.maxCorrections !== 3) {
-    throw new parse.EvaluationError(
-      'artifact.maxCorrections: v3 requires three corrections.',
-    );
-  }
-
+  const budget = parseRunBudget(input.budget);
   const attemptTexts = parse
     .array(input.attempts, 'artifact.attempts')
     .map((value, index) => {
@@ -72,16 +68,20 @@ function artifactResult(
   parse.integer(calls.count, 'artifact.calls.count');
   const generate = parse.integer(calls.generate, 'artifact.calls.generate');
 
-  if (attemptTexts.length > 4 || generate < attemptTexts.length) {
+  if (
+    (budget.maxCandidates !== null &&
+      attemptTexts.length > budget.maxCandidates) ||
+    generate < attemptTexts.length
+  ) {
     throw new parse.EvaluationError(
-      'artifact: attempt count exceeds the v3 correction or generation count.',
+      'artifact: attempt count exceeds the configured candidate ceiling or generation count.',
     );
   }
 
   if (status === 'failed') {
-    if (input.proposal !== null) {
+    if (input.proposal !== null || input.response !== null) {
       throw new parse.EvaluationError(
-        'artifact: a failed run must not contain an accepted proposal.',
+        'artifact: a failed run must not contain an accepted proposal or response.',
       );
     }
 

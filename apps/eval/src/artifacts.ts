@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { link, open, unlink } from 'node:fs/promises';
+import { linkSync } from 'node:fs';
+import { open, unlink } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { isGoldenDatasetPath } from '@daphne/cli/output-path';
 import { EvaluationError } from './parse.js';
 
-/* Publish a complete file with a hard link so an existing destination is never replaced. */
+/* Check optional cancellation and publish in the same turn; existing destinations are never replaced. */
 export async function writeJsonArtifact(
   path: string,
   value: unknown,
+  signal?: AbortSignal,
 ): Promise<void> {
   const destination = resolve(path);
 
@@ -40,7 +42,8 @@ export async function writeJsonArtifact(
       await file.close();
     }
 
-    await link(temporary, destination);
+    signal?.throwIfAborted();
+    linkSync(temporary, destination);
   } catch (error) {
     failures.push(error);
   } finally {
@@ -51,6 +54,14 @@ export async function writeJsonArtifact(
         failures.push(error);
       }
     }
+  }
+
+  if (
+    failures.length === 1 &&
+    signal?.aborted &&
+    failures[0] === signal.reason
+  ) {
+    throw failures[0];
   }
 
   if (failures.length > 0) {

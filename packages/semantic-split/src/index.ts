@@ -1,4 +1,4 @@
-export { runSemanticSplit, maxCorrections } from './workflow.js';
+export { runSemanticSplit } from './workflow.js';
 export type {
   SemanticSplitInput,
   SemanticSplitOptions,

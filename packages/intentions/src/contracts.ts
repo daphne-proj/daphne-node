@@ -8,6 +8,8 @@ import type {
   ModelFunctionCall,
   ModelReply,
 } from '@daphne/llm';
+import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
+import type { IntentionReview } from './review/contracts.js';
 import type {
   ByteRange,
   Change,
@@ -45,11 +47,12 @@ export interface IntentionClaim {
 }
 
 /*
- * Separates an author's stated reason from a reason inferred from evidence, so
+ * Separates stated purpose from purpose inferred from evidence, so
  * consumers do not present a guess as a PR quote. An Intention can use
  * { basis: 'unknown' } when neither is supported. validateIntentions requires
  * stated quotes to occur in the captured PR title or body, while inferred
- * reasons need IntentionCitation evidence from either revision.
+ * purpose needs IntentionCitation evidence from either revision. Intention uses
+ * this for both intendedOutcome (the desired result) and why (its motivation).
  */
 export type IntentionReason =
   | {
@@ -61,17 +64,36 @@ export type IntentionReason =
   | { basis: 'unknown' };
 
 /*
- * Groups the changes that serve one purpose into a before/after explanation.
+ * Records a potential problem relevant to the transition, not a defect in
+ * Daphne's explanation. For example, a newly reachable failure cites its caller
+ * and failure path, with relevance 'made_relevant'. validateIntentions resolves
+ * nonempty citations from either revision; the reviewer checks the condition,
+ * consequence, threatened outcome or constraint, and connection to the PR.
+ * Non-null uncertainty names an unverified premise; null is not proof of safety.
+ */
+export interface IntentionIssue {
+  text: string;
+  relevance: 'introduced' | 'worsened' | 'made_relevant';
+  uncertainty: string | null;
+  citations: IntentionCitation[];
+}
+
+/*
+ * Groups changes into an account of actual behavior, desired outcome and concerns.
  * For example, changeIds: ['change-1'] scopes the card to a known change.
  * validateIntentions rejects duplicate or unknown IDs and checks the claims
- * and reason before adding this card to an IntentionsProposal.
+ * and purpose before adding this card to an IntentionsProposal. intendedOutcome
+ * may differ from after when the implementation falls short. An empty issues
+ * array means no supported observation was reported, not that the PR is correct.
  */
 export interface Intention {
   title: string;
   changeIds: string[];
   before: IntentionClaim;
   after: IntentionClaim;
+  intendedOutcome: IntentionReason;
   why: IntentionReason;
+  issues: IntentionIssue[];
 }
 
 /*
@@ -99,19 +121,27 @@ export interface IntentionsInput {
 }
 
 /*
- * Gives runIntentions its model, cancellation, budget and borrowed evidence
+ * Gives runIntentions its model, shared run budget and borrowed evidence
  * executor. For example, executeTool(request) returns a ToolResult for a model
  * lookup. The executor must validate the unknown request before repository I/O;
- * runIntentions requires maxInputTokens to be a positive safe integer.
+ * runIntentions requires maxInputTokens to be a positive safe integer. Bind the
+ * executor to budget.signal so acquisition, model calls and tools share cancellation.
  */
 export interface IntentionsOptions {
   apiKey: string;
   model: string;
-  signal: AbortSignal;
+  budget: RunBudget;
   maxInputTokens: number;
   executeTool: (request: unknown) => Promise<ToolResult>;
-  onModelCall?: (event: ModelCallObservation) => void;
+  onModelCall?: (event: IntentionModelCallObservation) => void;
 }
+
+/* Attribute successful and failed requests to their conversation without resetting client counters. */
+export type IntentionModelCallObservation = ModelCallObservation & {
+  role: 'writer' | 'reviewer';
+  candidateNumber: number;
+  conversationId: string;
+};
 
 /*
  * Gives validateIntentions the captured facts needed to check model output.
@@ -156,6 +186,11 @@ export interface IntentionHunkEvidence {
  * on success; delivered becomes true only after a later model turn receives it.
  */
 export type IntentionToolRecord = {
+  number: number;
+  role: 'writer' | 'reviewer';
+  candidateNumber: number;
+  conversationId: string;
+  turnNumber: number;
   call: ModelFunctionCall;
   request: Record<string, unknown> | null;
 } & (
@@ -170,16 +205,62 @@ export type IntentionToolRecord = {
 );
 
 /*
- * Records one generated reply and its token cost so runIntentions can explain
- * its progress and validate a final proposal. For example, validation: null
- * means the reply requested tools, while a proposal reply carries an
- * IntentionsValidation result. Turns remain in IntentionsResult on failure.
+ * Records evidence confirmed by a completed request. Initial source IDs name
+ * source bytes in that conversation's initial message; tool receipts refer to
+ * earlier completed tools in the same conversation. Review feedback names source
+ * bytes sent from the previous reviewer to the writer. Counting alone adds none.
  */
-export interface IntentionTurn {
+export type IntentionEvidenceDelivery =
+  | { kind: 'initial'; evidenceIds: readonly string[] }
+  | { kind: 'tool'; toolNumber: number }
+  | {
+      kind: 'review_feedback';
+      reviewTurnNumber: number;
+      evidenceIds: readonly string[];
+    };
+
+/*
+ * Preserve one provider reply with its conversation and source-delivery snapshot.
+ * For example, a writer tool turn has validation: null; terminal validation may
+ * also remain null if cancellation skips evaluation. Tool references use number,
+ * while generationNumber identifies the shared client's generation call.
+ */
+export type IntentionTurn = {
   number: number;
+  candidateNumber: number;
+  conversationId: string;
+  generationNumber: number;
+  deliveries: IntentionEvidenceDelivery[];
+  deliveredEvidenceIds: readonly string[];
   inputTokens: number;
   reply: ModelReply;
-  validation: IntentionsValidation | null;
+} & (
+  | { role: 'writer'; validation: IntentionsValidation | null }
+  | { role: 'reviewer'; review: IntentionReview | null }
+);
+
+/* Completed checks reference their retained report; an interrupted evaluation is null on its attempt. */
+export type IntentionEvaluation =
+  | { kind: 'structural'; status: 'revise'; diagnostics: string[] }
+  | {
+      kind: 'semantic';
+      status: 'accept' | 'revise' | 'stop';
+      reviewTurnNumber: number;
+    };
+
+/* One-based candidates count terminal writer drafts, not reviewer replies or tool continuations. */
+export interface IntentionAttempt {
+  number: number;
+  writerTurnNumber: number;
+  deliveredEvidenceIds: readonly string[];
+  evaluation: IntentionEvaluation | null;
+}
+
+/* Select the accepted writer and its approving reviewer even when the final reply is a review. */
+export interface AcceptedIntentionCandidate {
+  candidateNumber: number;
+  writerTurnNumber: number;
+  reviewTurnNumber: number;
 }
 
 /*
@@ -191,19 +272,17 @@ export interface IntentionTurn {
  */
 export type IntentionsResult = {
   comparison: Omit<IntentionsInput, 'hunks'> | null;
+  budget: RunBudgetSnapshot;
   limits: {
     maxInputTokens: number;
     maxOutputTokens: number;
-    maxGenerations: number;
-    maxToolCalls: number;
-    maxCorrections: number;
     maxContextBytes: number;
     maxRetainedBytes: number;
     maxRequestBytes: number;
   };
   evidence: EvidenceSnapshot | null;
   hunks: IntentionHunkEvidence[];
-  deliveredEvidenceIds: string[];
+  attempts: IntentionAttempt[];
   tools: IntentionToolRecord[];
   turns: IntentionTurn[];
   limitations: ContextNotice[];
@@ -214,6 +293,13 @@ export type IntentionsResult = {
       status: 'complete';
       proposal: IntentionsProposal;
       response: Record<string, unknown> | null;
+      acceptedCandidate: AcceptedIntentionCandidate | null;
     }
-  | { status: 'failed'; proposal: null; response: null; error: unknown }
+  | {
+      status: 'failed';
+      proposal: null;
+      response: null;
+      acceptedCandidate: null;
+      error: unknown;
+    }
 );

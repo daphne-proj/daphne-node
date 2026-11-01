@@ -1,6 +1,7 @@
 import type { DiffContextHunk, DiffContextPage } from '@daphne/context-engine';
 import type { Change, ReviewIdentity } from '@daphne/review-evidence/contracts';
 import type { ModelReply, ModelCallObservation } from '@daphne/llm';
+import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import type { Proposal, ProposalValidation } from './proposal.js';
 
 /*
@@ -34,14 +35,13 @@ export interface SemanticSplitInput {
 }
 
 /*
- * Configure model access, the input-token budget, cancellation and page notifications.
- * Example: use a 4,000-token limit and onPage to report paging progress to the CLI.
+ * Share the host's run budget across paging, analysis and grouping; input tokens limit each request.
  */
 export interface SemanticSplitOptions {
   apiKey: string;
   model: string;
   maxInputTokens: number;
-  signal: AbortSignal;
+  budget: RunBudget;
   onModelCall?: (event: ModelCallObservation) => void;
   onPage?: (page: DiffContextPage, pageNumber: number) => void;
 }
@@ -52,7 +52,7 @@ export interface SemanticSplitOptions {
  * while proposal and response are null and error explains the failure.
  */
 export type SemanticSplitResult = {
-  maxCorrections: 3;
+  budget: RunBudgetSnapshot;
   pages: PageAnalysis[];
   attempts: SplitAttempt[];
   calls: { count: number; generate: number };

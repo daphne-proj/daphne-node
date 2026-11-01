@@ -2,7 +2,7 @@
 
 `analyzePullRequestIntentions(ref, options)` resolves PR metadata, explicitly maps repository URLs and commits into Git acquisition, and collects the complete change inventory and exact hunk sources. It calls [`runIntentions`](../../intentions/README.md) with a borrowed evidence executor. Git stays open until investigation finishes because the agent may search or read changed and unchanged files in either pinned revision; BASE is the merge base. The workflow closes the snapshot in `finally`, including after cancellation or failure.
 
-Options are `IntentionsOptions` without `executeTool`, plus optional `githubToken`. The calling app supplies `apiKey`, `model`, `signal`, `maxInputTokens` and optional `onModelCall`; it also owns the overall deadline. GitHub, Git and evidence retrieval retain their existing default limits. Intentions owns its model and context budgets. For example, an app with a parsed `ref` and configured `options` can call:
+Options are `IntentionsOptions` without `executeTool`, plus optional `githubToken`. The calling app supplies `apiKey`, `model`, `budget`, `maxInputTokens` and optional `onModelCall`. Resolve `budget` with `createRunBudget` before acquisition; its signal and optional original deadline cover acquisition, writer/reviewer calls, tools and repairs. No local effort quota resets the budget. GitHub, Git and evidence retrieval retain their existing default limits. Intentions owns its model and context budgets. For example, an app with a parsed `ref` and configured `options` can call:
 
 ```ts
 import { analyzePullRequestIntentions } from '@daphne/pr-review/intentions';
@@ -14,7 +14,7 @@ if (result.status === 'complete') {
 }
 ```
 
-The result retains `metadata`, pinned `identity`, `changes`, raw `hunks` and acquisition `limitations`. Metadata and identity stay null until acquired. `investigation` is null until the agent returns; otherwise it retains the agent's evidence ledger, hunk mappings, delivered evidence IDs, tool records, turns, budgets, call counts and diagnostics. Its limitations also include incomplete or unavailable optional retrieval. These fields remain available on failure so the caller can publish an inspectable report.
+The result retains `metadata`, pinned `identity`, `changes`, raw `hunks` and acquisition `limitations`. Metadata and identity stay null until acquired. `investigation` is null until the agent returns; otherwise it retains the agent's evidence ledger, hunk mappings, conversation-specific evidence receipts, candidate snapshots, tool records, turns, the resolved budget, call counts and diagnostics. A nonempty success references the exact writer and accepting review in `acceptedCandidate`. Its limitations also include incomplete or unavailable optional retrieval. These fields remain available on failure so the caller can publish an inspectable report.
 
 Additions and deletions retain their existing file side; renames, empty files and metadata-only changes remain in the inventory. Non-text changes receive an `unsupported_change` limitation and metadata-only hunk entry. Required text hunk reads must succeed: a failed read stops acquisition and returns the inventory and all previously collected hunks without invoking the agent. An uncancelled empty comparison returns no cards and makes no model requests.
 

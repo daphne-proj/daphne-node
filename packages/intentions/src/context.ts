@@ -1,5 +1,10 @@
 import { ContextInputError, ContextLimitError } from '@daphne/context-engine';
-import type { ContextEngine, EvidenceSnapshot } from '@daphne/context-engine';
+import type {
+  ContextEngine,
+  ContextPacket,
+  EvidenceSnapshot,
+  QueryPageSelection,
+} from '@daphne/context-engine';
 import type {
   Change,
   ContextNotice,
@@ -217,13 +222,21 @@ export function retainDiff(
   }
 }
 
+/*
+ * Require every selected source and navigation entry to reach the model. Tool
+ * replies can select their own page; reviewers and feedback keep full navigation
+ * by default. An empty page selection renders sources alone. Oversize packets
+ * fail explicitly instead of silently reducing the evidence available to cite.
+ */
 export function assembleEvidence(
   engine: ContextEngine,
   evidenceIds: readonly string[],
-) {
+  queryPages?: readonly QueryPageSelection[],
+): ContextPacket {
   const packet = engine.buildContextPacket({
     evidenceIds,
     maxBytes: intentionsLimits.maxContextBytes,
+    ...(queryPages === undefined ? {} : { queryPages }),
   });
 
   /* Full diff delivery is mandatory; tool replies also must not silently lose selected source. */

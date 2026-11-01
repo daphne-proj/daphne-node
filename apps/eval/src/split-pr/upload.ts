@@ -4,6 +4,7 @@ import { findPackageJSON } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import type { Evaluation } from '@langfuse/client';
+import type { RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import {
   collectExperimentIssues,
   getExperimentCaseId,
@@ -15,12 +16,14 @@ import { evaluateSplitCaseArtifact } from './evaluate.js';
 import { itemScoreNames, toSplitEvaluations } from './langfuse-scores.js';
 import * as parse from '../parse.js';
 import { writeJsonArtifact } from '../artifacts.js';
+import { parseRunBudget } from '../run-budget.js';
 
 type SavedCase = {
   prepared: PreparedSplitCase;
   report: Awaited<ReturnType<typeof evaluateSplitCaseArtifact>>;
   model: string;
   maxInputTokens: number;
+  budget: RunBudgetSnapshot;
   calls: { count: number; generate: number };
   output: {
     status: 'complete' | 'failed_run' | 'invalid_output';
@@ -145,6 +148,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
       report,
       model,
       maxInputTokens,
+      budget: parseRunBudget(artifact.value.budget),
       calls: {
         count: parse.integer(calls.count, 'artifact.calls.count'),
         generate: parse.integer(calls.generate, 'artifact.calls.generate'),
@@ -206,22 +210,25 @@ export async function uploadSplitEvaluation(
         scorerVersion: cases[0]?.report.scorerVersion,
         timing: 'upload-time-only',
       },
-      data: cases.map(({ prepared, report, model, maxInputTokens }) => ({
-        input: {
-          caseId: prepared.definition.id,
-          inputHash: prepared.inputHash,
-        },
-        expectedOutput: prepared.definition.labels,
-        metadata: {
-          caseId: prepared.definition.id,
-          caseHash: prepared.caseHash,
-          artifactSha256: report.artifactSha256,
-          model,
-          maxInputTokens,
-          reviewStatus: prepared.definition.review.status,
-          provisional: report.provisional,
-        },
-      })),
+      data: cases.map(
+        ({ prepared, report, model, maxInputTokens, budget }) => ({
+          input: {
+            caseId: prepared.definition.id,
+            inputHash: prepared.inputHash,
+          },
+          expectedOutput: prepared.definition.labels,
+          metadata: {
+            caseId: prepared.definition.id,
+            caseHash: prepared.caseHash,
+            artifactSha256: report.artifactSha256,
+            model,
+            maxInputTokens,
+            budget,
+            reviewStatus: prepared.definition.review.status,
+            provisional: report.provisional,
+          },
+        }),
+      ),
       task: (item) => {
         signal.throwIfAborted();
         return Promise.resolve(savedCase(items, item.input).output);

@@ -4,7 +4,9 @@ import {
   splitDiffIntoContextPages,
 } from '@daphne/context-engine';
 import { createOpenAI, ModelError } from '@daphne/llm';
-import type { ModelRequest } from '@daphne/llm';
+import type { ModelReply, ModelRequest } from '@daphne/llm';
+import { runEvaluatorOptimizer } from '@daphne/evaluator-optimizer';
+import type { RunBudget } from '@daphne/evaluator-optimizer';
 import type {
   PageAnalysis,
   SemanticSplitInput,
@@ -12,19 +14,22 @@ import type {
   SemanticSplitResult,
   SplitAttempt,
 } from './contracts.js';
-import {
-  correctionInstructions,
-  groupingInstructions,
-  pageInstructions,
-} from './prompts.js';
+import { groupingInstructions, pageInstructions } from './prompts.js';
 import { getExpectedUnitIds, validateProposal } from './proposal.js';
 import { proposalSchema } from './schema.js';
+import type { Proposal, ProposalValidation } from './proposal.js';
+import { correctionMessage } from './correction.js';
 
-export const maxCorrections: SemanticSplitResult['maxCorrections'] = 3;
+/* Keep the successful reply and its structural validation together, including after cancellation. */
+interface SplitCandidate {
+  reply: ModelReply;
+  inputTokens: number;
+  validation: ProposalValidation;
+}
 
 type SplitProgress = Pick<
   SemanticSplitResult,
-  'maxCorrections' | 'pages' | 'attempts' | 'calls'
+  'budget' | 'pages' | 'attempts' | 'calls'
 >;
 
 function groupingRequest(
@@ -44,17 +49,14 @@ function groupingRequest(
   };
 }
 
-/*
- * Group expected units and retain completed drafts in attempts.
- * Example inputs: IDs {'change-1:0'}, one page containing that hunk,
- * an OpenAI adapter, a 4,000-token limit, and an empty attempts array.
- */
+/* Use the shared runner for grouping while keeping analyses outside the candidate count. */
 async function proposeGroups(
   expectedUnitIds: ReadonlySet<string>,
   pages: PageAnalysis[],
   model: ReturnType<typeof createOpenAI>,
   maxInputTokens: number,
   attempts: SplitAttempt[],
+  budget: RunBudget,
 ) {
   /* Changes and hunks are separate inputs;
   check that the pages built from hunks match the change inventory. */
@@ -69,12 +71,6 @@ async function proposeGroups(
   }
 
   if (expectedUnitIds.size === 0) {
-    if (pages.length > 0) {
-      throw new ContextInputError(
-        'An empty Git inventory requires no diff pages.',
-      );
-    }
-
     return { proposal: { groups: [], warnings: [] }, response: null };
   }
 
@@ -93,6 +89,8 @@ async function proposeGroups(
      * changes together within the token budget.
      */
     for (const page of pages) {
+      checkCancellation(budget.signal);
+
       const analysisRequest = {
         instructions: pageInstructions,
         input: page.context,
@@ -103,9 +101,12 @@ async function proposeGroups(
         throw new ModelError('The page analysis exceeds --max-input-tokens.');
       }
 
+      checkCancellation(budget.signal);
+
       const { text, response } = await model.generate(analysisRequest);
 
       page.analysis = { text, response };
+      checkCancellation(budget.signal);
       notes.push({ unitIds: page.unitIds, notes: text });
     }
 
@@ -113,109 +114,93 @@ async function proposeGroups(
     history.push({ role: 'user', content: JSON.stringify(notes) });
   }
 
-  for (let number = 1; number <= maxCorrections + 1; number++) {
-    const request = groupingRequest(history);
+  const result = await runEvaluatorOptimizer<
+    SplitCandidate,
+    Exclude<ProposalValidation, { status: 'valid' }>,
+    { proposal: Proposal; response: Record<string, unknown> }
+  >({
+    budget,
+    async produce(production) {
+      if (production.kind === 'revision') {
+        history.push(...production.previous.reply.output);
+        history.push(
+          correctionMessage(production.feedback, pages, suppliedPageIndexes),
+        );
+      }
 
-    if (
-      Buffer.byteLength(JSON.stringify(request.input)) >
-      defaultContextLimits.maxContextBytes
-    ) {
-      throw new ModelError(
-        'The serialized grouping conversation exceeds the byte budget, including prior replies, message wrappers and JSON escaping.',
-      );
-    }
+      const request = groupingRequest(history);
 
-    /*
-     * For one page, the pager counted the same instructions, schema and page text
-     * used by the first grouping request, so reuse that count.
-     * Page summaries and correction history change the request and need a new count.
-     */
-    const inputTokens =
-      number === 1 && pages.length === 1 && onlyPage
-        ? onlyPage.inputTokens
-        : await model.count(request);
+      if (
+        Buffer.byteLength(JSON.stringify(request.input)) >
+        defaultContextLimits.maxContextBytes
+      ) {
+        throw new ModelError(
+          'The serialized grouping conversation exceeds the byte budget, including prior replies, message wrappers and JSON escaping.',
+        );
+      }
 
-    if (inputTokens > maxInputTokens) {
-      throw new ModelError(
-        'The grouping conversation exceeds --max-input-tokens.',
-      );
-    }
+      /* Only the initial single-page request is identical to the request counted by the pager. */
+      const inputTokens =
+        production.kind === 'initial' && pages.length === 1 && onlyPage
+          ? onlyPage.inputTokens
+          : await model.count(request);
 
-    const reply = await model.generate(request);
-    const validation = validateProposal(reply.text, expectedUnitIds);
+      if (inputTokens > maxInputTokens) {
+        throw new ModelError(
+          'The grouping conversation exceeds --max-input-tokens.',
+        );
+      }
 
-    /*
-     * Record this reply and its validation now so the caller can inspect them
-     * even if counting tokens or generating the next reply fails.
-     */
+      checkCancellation(budget.signal);
+
+      const reply = await model.generate(request);
+      const validation = validateProposal(reply.text, expectedUnitIds);
+
+      return { reply, inputTokens, validation };
+    },
+    evaluate({ reply, validation }) {
+      if (validation.status === 'valid') {
+        return {
+          status: 'accept',
+          value: { proposal: validation.proposal, response: reply.response },
+        };
+      }
+
+      return { status: 'revise', feedback: validation };
+    },
+  });
+
+  for (const { number, candidate } of result.attempts) {
     attempts.push({
       number,
-      inputTokens,
-      text: reply.text,
-      response: reply.response,
-      validation,
-    });
-
-    if (validation.status === 'valid') {
-      return { proposal: validation.proposal, response: reply.response };
-    }
-
-    if (number === maxCorrections + 1) {
-      break;
-    }
-
-    const evidence: {
-      pageIndex: number;
-      unitIds: readonly string[];
-      context: string;
-    }[] = [];
-
-    /*
-     * Summaries may omit details needed to place missing or duplicated IDs in
-     * the right groups. Supply their original page text to help the correction.
-     */
-    if (validation.status === 'invalid_coverage') {
-      const neededIds = new Set(
-        [...validation.missingIds, ...validation.duplicateIds].filter((id) =>
-          expectedUnitIds.has(id),
-        ),
-      );
-
-      for (const [pageIndex, page] of pages.entries()) {
-        if (
-          !suppliedPageIndexes.has(pageIndex) &&
-          page.unitIds.some((id) => neededIds.has(id))
-        ) {
-          evidence.push({
-            pageIndex,
-            unitIds: page.unitIds,
-            context: page.context,
-          });
-          suppliedPageIndexes.add(pageIndex);
-        }
-      }
-    }
-
-    history.push(...reply.output);
-
-    history.push({
-      role: 'user',
-      content: JSON.stringify({
-        instruction: correctionInstructions,
-        validation,
-        pages: evidence,
-      }),
+      inputTokens: candidate.inputTokens,
+      text: candidate.reply.text,
+      response: candidate.reply.response,
+      validation: candidate.validation,
     });
   }
 
-  throw new ModelError(
-    `The split proposal remained invalid after ${String(maxCorrections)} corrections (${String(maxCorrections + 1)} grouping generations); see attempts for validation details.`,
-  );
+  switch (result.status) {
+    case 'accepted':
+      return result.value;
+    case 'failed':
+      throw result.error;
+    case 'cancelled':
+      throw result.cause === null ? result.reason : result.cause;
+    case 'stopped':
+      throw new ModelError(`The split proposal stopped: ${result.reason}`);
+    case 'exhausted':
+      throw new ModelError(
+        `The split proposal remained invalid after ${String(result.attempts.length)} candidates; the configured run ceiling was reached. See attempts for validation details.`,
+      );
+  }
 }
 
 function checkCancellation(signal: AbortSignal): void {
   if (signal.aborted) {
-    throw new ModelError('The semantic split was cancelled.');
+    throw new ModelError('The semantic split was cancelled.', {
+      cause: signal.reason,
+    });
   }
 }
 
@@ -224,10 +209,13 @@ export async function runSemanticSplit(
   input: SemanticSplitInput,
   options: SemanticSplitOptions,
 ): Promise<SemanticSplitResult> {
-  const { apiKey, model: modelName, maxInputTokens, signal, onPage } = options;
+  const { apiKey, model: modelName, maxInputTokens, budget, onPage } = options;
+  const { signal, maxCandidates, deadlineAt } = budget;
+
   const model = createOpenAI(apiKey, modelName, signal, options.onModelCall);
+
   const progress: SplitProgress = {
-    maxCorrections,
+    budget: { maxCandidates, deadlineAt },
     pages: [],
     attempts: [],
     calls: model.calls,
@@ -258,6 +246,7 @@ export async function runSemanticSplit(
       model,
       maxInputTokens,
       progress.attempts,
+      budget,
     );
 
     checkCancellation(signal);

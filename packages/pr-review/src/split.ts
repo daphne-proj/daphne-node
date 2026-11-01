@@ -13,7 +13,7 @@ import type {
   ReviewIdentity,
 } from '@daphne/review-evidence';
 import type { DiffContextHunk } from '@daphne/context-engine';
-import { maxCorrections, runSemanticSplit } from '@daphne/semantic-split';
+import { runSemanticSplit } from '@daphne/semantic-split';
 import type {
   Proposal,
   SemanticSplitOptions,
@@ -34,7 +34,7 @@ interface PullRequestEvidence {
 }
 
 export type SplitPullRequestResult = PullRequestEvidence &
-  Pick<SemanticSplitResult, 'maxCorrections' | 'pages' | 'attempts' | 'calls'> &
+  Pick<SemanticSplitResult, 'budget' | 'pages' | 'attempts' | 'calls'> &
   (
     | {
         status: 'complete';
@@ -66,13 +66,13 @@ async function* readDiffHunks(
   }
 }
 
-/* Own the Git lifetime and retain evidence and both retrieval/cleanup errors on failure. */
+/* Use the host's budget throughout acquisition and splitting, retaining retrieval and cleanup failures. */
 export async function splitPullRequest(
   ref: PullRequestRef,
   options: SplitPullRequestOptions,
 ): Promise<SplitPullRequestResult> {
   const { githubToken, ...modelOptions } = options;
-  const { signal } = modelOptions;
+  const { signal, maxCandidates, deadlineAt } = modelOptions.budget;
   const evidence: PullRequestEvidence = {
     identity: null,
     changes: [],
@@ -129,20 +129,22 @@ export async function splitPullRequest(
 
       if (split.status === 'failed') {
         errors.push(split.error);
+      } else {
+        signal.throwIfAborted();
       }
     }
   } catch (error) {
     errors.push(error);
   }
 
-  if (split?.status === 'complete') {
+  if (split?.status === 'complete' && errors.length === 0) {
     return { ...evidence, ...split, errors: [] };
   }
 
   return {
     ...evidence,
     status: 'failed',
-    maxCorrections,
+    budget: { maxCandidates, deadlineAt },
     pages: split?.pages ?? [],
     attempts: split?.attempts ?? [],
     calls: split?.calls ?? { count: 0, generate: 0 },

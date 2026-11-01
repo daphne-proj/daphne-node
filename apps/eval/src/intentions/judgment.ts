@@ -13,12 +13,19 @@ const cardVerdicts = [
   'issues_found',
   'insufficient_evidence',
 ] as const;
-const claimFields = ['title', 'before', 'after', 'why'] as const;
+const claimFields = [
+  'title',
+  'before',
+  'after',
+  'intendedOutcome',
+  'why',
+] as const;
 const problems = [
   'contradicted',
   'citation_gap',
   'insufficient_evidence',
 ] as const;
+const issueProblems = [...problems, 'irrelevant', 'immaterial'] as const;
 const textSchema = { type: 'string', minLength: 1 };
 /* Codex's strict schema subset omits uniqueItems; knownIds enforces uniqueness below. */
 const idsSchema = { type: 'array', items: textSchema };
@@ -32,6 +39,13 @@ function recordSchema(properties: Record<string, unknown>) {
   };
 }
 
+const findingProperties = {
+  problem: { type: 'string', enum: problems },
+  explanation: textSchema,
+  evidenceIds: idsSchema,
+  changeIds: idsSchema,
+};
+
 /* The runner constrains syntax; parseJudgment also checks artifact IDs and completeness. */
 export const judgmentSchema = recordSchema({
   dimensions: recordSchema(
@@ -39,7 +53,7 @@ export const judgmentSchema = recordSchema({
       dimensionNames.map((name) => [
         name,
         recordSchema({
-          score: { type: ['integer', 'null'], enum: [0, 1, 2, null] },
+          score: { type: ['integer', 'null'], enum: [1, 2, 3, 4, 5, null] },
           explanation: textSchema,
         }),
       ]),
@@ -52,13 +66,20 @@ export const judgmentSchema = recordSchema({
       verdict: { type: 'string', enum: cardVerdicts },
       findings: {
         type: 'array',
-        items: recordSchema({
-          field: { type: 'string', enum: claimFields },
-          problem: { type: 'string', enum: problems },
-          explanation: textSchema,
-          evidenceIds: idsSchema,
-          changeIds: idsSchema,
-        }),
+        items: {
+          anyOf: [
+            recordSchema({
+              ...findingProperties,
+              field: { type: 'string', enum: claimFields },
+            }),
+            recordSchema({
+              ...findingProperties,
+              field: { type: 'string', enum: ['issue'] },
+              issueIndex: { type: 'integer', minimum: 0 },
+              problem: { type: 'string', enum: issueProblems },
+            }),
+          ],
+        },
       },
     }),
   },
@@ -94,7 +115,11 @@ function knownIds(value: unknown, known: Set<string>, label: string) {
 /*
  * Accept a judgment only when it covers every card and dimension.
  * For example, a missing card or invented evidence ID fails evaluation instead of
- * disappearing from the results. This validates report integrity, not judge accuracy.
+ * disappearing from the results. Concrete defects also require a non-clean score
+ * under rubric v5 (1–5); historical saved judgments are not reparsed here. Issue
+ * findings target the current card's array, for example issueIndex 0; ordinary
+ * fields reject that index. These checks
+ * validate report integrity, not the truth of the judge's observations.
  */
 export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
   const input = fields(value, ['dimensions', 'cards', 'omissions'], 'judgment');
@@ -109,9 +134,9 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
       const score =
         grade.score === null ? null : parse.integer(grade.score, name);
 
-      if (score !== null && score > 2) {
+      if (score !== null && (score < 1 || score > 5)) {
         throw new parse.EvaluationError(
-          `${name}: score must be 0, 1, 2 or null.`,
+          `${name}: score must be an integer from 1 to 5 or null.`,
         );
       }
 
@@ -125,16 +150,39 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
     const card = fields(value, ['index', 'verdict', 'findings'], 'card');
     const index = parse.integer(card.index, 'card.index');
     const verdict = parse.choice(card.verdict, cardVerdicts, 'card.verdict');
+    const intention = packet.proposal.intentions[index];
+
+    if (!intention) {
+      throw new parse.EvaluationError(
+        'Card index must identify a candidate intention.',
+      );
+    }
+
     const findings = parse.array(card.findings, 'findings').map((value) => {
+      const field = parse.choice(
+        parse.object(value, 'finding').field,
+        [...claimFields, 'issue'],
+        'finding.field',
+      );
+      const names = [
+        'field',
+        'problem',
+        'explanation',
+        'evidenceIds',
+        'changeIds',
+      ];
       const finding = fields(
         value,
-        ['field', 'problem', 'explanation', 'evidenceIds', 'changeIds'],
+        field === 'issue' ? [...names, 'issueIndex'] : names,
         'finding',
       );
 
-      return {
-        field: parse.choice(finding.field, claimFields, 'finding.field'),
-        problem: parse.choice(finding.problem, problems, 'finding.problem'),
+      const details = {
+        problem: parse.choice(
+          finding.problem,
+          issueProblems,
+          'finding.problem',
+        ),
         explanation: parse.text(finding.explanation, 'finding.explanation'),
         evidenceIds: knownIds(
           finding.evidenceIds,
@@ -143,12 +191,35 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
         ),
         changeIds: knownIds(finding.changeIds, changeIds, 'finding.changeIds'),
       };
+
+      if (field !== 'issue') {
+        if (
+          details.problem === 'irrelevant' ||
+          details.problem === 'immaterial'
+        ) {
+          throw new parse.EvaluationError(
+            'Relevance and consequence findings must target an issue.',
+          );
+        }
+
+        return { ...details, field };
+      }
+
+      const issueIndex = parse.integer(
+        finding.issueIndex,
+        'finding.issueIndex',
+      );
+
+      if (!intention.issues[issueIndex]) {
+        throw new parse.EvaluationError(
+          'Finding must target an existing issue on this card.',
+        );
+      }
+
+      return { ...details, field, issueIndex };
     });
 
-    if (
-      index >= packet.proposal.intentions.length ||
-      (verdict === 'supported') !== (findings.length === 0)
-    ) {
+    if ((verdict === 'supported') !== (findings.length === 0)) {
       throw new parse.EvaluationError(
         'Card index or verdict contradicts its findings.',
       );
@@ -186,5 +257,43 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
     };
   });
 
+  const findings = cards.flatMap((card) => card.findings);
+  const contradictedClaim = findings.some(
+    (finding) => finding.problem === 'contradicted',
+  );
+  const unsupportedClaim = cards.some((card) =>
+    card.findings.some((finding) => {
+      const field = finding.field;
+      const requiresCitations =
+        field === 'before' ||
+        field === 'after' ||
+        field === 'issue' ||
+        ((field === 'intendedOutcome' || field === 'why') &&
+          packet.proposal.intentions[card.index]?.[field].basis !== 'unknown');
+
+      return (
+        requiresCitations &&
+        (finding.problem === 'contradicted' ||
+          finding.problem === 'citation_gap')
+      );
+    }),
+  );
+
+  for (const [name, hasDefect] of [
+    ['accuracy', contradictedClaim],
+    ['citations', unsupportedClaim],
+    ['coverage', omissions.length > 0],
+  ] as const) {
+    const score = dimensions[name]?.score;
+
+    if (hasDefect && (score === null || score === undefined || score === 5)) {
+      throw new parse.EvaluationError(
+        `${name}: a reported defect requires a score from 1 to 4.`,
+      );
+    }
+  }
+
   return { dimensions, cards, omissions };
 }
+
+export type IntentionJudgment = ReturnType<typeof parseJudgment>;

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import type { ContextEngine } from '@daphne/context-engine';
 import type { ModelFunctionCall, ModelFunctionTool } from '@daphne/llm';
 import type { ToolResult } from '@daphne/review-evidence/contracts';
@@ -89,10 +90,20 @@ function toolRequest(call: ModelFunctionCall): Record<string, unknown> {
   return Object.freeze({ ...args, name: call.name });
 }
 
+/*
+ * Execute a model lookup through the pinned, budget-bound executor and retain its
+ * evidence. Origin links the result to its requesting conversation and turn; for
+ * example, a writer read stays undelivered until that writer receives its output.
+ * Return execution or validation failures as records so completed work survives.
+ */
 export async function executeIntentionTool(
   call: ModelFunctionCall,
   engine: ContextEngine,
   executeTool: IntentionsOptions['executeTool'],
+  origin: Pick<
+    IntentionToolRecord,
+    'number' | 'role' | 'candidateNumber' | 'conversationId' | 'turnNumber'
+  >,
 ): Promise<IntentionToolRecord> {
   let request: Record<string, unknown> | null = null;
   let result: ToolResult | null = null;
@@ -114,7 +125,23 @@ export async function executeIntentionTool(
     const evidenceIds = result.entries.flatMap((entry) =>
       entry.kind === 'source' ? [engine.addSource(entry.source)] : [],
     );
-    const packet = assembleEvidence(engine, evidenceIds);
+    const normalizedRequest = { ...result.request, cursor: null };
+    const query = engine
+      .getEvidenceSnapshot()
+      .queries.find((query) =>
+        isDeepStrictEqual(query.request, normalizedRequest),
+      );
+    /* A retry can refer to an earlier page, so select by cursor, not position. */
+    const cursor = result.request.cursor;
+    const pageIndex = query?.pages.findIndex((page) => page.cursor === cursor);
+
+    if (!query || pageIndex === undefined || pageIndex < 0) {
+      throw new Error('The retained tool result has no matching query page.');
+    }
+
+    const packet = assembleEvidence(engine, evidenceIds, [
+      { queryId: query.queryId, pageIndex },
+    ]);
     const output = JSON.stringify({
       request: result.request,
       completeness: result.completeness,
@@ -124,6 +151,7 @@ export async function executeIntentionTool(
     });
 
     return {
+      ...origin,
       status: 'complete',
       call,
       request,
@@ -133,6 +161,6 @@ export async function executeIntentionTool(
       delivered: false,
     };
   } catch (error) {
-    return { status: 'failed', call, request, result, error };
+    return { ...origin, status: 'failed', call, request, result, error };
   }
 }

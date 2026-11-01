@@ -1,6 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { ContextInputError } from '@daphne/context-engine';
 import { createOpenAI, ModelError } from '@daphne/llm';
+import { createRunBudget } from '@daphne/evaluator-optimizer';
 import { runSemanticSplit } from '@daphne/semantic-split';
 import {
   countOneUnitPerPage,
@@ -249,11 +250,7 @@ test('cancellation after a valid reply keeps the draft without accepting success
   expect(result.attempts).toHaveLength(1);
 
   if (result.status === 'failed') {
-    expect(result.error).toBeInstanceOf(ModelError);
-    expect(result.error).toHaveProperty(
-      'message',
-      expect.stringContaining('cancelled'),
-    );
+    expect(result.error).toBe(controller.signal.reason);
   }
 });
 
@@ -262,7 +259,7 @@ test('an empty inventory completes without model calls', async () => {
 
   expect(await runSemanticSplit(input, options)).toEqual({
     status: 'complete',
-    maxCorrections: 3,
+    budget: { maxCandidates: null, deadlineAt: null },
     pages: [],
     attempts: [],
     calls: { count: 0, generate: 0 },
@@ -332,18 +329,21 @@ test('missing evidence fails before generation and keeps prepared pages', async 
 test.each([
   {
     name: 'second reply is valid',
+    maxCandidates: null,
     replies: ['{', proposalText('a:metadata')],
     status: 'complete',
     validations: ['invalid_json', 'valid'],
   },
   {
-    name: 'fourth reply is valid',
+    name: 'last allowed reply is valid with a four-candidate ceiling',
+    maxCandidates: 4,
     replies: ['{', '{', '{', proposalText('a:metadata')],
     status: 'complete',
     validations: ['invalid_json', 'invalid_json', 'invalid_json', 'valid'],
   },
   {
-    name: 'all four replies are invalid',
+    name: 'all four allowed replies are invalid',
+    maxCandidates: 4,
     replies: ['{', '{', '{', '{'],
     status: 'failed',
     validations: [
@@ -353,16 +353,49 @@ test.each([
       'invalid_json',
     ],
   },
-])('$name', async ({ replies, status, validations }) => {
+  {
+    name: 'the only allowed reply is valid',
+    maxCandidates: 1,
+    replies: [proposalText('a:metadata')],
+    status: 'complete',
+    validations: ['valid'],
+  },
+  {
+    name: 'the only allowed reply is invalid',
+    maxCandidates: 1,
+    replies: ['{'],
+    status: 'failed',
+    validations: ['invalid_json'],
+  },
+  {
+    name: 'sixth reply succeeds without a candidate ceiling',
+    maxCandidates: null,
+    replies: ['{', '{', '{', '{', '{', proposalText('a:metadata')],
+    status: 'complete',
+    validations: [
+      'invalid_json',
+      'invalid_json',
+      'invalid_json',
+      'invalid_json',
+      'invalid_json',
+      'valid',
+    ],
+  },
+])('$name', async ({ maxCandidates, replies, status, validations }) => {
   const {
     input,
     options,
+    controller,
     generate,
     generatedRequests,
     countedBeforeGeneration,
   } = setupWorkflow();
   const answers = replies.map((text, index) =>
     modelReply(text, `draft-${String(index + 1)}`),
+  );
+  options.budget = createRunBudget(
+    maxCandidates === null ? {} : { maxCandidates },
+    controller.signal,
   );
 
   for (const answer of answers) {
@@ -372,7 +405,7 @@ test.each([
   const result = await runSemanticSplit(input, options);
 
   expect(result.status).toBe(status);
-  expect(result.maxCorrections).toBe(3);
+  expect(result.budget).toEqual({ maxCandidates, deadlineAt: null });
   expect(result.attempts.map((attempt) => attempt.number)).toEqual(
     replies.map((_, index) => index + 1),
   );
@@ -385,8 +418,12 @@ test.each([
   expect(result.calls.generate).toBe(replies.length);
   expect(generatedRequests).toEqual(countedBeforeGeneration);
 
-  if (status === 'failed') {
+  if (result.status === 'failed') {
     expect(result).toMatchObject({ proposal: null, response: null });
+    expect(result.error).toHaveProperty(
+      'message',
+      expect.stringContaining('configured run ceiling'),
+    );
   } else {
     expect(result).toMatchObject({
       proposal: { groups: [{ unitIds: ['a:metadata'] }] },

@@ -75,7 +75,8 @@ function lineCount(text: string): number {
  * Rebuilds a saved investigation's sources before the judge sees them. The
  * shared frozen-evidence parser checks the original inventory and hunk sides;
  * context-engine checks retained source identities, byte lengths and conflicts.
- * Every original diff source must also be present in the delivered evidence.
+ * Every original diff source must be retained. The trace reader reconstructs
+ * conversation delivery before selecting the sources eligible for judgment.
  */
 export function parseIntentionEvidence(
   artifact: Record<string, unknown>,
@@ -120,24 +121,6 @@ export function parseIntentionEvidence(
   }
 
   const sources = engine.getEvidenceSnapshot().sources;
-  const knownIds = new Set(sources.map(({ evidenceId }) => evidenceId));
-  const deliveredEvidenceIds = parse
-    .array(
-      investigation.deliveredEvidenceIds,
-      'investigation.deliveredEvidenceIds',
-    )
-    .map((value) => parse.text(value, 'delivered evidence ID'));
-  const delivered = new Set(deliveredEvidenceIds);
-
-  if (
-    delivered.size !== deliveredEvidenceIds.length ||
-    deliveredEvidenceIds.some((id) => !knownIds.has(id))
-  ) {
-    throw new parse.EvaluationError(
-      'Delivered evidence IDs must be distinct and retained.',
-    );
-  }
-
   const inventory = new Map(
     original.changes.map((change) => [change.id, change]),
   );
@@ -172,9 +155,9 @@ export function parseIntentionEvidence(
         isDeepStrictEqual(source, item),
       );
 
-      if (!retained || !delivered.has(retained.evidenceId)) {
+      if (!retained) {
         throw new parse.EvaluationError(
-          'Original diff evidence is missing from the delivered sources.',
+          'Original diff evidence is missing from the retained sources.',
         );
       }
 
@@ -198,7 +181,7 @@ export function parseIntentionEvidence(
     identity: original.identity,
     changes: original.changes,
     hunks,
-    sources: sources.filter(({ evidenceId }) => delivered.has(evidenceId)),
-    deliveredEvidenceIds,
+    sources,
+    initialEvidenceIds: [...new Set(hunks.flatMap((hunk) => hunk.evidenceIds))],
   };
 }

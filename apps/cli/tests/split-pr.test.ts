@@ -68,7 +68,7 @@ test.each([
       pr: options.pr,
       model: options.model,
       maxInputTokens: 128,
-      maxCorrections: 3,
+      budget: result.budget,
       identity: result.identity,
       changes: result.changes,
       hunks: [{ changeId: 'a', hunkIndex: null, sources: [] }],
@@ -110,7 +110,7 @@ test('cancelled publication saves completed work as a failed run', async () => {
   expect(artifact).toMatchObject({
     format: 'daphne-split-pr-v3',
     status: 'failed',
-    maxCorrections: 3,
+    budget: result.budget,
     pages: result.pages,
     attempts: result.attempts,
     calls: result.calls,

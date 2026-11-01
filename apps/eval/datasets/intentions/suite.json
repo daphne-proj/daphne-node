@@ -1,0 +1,10 @@
+{
+  "format": "daphne-intentions-suite-v1",
+  "cases": [
+    {
+      "id": "pr_1",
+      "file": "cases/pr_1.json",
+      "partition": "development"
+    }
+  ]
+}

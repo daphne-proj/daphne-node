@@ -9,6 +9,7 @@ import type {
   SemanticSplitResult,
 } from '@daphne/semantic-split';
 import type { RecordedModelCall } from '../model-calls.js';
+import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 
 export interface FrozenSplitEvidence {
   identity: ReviewIdentity;
@@ -117,7 +118,7 @@ export type SplitExperimentOutput =
   | { status: 'complete'; proposal: Proposal }
   | { status: 'failed'; error: { name: string; message: string } };
 
-export interface SplitRunOptions {
+export interface SplitRunOptions extends RunBudgetPolicy {
   suitePath: string;
   partition: SplitCase['partition'];
   outputDirectory: string;
@@ -133,6 +134,8 @@ export interface SplitRunManifest {
   datasetHash: string;
   partition: SplitCase['partition'];
   modelConfig: SplitTrial['modelConfig'];
+  /* Each case resolves this policy independently when its task begins. */
+  budgetPolicy: RunBudgetPolicy;
   scorerVersion: string;
   promptHash: string;
   sdkVersion: string;

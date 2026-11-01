@@ -46,6 +46,7 @@ async function canonicalPath(path: string): Promise<string> {
   }
 }
 
+/* CLI and eval writers protect split labels and the whole intentions dataset, including symlink aliases. */
 export async function isGoldenDatasetPath(path: string): Promise<boolean> {
   const packagePath = findPackageJSON(import.meta.url);
 
@@ -53,15 +54,23 @@ export async function isGoldenDatasetPath(path: string): Promise<boolean> {
     throw new Error('Could not locate the CLI workspace.');
   }
 
-  const gold = resolve(dirname(packagePath), '../eval/datasets/split-pr/cases');
+  const directories = [
+    '../eval/datasets/split-pr/cases',
+    '../eval/datasets/intentions',
+  ];
+  const canonicalOutput = await canonicalPath(path);
 
-  if (contains(gold, resolve(path))) {
-    return true;
+  for (const directory of directories) {
+    const gold = resolve(dirname(packagePath), directory);
+
+    if (contains(gold, resolve(path))) {
+      return true;
+    }
+
+    if (contains(await canonicalPath(gold), canonicalOutput)) {
+      return true;
+    }
   }
 
-  const [canonicalGold, canonicalOutput] = await Promise.all([
-    canonicalPath(gold),
-    canonicalPath(path),
-  ]);
-  return contains(canonicalGold, canonicalOutput);
+  return false;
 }

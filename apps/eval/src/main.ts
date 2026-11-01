@@ -70,7 +70,7 @@ async function main(): Promise<number> {
     (args.length !== 1 || args[0] !== 'langfuse-smoke')
   ) {
     process.stderr.write(
-      'Usage: eval langfuse-smoke | split-pr validate|eval|score|upload|run ... | intentions judge ...\n',
+      'Usage: eval langfuse-smoke | split-pr validate|eval|score|upload|run ... | intentions judge|eval ...\n',
     );
     return 1;
   }

@@ -4,6 +4,7 @@ import { startObservation } from '@langfuse/tracing';
 import type { LangfuseClient } from '@langfuse/client';
 import { runSemanticSplit } from '@daphne/semantic-split';
 import type { SemanticSplitOptions } from '@daphne/semantic-split';
+import { createRunBudget } from '@daphne/evaluator-optimizer';
 import {
   collectExperimentIssues,
   getExperimentCaseId,
@@ -37,6 +38,14 @@ async function observeSplit(
 
   try {
     span = startObservation('semantic-split');
+    span.update({
+      metadata: {
+        budget: {
+          maxCandidates: options.budget.maxCandidates,
+          deadlineAt: options.budget.deadlineAt,
+        },
+      },
+    });
   } catch {
     issues.push('Could not start the workflow observation.');
   }
@@ -115,6 +124,7 @@ export async function runSplitExperiment(
         sdkVersion: manifest.sdkVersion,
         git: manifest.git,
         modelConfig: manifest.modelConfig,
+        budgetPolicy: manifest.budgetPolicy,
       },
       data: cases.map(({ definition, inputHash, caseHash }) => ({
         input: {
@@ -126,10 +136,11 @@ export async function runSplitExperiment(
         metadata: { caseId: definition.id, inputHash, caseHash },
       })),
       task: async (item) => {
+        const budget = createRunBudget(manifest.budgetPolicy, signal);
         const { caseData, entry, index } = resolveCase(item.input);
 
         try {
-          signal.throwIfAborted();
+          budget.signal.throwIfAborted();
 
           if (trials.has(caseData.definition.id)) {
             throw new Error('Duplicate experiment task.');
@@ -142,7 +153,7 @@ export async function runSplitExperiment(
             {
               apiKey,
               ...manifest.modelConfig,
-              signal,
+              budget,
               onModelCall: recorder.onModelCall,
             },
             entry.issues,
@@ -161,11 +172,36 @@ export async function runSplitExperiment(
           );
 
           const filename = `trial-${String(trialNumber)}-case-${String(index + 1)}.json`;
-          await writeJsonArtifact(join(outputDirectory, filename), trial);
+
+          try {
+            await writeJsonArtifact(
+              join(outputDirectory, filename),
+              trial,
+              trial.result.status === 'complete' ? budget.signal : undefined,
+            );
+          } catch (error) {
+            if (!budget.signal.aborted || error !== budget.signal.reason) {
+              throw error;
+            }
+
+            /* Preserve completed replies if the run expires before publishing accepted output. */
+            trial.result = {
+              ...trial.result,
+              status: 'failed',
+              proposal: null,
+              response: null,
+              error: {
+                name: 'SplitError',
+                message: 'Trial publication was cancelled.',
+              },
+            };
+            await writeJsonArtifact(join(outputDirectory, filename), trial);
+          }
+
           entry.trialFile = filename;
           return toSplitExperimentOutput(trial);
         } catch {
-          const message = signal.aborted
+          const message = budget.signal.aborted
             ? 'Task cancelled.'
             : 'Task execution or trial publication failed.';
           entry.issues.push(message);

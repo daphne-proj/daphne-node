@@ -14,7 +14,7 @@ import { runSplitEvaluation } from './run.js';
 import { uploadSplitEvaluation } from './upload.js';
 
 const usage =
-  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N]';
+  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
 
 function options(
   args: string[],
@@ -168,8 +168,16 @@ export async function runSplitCommand(
       };
       const values = options(
         rest,
-        ['suite', 'partition', 'output', ...Object.keys(defaults)],
+        [
+          'suite',
+          'partition',
+          'output',
+          ...Object.keys(defaults),
+          'max-candidates',
+          'run-timeout-ms',
+        ],
         defaults,
+        ['max-candidates', 'run-timeout-ms'],
       );
 
       return await runSplitEvaluation(
@@ -185,6 +193,12 @@ export async function runSplitCommand(
           maxInputTokens: Number(values['max-input-tokens']),
           trials: Number(values.trials),
           concurrency: Number(values.concurrency),
+          ...(values['max-candidates'] === undefined
+            ? {}
+            : { maxCandidates: Number(values['max-candidates']) }),
+          ...(values['run-timeout-ms'] === undefined
+            ? {}
+            : { timeoutMs: Number(values['run-timeout-ms']) }),
         },
         signal,
       );

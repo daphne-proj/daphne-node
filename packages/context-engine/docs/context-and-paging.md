@@ -73,6 +73,12 @@ Alternatively, the host calls `session.execute(request)`, passes each returned p
 
 The `ContextPacket` contains `renderedContext`, included/omitted evidence IDs, notices, byte count, legacy `tokenCount: null` and a SHA-256 `packetId`. Omissions and incomplete retrieval remain explicit. Mandatory bookkeeping that cannot fit causes failure. The ID identifies the rendering with null legacy token fields; it does not authenticate evidence or prove model delivery.
 
+An optional `queryPages` array selects navigation independently of `evidenceIds`. Each `QueryPageSelection` names a retained `queryId` and its original zero-based `pageIndex`. Omitting the option preserves the full history and existing packet IDs; an empty array includes no queries or navigation. Assembly validates the complete snapshot before applying this selection and rejects unknown queries, duplicate pairs and invalid page indexes.
+
+Selected pages retain ledger order and their original indexes. Each selected query appears once with its actual retained status and total recorded page count, even when only one page is selected. These summaries describe retrieval progress, not model delivery. Omission counts cover selected content that cannot fit, not deliberately unselected history. Source selection, exact bytes and retention are unchanged.
+
+Intentions tool replies select the page matching the returned request and cursor, including retries of earlier pages. For example, a reply to the third lookup no longer repeats navigation from the first two lookups. Initial reviewer context and repair feedback can still include the complete navigation history.
+
 ## Page a supplied diff
 
 Each `DiffContextHunk` contains a `change`, a zero-based `hunkIndex`, and exact sources for its existing sides in BASE-then-HEAD order. For a change without readable text hunks, supply `hunkIndex: null` and `sources: []`; its unit ID ends in `:metadata`. Empty insertion/deletion anchors remain explicit sources, while missing file sides are absent.

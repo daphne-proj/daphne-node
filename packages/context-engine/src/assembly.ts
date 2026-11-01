@@ -4,6 +4,7 @@ import type {
   AssembleInput,
   ContextPacket,
   EvidenceSnapshot,
+  RecordedQuery,
 } from './contracts.js';
 import { validateAndCopySnapshot } from './evidence.js';
 import { ContextInputError, ContextLimitError } from './errors.js';
@@ -11,11 +12,44 @@ import { resolveContextLimits } from './limits.js';
 import type { ContextLimits } from './limits.js';
 import * as validate from './validation.js';
 
+/*
+ * Index requested pages after the complete ledger has been validated. Filtering
+ * earlier would discard the preceding cursors needed to validate continuations.
+ * The map controls inclusion only; assembly preserves the ledger's ordering.
+ */
+function parseQueryPages(value: unknown, queries: readonly RecordedQuery[]) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const selection = new Map<string, Set<number>>();
+
+  for (const item of validate.array(value)) {
+    const page = validate.object(item);
+    const queryId = validate.string(page.queryId);
+    const pageIndex = validate.integer(page.pageIndex);
+    const query = queries.find((query) => query.queryId === queryId);
+    const indexes = selection.get(queryId) ?? new Set<number>();
+
+    if (!query || pageIndex >= query.pages.length || indexes.has(pageIndex)) {
+      throw new ContextInputError(
+        'Query page selection must contain known, distinct pages.',
+      );
+    }
+
+    indexes.add(pageIndex);
+    selection.set(queryId, indexes);
+  }
+
+  return selection;
+}
+
 /* Validate and copy the selection before rendering a byte-bounded packet. */
 function parseAssembleInput(
   value: unknown,
   limits: ContextLimits,
-): AssembleInput {
+  queries: readonly RecordedQuery[],
+) {
   const input = validate.object(value);
   const evidenceIds = Object.freeze([
     ...new Set(
@@ -33,7 +67,9 @@ function parseAssembleInput(
     );
   }
 
-  return Object.freeze({ evidenceIds, maxBytes });
+  const queryPages = parseQueryPages(input.queryPages, queries);
+
+  return Object.freeze({ evidenceIds, maxBytes, queryPages });
 }
 
 function contextNotice(code: string, message: string): ContextNotice {
@@ -49,7 +85,7 @@ export function buildContextPacket(
   const resolved = resolveContextLimits(limits);
   const captured = validateAndCopySnapshot(snapshot, resolved.maxRetainedBytes);
 
-  const selection = parseAssembleInput(input, resolved);
+  const selection = parseAssembleInput(input, resolved, captured.queries);
 
   const byId = new Map(
     captured.sources.map((source) => [source.evidenceId, source]),
@@ -65,22 +101,36 @@ export function buildContextPacket(
     return source;
   });
 
-  const observations = captured.queries.flatMap((query) =>
-    query.pages.flatMap((page, pageIndex) => [
-      ...page.entries.flatMap((entry) =>
-        entry.kind === 'source'
-          ? []
-          : [{ queryId: query.queryId, pageIndex, entry }],
-      ),
-      ...page.notices.map((notice) => ({
-        queryId: query.queryId,
-        pageIndex,
-        notice,
-      })),
-    ]),
+  const selectedQueries = captured.queries.filter(
+    (query) =>
+      selection.queryPages === undefined ||
+      selection.queryPages.has(query.queryId),
+  );
+  const observations = selectedQueries.flatMap((query) =>
+    query.pages.flatMap((page, pageIndex) => {
+      if (
+        selection.queryPages !== undefined &&
+        !selection.queryPages.get(query.queryId)?.has(pageIndex)
+      ) {
+        return [];
+      }
+
+      return [
+        ...page.entries.flatMap((entry) =>
+          entry.kind === 'source'
+            ? []
+            : [{ queryId: query.queryId, pageIndex, entry }],
+        ),
+        ...page.notices.map((notice) => ({
+          queryId: query.queryId,
+          pageIndex,
+          notice,
+        })),
+      ];
+    }),
   );
 
-  const queries = captured.queries.map((query) => ({
+  const queries = selectedQueries.map((query) => ({
     queryId: query.queryId,
     request: query.request,
     status: query.status,

@@ -19,7 +19,9 @@
   },
   "dependencies": {
     "@daphne/context-engine": "workspace:*",
+    "@daphne/evaluator-optimizer": "workspace:*",
     "@daphne/llm": "workspace:*",
-    "@daphne/review-evidence": "workspace:*"
+    "@daphne/review-evidence": "workspace:*",
+    "zod": "4.6.7"
   }
 }

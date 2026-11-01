@@ -30,7 +30,7 @@ import type {
 } from './acquisition/pull-request.js';
 import { defaultPullRequestLimits } from './limits.js';
 
-/* The app supplies model settings and cancellation; this workflow supplies runIntentions' executor. */
+/* The app supplies one run budget; acquisition and runIntentions' borrowed executor share its signal. */
 export interface IntentionsPullRequestOptions extends Omit<
   IntentionsOptions,
   'executeTool'
@@ -95,7 +95,7 @@ export async function analyzePullRequestIntentions(
   options: IntentionsPullRequestOptions,
 ): Promise<IntentionsPullRequestResult> {
   const { githubToken, ...modelOptions } = options;
-  const { signal } = modelOptions;
+  const { signal } = modelOptions.budget;
 
   const evidence: PullRequestEvidence = {
     metadata: null,

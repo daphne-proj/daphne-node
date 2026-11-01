@@ -89,7 +89,7 @@ export function completedResult(): Extract<
         analysis: null,
       },
     ],
-    maxCorrections: 3,
+    budget: { maxCandidates: null, deadlineAt: null },
     attempts: [
       {
         number: 1,

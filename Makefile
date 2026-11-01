@@ -29,9 +29,10 @@ help:
 		'make intentions PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Print intention cards as JSON and save a new outputs/intentions-* run' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6-sol MAX_INPUT_TOKENS=256000' \
-		'make intentions-eval ARTIFACT=outputs/intentions-RUN/run.json' \
-		'                   Judge saved intentions with a fresh Codex CLI session' \
-		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6.1-sol GENERATION_PROMPT=PATH' \
+		'make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json' \
+		'                   Generate fresh intentions and judge them against gold' \
+		'                   Optional: ARTIFACT=PATH regrades a saved run; omit CASE for ordinary judging' \
+		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=256000 GENERATION_PROMPT=PATH' \
 		'make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json' \
 		'                   Compare saved groups with labels offline; drafts are provisional' \
 		'                   Print results; optional OUTPUT=NEW_FILE outside the gold dataset' \
@@ -99,19 +100,14 @@ intentions:
 	fi; \
 	bun run --silent cli -- intentions --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
 
+intentions-eval: MAX_INPUT_TOKENS = 256000
 intentions-eval:
-	@test -n "$$ARTIFACT" || { \
-		printf '%s\n' 'Usage: make intentions-eval ARTIFACT=PATH [OUTPUT=NEW_DIRECTORY] [MODEL=gpt-6.1-sol] [GENERATION_PROMPT=PATH]' >&2; \
+	@test -n "$$CASE" || test -n "$$ARTIFACT" || { \
+		printf '%s\n' 'Usage: make intentions-eval CASE=GOLD_CASE [ARTIFACT=PATH] [OUTPUT=NEW_DIRECTORY] [MODEL=gpt-6.1-sol] [MAX_INPUT_TOKENS=256000] [GENERATION_PROMPT=PATH]' >&2; \
 		exit 1; \
 	}
 	@bun run --silent build
-	@if test -z "$$OUTPUT"; then \
-		mkdir -p outputs || exit 1; \
-		OUTPUT="outputs/intentions-eval-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
-	fi; \
-	set -- --artifact "$$ARTIFACT" --output "$$OUTPUT" --model "$$MODEL"; \
-	if test -n "$$GENERATION_PROMPT"; then set -- "$$@" --generation-prompt "$$GENERATION_PROMPT"; fi; \
-	bun run --silent eval -- intentions judge "$$@"
+	@node apps/eval/scripts/intentions-eval.mjs
 
 split-pr-eval:
 	@test -n "$$CASE" && test -n "$$ARTIFACT" || { \

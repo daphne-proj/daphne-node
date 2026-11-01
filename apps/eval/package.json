@@ -13,6 +13,7 @@
     "typescript": "6.0.3"
   },
   "dependencies": {
+    "@daphne/evaluator-optimizer": "workspace:*",
     "@daphne/cli": "workspace:*",
     "@daphne/context-engine": "workspace:*",
     "@daphne/intentions": "workspace:*",
