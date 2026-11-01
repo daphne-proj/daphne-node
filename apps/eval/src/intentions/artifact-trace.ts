@@ -7,6 +7,7 @@ import {
 import type {
   IntentionsProposal,
   IntentionsValidationContext,
+  IntentionHunkEvidence,
 } from '@daphne/intentions';
 import { parseDeliveredTurns } from './artifact-delivery.js';
 import type { IntentionDeliveryContext } from './artifact-delivery.js';
@@ -16,6 +17,7 @@ import * as parse from '../parse.js';
 export interface IntentionArtifactContext extends IntentionDeliveryContext {
   changes: IntentionsValidationContext['changes'];
   pr: IntentionsValidationContext['pr'];
+  hunks: readonly IntentionHunkEvidence[];
 }
 
 export interface ParsedIntentionTrace {
@@ -28,8 +30,8 @@ export interface ParsedIntentionTrace {
  * Resolve the accepted writer and re-run both acceptance gates from raw replies.
  * Delivery is reconstructed before validating citations; every replacement has
  * its own checks and review. Saved reports, proposals and references are claims
- * to verify, not authority. Malformed or outdated complete traces throw; callers
- * reject failed host runs before invoking this parser.
+ * to verify, not authority. Only the current review contract is supported.
+ * Invalid complete traces throw; callers reject failed host runs before this parser.
  */
 export function parseIntentionTrace(
   value: unknown,
@@ -216,6 +218,7 @@ export function parseIntentionTrace(
         proposal: validation.proposal,
         changes: context.changes,
         deliveredEvidenceIds: reviewer.deliveredEvidenceIds,
+        hunks: context.hunks,
       });
       const decision = deriveIntentionReviewDecision(report);
 

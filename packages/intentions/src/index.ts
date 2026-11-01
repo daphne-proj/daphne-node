@@ -5,6 +5,8 @@ export {
   deriveIntentionReviewDecision,
 } from './review/validation.js';
 export type {
+  RawIntentionReview,
+  IntentionCoverageEntry,
   IntentionReview,
   IntentionReviewCriterion,
   IntentionReviewContext,

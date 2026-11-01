@@ -135,6 +135,7 @@ export async function reviewIntentionCandidate(
 
   const value: unknown = JSON.parse(turn.reply.text);
   const report = parseIntentionReview(value, {
+    hunks: runtime.hunks,
     proposal: writer.validation.proposal,
     changes: runtime.input.changes,
     deliveredEvidenceIds: reply.deliveredEvidenceIds,

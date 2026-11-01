@@ -94,7 +94,9 @@ function knownIds(value: unknown, known: Set<string>, label: string) {
 /*
  * Accept a judgment only when it covers every card and dimension.
  * For example, a missing card or invented evidence ID fails evaluation instead of
- * disappearing from the results. This validates report integrity, not judge accuracy.
+ * disappearing from the results. Concrete defects also require a non-clean score
+ * under rubric v2; historical saved judgments are not reparsed here. These checks
+ * validate report integrity, not the truth of the judge's observations.
  */
 export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
   const input = fields(value, ['dimensions', 'cards', 'omissions'], 'judgment');
@@ -186,5 +188,32 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
     };
   });
 
+  const findings = cards.flatMap((card) => card.findings);
+  const contradictedClaim = findings.some(
+    (finding) => finding.field !== 'why' && finding.problem === 'contradicted',
+  );
+  const unsupportedClaim = findings.some(
+    (finding) =>
+      (finding.field === 'before' || finding.field === 'after') &&
+      (finding.problem === 'contradicted' ||
+        finding.problem === 'citation_gap'),
+  );
+
+  for (const [name, hasDefect] of [
+    ['accuracy', contradictedClaim],
+    ['citations', unsupportedClaim],
+    ['coverage', omissions.length > 0],
+  ] as const) {
+    const score = dimensions[name]?.score;
+
+    if (hasDefect && score !== 0 && score !== 1) {
+      throw new parse.EvaluationError(
+        `${name}: a reported defect requires score 0 or 1.`,
+      );
+    }
+  }
+
   return { dimensions, cards, omissions };
 }
+
+export type IntentionJudgment = ReturnType<typeof parseJudgment>;

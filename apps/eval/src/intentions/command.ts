@@ -8,6 +8,7 @@ import { writeJsonArtifact } from '../artifacts.js';
 import { EvaluationError, sha256, text } from '../parse.js';
 import { loadIntentionArtifact } from './artifact.js';
 import { judgmentSchema, parseJudgment } from './judgment.js';
+import { summarizeIntentionQuality } from './quality.js';
 
 const usage =
   'Usage: eval intentions judge --artifact PATH --output NEW_DIRECTORY --model NAME [--generation-prompt PATH]';
@@ -64,6 +65,7 @@ export async function runIntentionsCommand(
     const provenance = {
       artifactHash: candidate.artifactHash,
       requestedModel: input.model,
+      rubricVersion: 2,
     };
 
     if (await isGoldenDatasetPath(input.output)) {
@@ -128,7 +130,7 @@ export async function runIntentionsCommand(
     }
 
     await writeJsonArtifact(join(input.output, 'input.json'), {
-      format: 'daphne-intentions-judge-input-v1',
+      format: 'daphne-intentions-judge-input-v2',
       ...provenance,
       instructionsSource:
         generationInstructions === null ? 'unavailable' : instructionsSource,
@@ -180,11 +182,13 @@ export async function runIntentionsCommand(
     }
 
     const reportPath = join(input.output, 'report.json');
+    const quality = summarizeIntentionQuality(judgment);
     await writeJsonArtifact(reportPath, {
-      format: 'daphne-intentions-judge-v1',
+      format: 'daphne-intentions-judge-v2',
       ...provenance,
       status,
       judgment,
+      quality,
       issues,
       codex,
       rawOutput,
@@ -196,6 +200,7 @@ export async function runIntentionsCommand(
           status,
           reportPath,
           dimensions: judgment?.dimensions ?? null,
+          quality,
           issues,
         },
         null,

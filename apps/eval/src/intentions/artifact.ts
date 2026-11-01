@@ -1,5 +1,7 @@
 import { open } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
+import { ModelError } from '@daphne/llm';
+import { ContextInputError } from '@daphne/context-engine';
 import type { IntentionsProposal } from '@daphne/intentions';
 import type { RetainedSource } from '@daphne/context-engine';
 import type {
@@ -61,7 +63,7 @@ function decodeArtifact(
   artifactHash: string,
 ): PreparedIntentionArtifact {
   const artifact = parse.object(value, 'artifact');
-  parse.choice(artifact.format, ['daphne-intentions-v1'], 'artifact.format');
+  parse.choice(artifact.format, ['daphne-intentions-v2'], 'artifact.format');
   const status = parse.choice(
     artifact.status,
     ['complete', 'failed'],
@@ -190,11 +192,12 @@ function decodeArtifact(
 }
 
 /*
- * Reads one local v1 run without repository or model calls. For example,
+ * Reads one local v2 run without repository or model calls. For example,
  * loadIntentionArtifact('outputs/intentions/run.json') returns a judge packet
  * only after revalidating source delivery, the selected writer and its review. Malformed
- * or oversized input throws; failed runs and invalid output remain explicit
- * report outcomes. The file and retained evidence have fixed host-side caps.
+ * report data returns invalid_output with no judge packet; failed runs remain
+ * explicit outcomes. Unreadable/oversized files and unexpected internal failures
+ * throw. The file and retained evidence have fixed host-side caps.
  */
 export async function loadIntentionArtifact(
   path: string,
@@ -241,16 +244,39 @@ export async function loadIntentionArtifact(
     await handle.close();
   }
 
-  let value: unknown;
+  const artifactHash = parse.sha256(bytes);
 
   try {
-    value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } catch (error) {
-    throw new parse.EvaluationError(
-      'The intentions artifact is not valid UTF-8 JSON.',
-      { cause: error },
-    );
-  }
+    let value: unknown;
 
-  return decodeArtifact(value, parse.sha256(bytes));
+    try {
+      value = JSON.parse(
+        new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+      );
+    } catch (error) {
+      throw new parse.EvaluationError(
+        'The intentions artifact is not valid UTF-8 JSON.',
+        { cause: error },
+      );
+    }
+
+    return decodeArtifact(value, artifactHash);
+  } catch (error) {
+    if (
+      !(error instanceof parse.EvaluationError) &&
+      !(error instanceof ModelError) &&
+      !(error instanceof ContextInputError) &&
+      !(error instanceof SyntaxError)
+    ) {
+      throw error;
+    }
+
+    return {
+      artifactHash,
+      diagnostics: [error.message],
+      generationInstructions: null,
+      status: 'invalid_output',
+      packet: null,
+    };
+  }
 }

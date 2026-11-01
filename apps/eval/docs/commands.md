@@ -138,11 +138,27 @@ The build includes these smoke files because the command imports them. It preser
 make intentions-eval ARTIFACT=outputs/intentions-CURRENT/run.json
 ```
 
-This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It reconstructs delivery per conversation, revalidates raw writer proposals and reviewer reports, and requires exact accepted-writer/review linkage before judging with the shared [rubric](../prompts/intentions.md). Failed host runs are never judged. The judge sees only accepted cards, writer-eligible evidence and writer instructions; runtime verdicts, iteration counts and model identity are excluded. Obsolete artifact shapes are rejected rather than interpreted through a compatibility path; historical comparisons require separate inspection. It does not regenerate intentions, fetch repository context or upload to Langfuse.
+This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It reconstructs delivery per conversation, revalidates raw writer proposals and reviewer reports, and requires exact accepted-writer/review linkage before judging with the shared [rubric](../prompts/intentions.md). Failed host runs are never judged. The judge sees only accepted cards, writer-eligible evidence and writer instructions; runtime verdicts, iteration counts and model identity are excluded. Only host format `daphne-intentions-v2` is supported, with current policy and mandatory coverage accounting. Old formats and inconsistent traces are rejected; no compatibility parser, migration or fallback is provided. Saved historical artifacts remain untouched. It does not regenerate intentions, fetch repository context or upload to Langfuse.
 
 Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. `MODEL=NAME` overrides the default judge model. When the saved provider response lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
 
-`input.json` preserves the judge prompt, schema and provenance hashes. `report.json` records the structured judgment, diagnostics and execution details. Failed runs and invalid outputs receive reports without a judge call. Low scores still yield a completed evaluation; malformed input, cancellation, missing or invalid judgments and publication failures exit unsuccessfully. Oversized judge input fails explicitly without truncating evidence.
+`input.json` uses `daphne-intentions-judge-input-v2` and preserves the judge prompt, schema and provenance hashes. `report.json` uses `daphne-intentions-judge-v2` and records the structured judgment, diagnostics, execution details and `quality` summary. Both record `rubricVersion: 2`. Historical judge reports are neither rewritten nor reparsed under the new rubric; a regrade creates a fresh artifact. Failed runs and invalid outputs receive reports without a judge call. Low scores still yield a completed evaluation; malformed input, cancellation, missing or invalid judgments and publication failures exit unsuccessfully. Oversized judge input fails explicitly without truncating evidence. Unreadable or oversized artifact files fail before output creation; readable but invalid artifact data produces invalid_output with no judge call.
+
+`quality` reports accuracy, citationSupport, coverage and combined priority as
+`pass`, `issues_found` or `unassessed`. Scores 0/1 mean issues, 2 means pass and null
+means unassessed. Any primary issue or non-why finding/omission makes priority
+issues_found, even when another dimension is unknown. Otherwise any unknown
+primary dimension makes priority unassessed. Why and coherence remain visible in
+the full judgment without entering the primary summary; ordinal scores are not
+averaged. Failed workflows, invalid output and failed judgments have null judgment
+and unassessed quality. A concrete contradiction cannot coexist with clean or
+unknown accuracy; a before/after contradiction or citation gap also requires a
+non-clean citation score, and a reported omission requires non-clean coverage.
+
+See [six-PR calibration](intentions-calibration.md) for source-grounded examples,
+positive controls and disputed materiality. Short sufficient citations are valid;
+unchanged code or callee internals are required only when the claim depends on
+them. Coverage accounting proves references, not semantic completeness.
 
 Each evaluation starts a fresh Codex process in a temporary workspace, with inherited configuration, project instructions, tools and memory restricted. These controls reduce context contamination; they cannot prove complete isolation from managed instructions or eliminate model bias. The judge can assess only saved evidence, so missing context must remain uncertainty. Scores are exploratory until calibrated against human review.
 
@@ -155,6 +171,10 @@ For each artifact, record the pinned commits from `identity` and captured PR tit
 Compare repeated runs only when pinned revisions and captured PR metadata match. Record qualitative findings rather than treating structural acceptance as semantic correctness. Live quality remains unverified until these runs and their human review are recorded.
 
 ## Compare intentions token efficiency
+
+The protocols below are separate evaluation proposals, not authorization to run
+them. The quality-contract pilot at the end is the current proposed next step;
+earlier efficiency and prompt-only comparisons describe different experiments.
 
 Keep payload efficiency separate from reviewer-quality changes. Hold writer and
 reviewer instructions, schemas, models, acceptance policy, evidence requirements
@@ -286,3 +306,45 @@ development evidence and a future generalization claim needs new unseen cases.
 Implementation and source review do not execute or qualify this protocol. When
 the user defers testing, record checks and live evaluation as unrun; complete the
 case manifest and obtain authorization before subsequent paid execution.
+
+## Compare the quality contract (proposed, not executed)
+
+Start with frozen candidates to isolate review policy and coverage from writer
+variation. Use candidate 1 from the seven run artifacts in
+[the calibration manifest](intentions-calibration.md): PR1 run2, PR2 run1, PR3
+run1 and run2, and PR4/5/6 run1. PR4 remains explicitly a diagnostic draft from a
+failed workflow. Compare the prior reviewer and current reviewer once per case:
+**14 terminal review requests, zero writer requests and zero independent-judge
+requests**. Human source adjudication uses the balanced calibration cases and
+records disputed details separately. This is a proposed allocation only.
+
+For this first source-frozen probe, provide both arms the same saved proposal,
+inventory, original hunks and source bytes delivered during the recorded review.
+Do not fetch new source or execute tools. Use the existing model, low reasoning,
+256,000 input and 16,384 output capacities, 120,000 ms provider timeout and existing
+byte limits. One request per arm/case means at most 14 generation requests and
+14 corresponding count requests, with no retries or continuation calls. A tool
+request, malformed response or capacity failure remains an incomplete slot.
+This controlled probe does not estimate normal retrieval or end-to-end success.
+
+Before authorization, freeze a manifest with exact candidate/turn numbers,
+proposal and source hashes, both source snapshots and prompt/schema hashes,
+runtime versions, alternating arm order and fresh output paths. The current
+loader does not accept old artifacts. Any future diagnostic extraction must be
+separate from production loading, verify the recorded source bytes and delivery,
+and never relabel old artifacts as current accepted runs. Do not add a permanent
+replay framework for this pilot.
+
+Measure detected-error acceptance, confirmed consequential omissions and
+unnecessary repair requests on adequate controls. Record missing or inconsistent
+coverage, failed slots, reviewer input/output/cache usage and latency. Retain
+why-only findings, judge disagreements and disputed materiality separately;
+no failed slot is replaced based on its outcome. More coverage output may cost
+tokens; fewer unnecessary repairs and better detection must justify that cost.
+
+Only after this probe should a separately allocated end-to-end comparison be
+considered. That comparison must include writer revisions and independent
+evaluation, corrected versus introduced defects, completion/failure rates and
+usage by role. A newly discovered pre-existing defect is not a repair regression.
+No quality or token-efficiency improvement is established by source review or
+typechecking, and success on these known PRs does not establish generalization.
