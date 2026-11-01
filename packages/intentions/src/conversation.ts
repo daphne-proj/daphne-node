@@ -1,7 +1,7 @@
 import type { ContextEngine } from '@daphne/context-engine';
 import type { RunBudget } from '@daphne/evaluator-optimizer';
 import { ModelError, runModelConversation } from '@daphne/llm';
-import type { createOpenAI, ModelConversation } from '@daphne/llm';
+import type { ModelClient, ModelConversation } from '@daphne/llm';
 import type {
   IntentionEvidenceDelivery,
   IntentionsOptions,
@@ -44,7 +44,7 @@ export interface IntentionConversation extends ModelConversation {
 
 /* Borrow one client, evidence store and budget; shared runtimes execute conversations sequentially. */
 export interface IntentionConversationRuntime {
-  model: ReturnType<typeof createOpenAI>;
+  model: ModelClient;
   engine: ContextEngine;
   executeTool: IntentionsOptions['executeTool'];
   budget: RunBudget;
@@ -174,6 +174,8 @@ export async function runIntentionConversation(
       }
 
       const recorded = {
+        /* Preserve the actual prompt even when the provider does not echo it. */
+        instructions: conversation.instructions,
         number: progress.turns.length + 1,
         candidateNumber: conversation.candidateNumber,
         conversationId: conversation.conversationId,

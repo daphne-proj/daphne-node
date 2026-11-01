@@ -6,16 +6,16 @@
 
 From the repository root, run `bun run build`, then `bun run eval -- <command>`.
 
-| Command             | Purpose                                                                  | External calls      |
-| ------------------- | ------------------------------------------------------------------------ | ------------------- |
-| `split-pr validate` | Check case/suite contracts, evidence and labels.                         | None                |
-| `split-pr eval`     | Compare a saved run with one case; draft comparisons remain provisional. | None                |
-| `split-pr score`    | Score a saved run against a reviewed suite case.                         | None                |
-| `split-pr run`      | Run reviewed frozen cases through the splitter and report experiments.   | OpenAI and Langfuse |
-| `split-pr upload`   | Revalidate and upload saved batch scores.                                | Langfuse            |
-| `langfuse-smoke`    | Verify experiment reporting with two synthetic cases.                    | Langfuse            |
-| `intentions eval`   | Grade saved cards against a frozen gold case; drafts remain provisional. | Codex CLI           |
-| `intentions judge`  | Judge a saved run using its original prompt, evidence and output.        | Codex CLI           |
+| Command             | Purpose                                                                  | External calls                       |
+| ------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| `split-pr validate` | Check case/suite contracts, evidence and labels.                         | None                                 |
+| `split-pr eval`     | Compare a saved run with one case; draft comparisons remain provisional. | None                                 |
+| `split-pr score`    | Score a saved run against a reviewed suite case.                         | None                                 |
+| `split-pr run`      | Run reviewed frozen cases through the splitter and report experiments.   | Selected model provider and Langfuse |
+| `split-pr upload`   | Revalidate and upload saved batch scores.                                | Langfuse                             |
+| `langfuse-smoke`    | Verify experiment reporting with two synthetic cases.                    | Langfuse                             |
+| `intentions eval`   | Grade saved cards against a frozen gold case; drafts remain provisional. | Codex CLI                            |
+| `intentions judge`  | Judge a saved run using its original prompt, evidence and output.        | Codex CLI                            |
 
 This app has no public library exports. Internally, `runSplitCommand` dispatches evaluation commands, `withLangfuse` owns the telemetry lifecycle, and `createModelCallRecorder` captures provider timing and usage.
 
@@ -51,3 +51,5 @@ The [intentions gold dataset](datasets/intentions/README.md) supplies human-revi
 Gold rubric v4 can match actual behavior in before/after text or an issue narrative. Intended outcomes and motivation do not count as implemented behavior. Gold case v2 adds expected material issues and false-alarm controls, while frozen evidence remains v1 and unchanged. Every reported issue receives accuracy, relevance and consequence assessments. The host derives separate on-point rates, known-issue coverage and false-alarm rates with denominators and unassessed counts. Empty reports never receive perfect precision, and a novel supported issue need not match gold. Regular judge input/report formats are v4; gold input/report formats are v3. Historical judgments remain unchanged.
 
 The initial draft labels use one PR: a conditional tenant/key collision and two false-alarm controls from its existing source. They do not establish total issue recall or reviewer usefulness. See the [dataset guide](datasets/intentions/README.md#read-the-issue-metrics) for formulas and annotation limits. Explicit issue metrics are currently available through gold `intentions eval`; ordinary judging retains issue-target findings.
+
+Fresh model runs accept `--provider openai|anthropic`; Make uses `PROVIDER`. `intentions-eval` selects the generation provider, while its independent Codex judge always uses the OpenAI default. Model defaults are maintained in `packages/llm/src/providers.ts`.

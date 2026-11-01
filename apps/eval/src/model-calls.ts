@@ -1,10 +1,15 @@
 import { startObservation } from '@langfuse/tracing';
 import { normalizeModelUsage } from '@daphne/llm';
-import type { ModelCallObservation, TokenUsage } from '@daphne/llm';
+import type {
+  ModelCallObservation,
+  ModelProvider,
+  TokenUsage,
+} from '@daphne/llm';
 
 export interface RecordedModelCall {
   kind: 'count' | 'generate';
   number: number;
+  provider?: ModelProvider;
   model: string;
   startedAt: string;
   endedAt: string;
@@ -15,13 +20,23 @@ export interface RecordedModelCall {
 
 function usageDetails(usage: TokenUsage): Record<string, number> {
   const details: Record<string, number> = {
-    input: usage.inputTokens - (usage.cachedInputTokens ?? 0),
+    input:
+      usage.inputTokens -
+      (usage.cachedInputTokens ?? 0) -
+      (usage.cacheCreationInputTokens ?? 0),
     output: usage.outputTokens - (usage.reasoningOutputTokens ?? 0),
     total: usage.inputTokens + usage.outputTokens,
   };
 
   if (usage.cachedInputTokens !== null) {
     details.input_cached_tokens = usage.cachedInputTokens;
+  }
+
+  if (
+    usage.cacheCreationInputTokens !== undefined &&
+    usage.cacheCreationInputTokens !== null
+  ) {
+    details.input_cache_creation_tokens = usage.cacheCreationInputTokens;
   }
 
   if (usage.reasoningOutputTokens !== null) {
@@ -48,7 +63,10 @@ export function createModelCallRecorder(): {
 
       try {
         if (event.kind === 'generate') {
-          usage = normalizeModelUsage(event.response);
+          usage = normalizeModelUsage(
+            event.response,
+            event.provider ?? 'openai',
+          );
         }
       } catch {
         issues.push(
@@ -62,6 +80,7 @@ export function createModelCallRecorder(): {
         calls.push({
           kind: event.kind,
           number: event.number,
+          provider: event.provider ?? 'openai',
           model,
           startedAt: event.startedAt.toISOString(),
           endedAt: event.endedAt.toISOString(),
@@ -74,7 +93,7 @@ export function createModelCallRecorder(): {
           event.status === 'failed'
             ? { level: 'ERROR' as const, statusMessage: 'Model call failed.' }
             : {};
-        const name = `openai.${event.kind}`;
+        const name = `${event.provider ?? 'openai'}.${event.kind}`;
         const observation =
           event.kind === 'generate'
             ? startObservation(

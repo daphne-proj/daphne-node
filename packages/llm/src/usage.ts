@@ -1,8 +1,12 @@
+import type { ModelProvider } from './contracts.js';
+
 /* Inclusive provider totals; missing cached-input and reasoning-output breakdowns remain unknown. */
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens: number | null;
+  /* Anthropic cache writes are distinct from cache reads; older/OpenAI usage omits this field. */
+  cacheCreationInputTokens?: number | null;
   reasoningOutputTokens: number | null;
 }
 
@@ -45,12 +49,17 @@ function detail(value: unknown, key: string, total: number): number | null {
 /* Parse provider usage independently so missing or malformed accounting cannot invalidate a completed generation. */
 export function normalizeModelUsage(
   response: Record<string, unknown> | null,
+  provider: ModelProvider = 'openai',
 ): TokenUsage | null {
   if (response?.usage === undefined || response.usage === null) {
     return null;
   }
 
   const usage = object(response.usage, 'usage');
+  if (provider === 'anthropic') {
+    return anthropicUsage(usage);
+  }
+
   const inputTokens = integer(usage.input_tokens, 'input_tokens');
   const outputTokens = integer(usage.output_tokens, 'output_tokens');
   const total = integer(inputTokens + outputTokens, 'total_tokens');
@@ -76,4 +85,41 @@ export function normalizeModelUsage(
       outputTokens,
     ),
   };
+}
+
+/* Claude input_tokens excludes cache reads and writes; expose an inclusive input total. */
+function anthropicUsage(usage: Record<string, unknown>): TokenUsage {
+  const uncachedInputTokens = integer(usage.input_tokens, 'input_tokens');
+  const cachedInputTokens = optionalInteger(
+    usage.cache_read_input_tokens,
+    'cache_read_input_tokens',
+  );
+  const cacheCreationInputTokens = optionalInteger(
+    usage.cache_creation_input_tokens,
+    'cache_creation_input_tokens',
+  );
+  const inputTokens = integer(
+    uncachedInputTokens +
+      (cachedInputTokens ?? 0) +
+      (cacheCreationInputTokens ?? 0),
+    'inclusive input_tokens',
+  );
+  const outputTokens = integer(usage.output_tokens, 'output_tokens');
+  integer(inputTokens + outputTokens, 'total_tokens');
+
+  return {
+    inputTokens,
+    outputTokens,
+    cachedInputTokens,
+    cacheCreationInputTokens,
+    reasoningOutputTokens: detail(
+      usage.output_tokens_details,
+      'thinking_tokens',
+      outputTokens,
+    ),
+  };
+}
+
+function optionalInteger(value: unknown, field: string): number | null {
+  return value === undefined || value === null ? null : integer(value, field);
 }

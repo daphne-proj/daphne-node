@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { parseArgs } from 'node:util';
+import { defaultModels, parseModelProvider } from '@daphne/llm';
+import type { ModelProvider } from '@daphne/llm';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { analyzePullRequestIntentions } from '@daphne/pr-review/intentions';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
@@ -16,6 +18,7 @@ import { createRunDirectory, writeArtifact } from './output.js';
 interface IntentionsOptions extends RunBudgetPolicy {
   pr: string;
   output: string;
+  provider?: ModelProvider;
   model: string;
   maxInputTokens: number;
 }
@@ -30,19 +33,22 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
       options: {
         pr: { type: 'string' },
         output: { type: 'string' },
-        model: { type: 'string', default: 'gpt-6-sol' },
+        provider: { type: 'string', default: 'openai' },
+        model: { type: 'string' },
         'max-input-tokens': { type: 'string', default: '256000' },
         'max-candidates': { type: 'string' },
         'run-timeout-ms': { type: 'string' },
       },
     });
+    const provider = parseModelProvider(values.provider);
+    const model = values.model ?? defaultModels[provider];
     const maxInputTokens = Number(values['max-input-tokens']);
 
     if (
       !values.pr ||
       !values.output?.trim() ||
       values.output.includes('\0') ||
-      !values.model.trim() ||
+      !model.trim() ||
       !Number.isSafeInteger(maxInputTokens) ||
       maxInputTokens < 1
     ) {
@@ -52,7 +58,8 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
     return {
       pr: values.pr,
       output: values.output,
-      model: values.model,
+      provider,
+      model,
       maxInputTokens,
       ...(values['max-candidates'] === undefined
         ? {}
@@ -63,7 +70,7 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
     };
   } catch {
     throw new CliInputError(
-      'Usage: intentions --pr URL --output NEW_DIRECTORY [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
+      'Usage: intentions --pr URL --output NEW_DIRECTORY [--provider openai|anthropic] [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
@@ -99,10 +106,14 @@ export async function runIntentionsPr(
     loadEnvFile('.env');
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const provider = options.provider ?? 'openai';
+  const apiKeyVariable = `${provider.toUpperCase()}_API_KEY`;
+  const apiKey = process.env[apiKeyVariable];
 
   if (!apiKey?.trim()) {
-    throw new CliInputError('Set OPENAI_API_KEY in .env or the environment.');
+    throw new CliInputError(
+      `Set ${apiKeyVariable} in .env or the environment.`,
+    );
   }
 
   const directory = await createRunDirectory(options.output);
@@ -116,6 +127,7 @@ export async function runIntentionsPr(
     process.stderr.write(
       formatCommandOutput(`Intentions for PR #${String(ref.number)}`, [
         { label: 'Pull request', value: ref.url },
+        { label: 'Provider', value: provider },
         { label: 'Model', value: options.model },
         { label: 'Run artifact', value: artifactPath },
       ]) + '\n',
@@ -124,6 +136,7 @@ export async function runIntentionsPr(
 
   const result = await analyzePullRequestIntentions(ref, {
     apiKey,
+    provider,
     model: options.model,
     maxInputTokens: options.maxInputTokens,
     budget,
@@ -139,6 +152,7 @@ export async function runIntentionsPr(
     format: 'daphne-intentions-v3',
     status: result.status,
     pr: ref.url,
+    provider,
     model: options.model,
     maxInputTokens: options.maxInputTokens,
     budget: {
@@ -163,6 +177,7 @@ export async function runIntentionsPr(
       candidateNumber: call.candidateNumber,
       conversationId: call.conversationId,
       number: call.number,
+      provider: call.provider ?? provider,
       model: call.model,
       status: call.status,
       startedAt: call.startedAt,

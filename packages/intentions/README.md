@@ -16,7 +16,7 @@ Supply a pinned `ReviewIdentity`, complete `Change[]` inventory, exact `DiffCont
 
 The package captures these inputs before asynchronous work. It checks hunk membership, paths, side order, line counts and complete inventory coverage. Context-engine validates source identity, exact UTF-8 byte lengths and conflicts. Missing required evidence fails; unsupported content remains explicit metadata with a limitation. An empty inventory returns an empty proposal without counting or generation.
 
-The caller supplies credentials, model name, a positive `maxInputTokens`, a shared `RunBudget`, and an evidence executor. Create the budget before acquiring evidence and bind acquisition and the session executor to `budget.signal`. For example, after acquiring a session with that signal:
+The caller supplies an optional `provider` (OpenAI by default), credentials, model name, a positive `maxInputTokens`, a shared `RunBudget`, and an evidence executor. Create the budget before acquiring evidence and bind acquisition and the session executor to `budget.signal`. For example, after acquiring a session with that signal:
 
 ```ts
 import { runIntentions } from '@daphne/intentions';
@@ -24,6 +24,7 @@ import { runIntentions } from '@daphne/intentions';
 const result = await runIntentions(
   { identity: session.identity, changes, hunks, pr },
   {
+    provider,
     apiKey,
     model,
     maxInputTokens: 256_000,
@@ -87,3 +88,5 @@ After input capture, `comparison` retains the exact PR metadata, pinned identity
 Runtime dependencies are context-engine for retention/assembly, llm for provider calls and conversation protocol, evaluator-optimizer for proposal iteration and run budgets, and Zod for writer/reviewer shape validation, inferred raw types and generated request schemas. Review-evidence is imported only through its type-only contracts export. This package has no Git handle, repository I/O, PR acquisition, CLI, telemetry or filesystem persistence. It adds no RCI/PCG index or multi-agent orchestration.
 
 Offline conversation tests verify isolated delivery, failed requests leaving receipts pending, retained tool failures and terminal replies arriving with cancellation. Repository checks verify integration; no live model calls are part of normal checks. Live provider compatibility and explanation quality require a separate evaluation. Acceptance now also requires semantic review inside the [evaluator-optimizer plan](../../docs/superpowers/plans/2026-10-29-evaluator-optimizer.md). Dedicated reviewer/workflow/artifact-reader tests are deferred at the user’s request; temporary offline checks do not replace permanent coverage or live provider qualification. See also the [original implementation plan](../../docs/superpowers/plans/2026-10-25-intentions-agent.md) and [architecture](../../docs/architecture.md).
+
+Provider request/response formats stay in `@daphne/llm`. Writer and reviewer share the selected client; every completed turn retains its actual instructions for provider-independent evaluation.

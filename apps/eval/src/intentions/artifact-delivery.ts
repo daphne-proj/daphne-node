@@ -1,16 +1,19 @@
 import { isDeepStrictEqual } from 'node:util';
+import { decodeModelReply } from '@daphne/llm';
+import type { ModelProvider } from '@daphne/llm';
 import type { RetainedSource } from '@daphne/context-engine';
 import type { ReviewIdentity } from '@daphne/review-evidence/contracts';
 import * as parse from '../parse.js';
 
 export interface IntentionDeliveryContext {
+  provider?: ModelProvider;
   identity: ReviewIdentity;
   sources: readonly RetainedSource[];
   initialEvidenceIds: string[];
 }
 
 /* Parse only fields needed for current trace verification; provider payloads remain retained verbatim. */
-function parseTurn(value: unknown, index: number) {
+function parseTurn(value: unknown, index: number, provider: ModelProvider) {
   const turn = parse.object(value, `turns[${String(index)}]`);
   const number = parse.integer(turn.number, 'turn.number');
   const candidateNumber = parse.integer(
@@ -23,31 +26,27 @@ function parseTurn(value: unknown, index: number) {
     .array(reply.output, 'reply.output')
     .map((item) => parse.object(item, 'output item'));
   const text = parse.text(reply.text, 'reply.text', true);
-  const functionCalls = output
-    .filter((item) => item.type === 'function_call')
-    .map((item) => ({
-      id: parse.text(item.id, 'call.id'),
-      call_id: parse.text(item.call_id, 'call.call_id'),
-      name: parse.text(item.name, 'call.name'),
-      arguments: parse.text(item.arguments, 'call.arguments'),
-    }));
-  const responseText = output
-    .filter((item) => item.type === 'message' && item.phase !== 'commentary')
-    .flatMap((item) => parse.array(item.content, 'message.content'))
-    .map((value) => {
-      const part = parse.object(value, 'message content');
-      parse.choice(part.type, ['output_text'], 'message content.type');
-      return parse.text(part.text, 'message content.text', true);
-    })
-    .join('');
+  const decoded = decodeModelReply(provider, response);
+  const functionCalls = decoded.functionCalls ?? [];
+  const instructions =
+    turn.instructions === undefined ? response.instructions : turn.instructions;
+
+  if (
+    response.instructions !== undefined &&
+    response.instructions !== null &&
+    instructions !== response.instructions
+  ) {
+    throw new parse.EvaluationError(
+      'Saved instructions differ from the provider response.',
+    );
+  }
 
   if (
     number !== index + 1 ||
     candidateNumber === 0 ||
     turn.generationNumber !== number ||
-    response.status !== 'completed' ||
-    !isDeepStrictEqual(response.output, output) ||
-    text !== responseText ||
+    !isDeepStrictEqual(decoded.output, output) ||
+    text !== decoded.text ||
     !isDeepStrictEqual(reply.functionCalls ?? [], functionCalls)
   ) {
     throw new parse.EvaluationError(
@@ -59,6 +58,10 @@ function parseTurn(value: unknown, index: number) {
 
   return {
     number,
+    instructions:
+      instructions === undefined || instructions === null
+        ? null
+        : parse.text(instructions, 'turn.instructions'),
     candidateNumber,
     role: parse.choice(turn.role, ['writer', 'reviewer'], 'turn.role'),
     conversationId: parse.text(turn.conversationId, 'turn.conversationId'),
@@ -176,7 +179,9 @@ export function parseDeliveredTurns(
 ): DeliveredIntentionTurn[] {
   const turns = parse
     .array(investigation.turns, 'investigation.turns')
-    .map(parseTurn);
+    .map((value, index) =>
+      parseTurn(value, index, context.provider ?? 'openai'),
+    );
   const tools = parse
     .array(investigation.tools, 'investigation.tools')
     .map((value) => parse.object(value, 'tool'));

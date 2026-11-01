@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { createOpenAI } from '@daphne/llm';
+import { createModel } from '@daphne/llm';
 import type { ModelReply, ModelRequest } from '@daphne/llm';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
 import type {
@@ -70,18 +70,18 @@ export function setupWorkflow(ids: string[] = ['a']) {
   };
 
   const count = vi
-    .fn<ReturnType<typeof createOpenAI>['count']>()
+    .fn<ReturnType<typeof createModel>['count']>()
     .mockResolvedValue(16);
 
   const generate = vi
-    .fn<ReturnType<typeof createOpenAI>['generate']>()
+    .fn<ReturnType<typeof createModel>['generate']>()
     .mockRejectedValue(new Error('Unexpected generation.'));
 
   const countedRequests: ModelRequest[] = [];
   const generatedRequests: ModelRequest[] = [];
   const countedBeforeGeneration: (ModelRequest | undefined)[] = [];
 
-  const model: ReturnType<typeof createOpenAI> = {
+  const model: ReturnType<typeof createModel> = {
     calls: { count: 0, generate: 0 },
     count(request) {
       model.calls.count += 1;
@@ -98,7 +98,7 @@ export function setupWorkflow(ids: string[] = ['a']) {
     },
   };
 
-  vi.mocked(createOpenAI).mockReturnValue(model);
+  vi.mocked(createModel).mockReturnValue(model);
 
   return {
     input,

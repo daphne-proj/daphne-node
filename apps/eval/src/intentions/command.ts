@@ -108,7 +108,7 @@ export async function runIntentionsCommand(
     }
 
     let generationInstructions = candidate.generationInstructions;
-    let instructionsSource = 'provider_response';
+    let instructionsSource = 'captured_run';
 
     if (input.promptPath !== undefined) {
       const supplied = text(

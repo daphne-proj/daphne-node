@@ -2,19 +2,22 @@ import type {
   ModelFunctionCall,
   ModelFunctionTool,
   ModelReply,
-} from './openai.js';
+} from './contracts.js';
 
 export class ModelError extends Error {
   override readonly name = 'ModelError';
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function object(value: unknown): Record<string, unknown> {
+export function object(
+  value: unknown,
+  provider = 'OpenAI',
+): Record<string, unknown> {
   if (!isObject(value)) {
-    throw new ModelError('OpenAI returned an invalid response.');
+    throw new ModelError(`${provider} returned an invalid response.`);
   }
 
   return value;
@@ -22,7 +25,7 @@ export function object(value: unknown): Record<string, unknown> {
 
 function functionCall(
   item: Record<string, unknown>,
-  tools: readonly ModelFunctionTool[],
+  tools: readonly ModelFunctionTool[] | undefined,
 ): ModelFunctionCall {
   if (
     typeof item.id !== 'string' ||
@@ -30,7 +33,8 @@ function functionCall(
     typeof item.call_id !== 'string' ||
     !item.call_id ||
     typeof item.name !== 'string' ||
-    !tools.some((tool) => tool.name === item.name) ||
+    !item.name ||
+    (tools !== undefined && !tools.some((tool) => tool.name === item.name)) ||
     typeof item.arguments !== 'string' ||
     (item.status !== undefined && item.status !== 'completed')
   ) {
@@ -57,13 +61,13 @@ function functionCall(
 
 export function decodeResponse(
   response: Record<string, unknown>,
-  tools: readonly ModelFunctionTool[],
+  tools?: readonly ModelFunctionTool[],
 ): ModelReply {
   if (response.status !== 'completed' || !Array.isArray(response.output)) {
     throw new ModelError('OpenAI did not complete the response.');
   }
 
-  const output = response.output.map(object);
+  const output = response.output.map((item: unknown) => object(item));
   const texts: string[] = [];
   const functionCalls: ModelFunctionCall[] = [];
   const ids = new Set<string>();

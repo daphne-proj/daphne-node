@@ -109,6 +109,7 @@ export async function runSplitEvaluation(
     datasetHash: suite.datasetHash,
     partition: options.partition,
     modelConfig: {
+      provider: options.provider ?? 'openai',
       model: options.model,
       maxInputTokens: options.maxInputTokens,
     },
@@ -151,11 +152,12 @@ export async function runSplitEvaluation(
       loadEnvFile('.env');
     }
 
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    const apiKeyVariable = `${(options.provider ?? 'openai').toUpperCase()}_API_KEY`;
+    const apiKey = process.env[apiKeyVariable]?.trim();
 
     if (!apiKey) {
       throw new LangfuseConfigurationError(
-        'OPENAI_API_KEY is required for split-pr run.',
+        `${apiKeyVariable} is required for split-pr run.`,
       );
     }
 

@@ -3,6 +3,7 @@ import { closeSync, openSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
+import { defaultModels, parseModelProvider } from '@daphne/llm';
 import { isGoldenDatasetPath } from '@daphne/cli/output-path';
 import { loadIntentionGoldCase } from '../dist/src/intentions/gold-case.js';
 
@@ -34,8 +35,15 @@ function runStage(command, args, logPath) {
 }
 
 try {
-  const { CASE, ARTIFACT, OUTPUT, MODEL, MAX_INPUT_TOKENS, GENERATION_PROMPT } =
-    process.env;
+  const {
+    CASE,
+    ARTIFACT,
+    OUTPUT,
+    PROVIDER,
+    MAX_INPUT_TOKENS,
+    GENERATION_PROMPT,
+  } = process.env;
+  const provider = parseModelProvider(PROVIDER);
   const stamp = new Date().toISOString().replaceAll(':', '-');
   const output = resolve(
     OUTPUT || `outputs/intentions-eval-${stamp}-${process.pid}`,
@@ -72,8 +80,8 @@ try {
         gold.pr,
         '--output',
         generation,
-        '--model',
-        MODEL,
+        '--provider',
+        provider,
         '--max-input-tokens',
         MAX_INPUT_TOKENS,
       ],
@@ -89,7 +97,15 @@ try {
     args.push('--case', CASE);
   }
 
-  args.push('--artifact', artifact, '--output', evaluation, '--model', MODEL);
+  /* The independent Codex judge uses OpenAI even when Anthropic generated the cards. */
+  args.push(
+    '--artifact',
+    artifact,
+    '--output',
+    evaluation,
+    '--model',
+    defaultModels.openai,
+  );
 
   if (GENERATION_PROMPT) {
     args.push('--generation-prompt', GENERATION_PROMPT);

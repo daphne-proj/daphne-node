@@ -3,8 +3,8 @@ import {
   defaultContextLimits,
   splitDiffIntoContextPages,
 } from '@daphne/context-engine';
-import { createOpenAI, ModelError } from '@daphne/llm';
-import type { ModelReply, ModelRequest } from '@daphne/llm';
+import { createModel, ModelError } from '@daphne/llm';
+import type { ModelClient, ModelReply, ModelRequest } from '@daphne/llm';
 import { runEvaluatorOptimizer } from '@daphne/evaluator-optimizer';
 import type { RunBudget } from '@daphne/evaluator-optimizer';
 import type {
@@ -53,7 +53,7 @@ function groupingRequest(
 async function proposeGroups(
   expectedUnitIds: ReadonlySet<string>,
   pages: PageAnalysis[],
-  model: ReturnType<typeof createOpenAI>,
+  model: ModelClient,
   maxInputTokens: number,
   attempts: SplitAttempt[],
   budget: RunBudget,
@@ -212,7 +212,14 @@ export async function runSemanticSplit(
   const { apiKey, model: modelName, maxInputTokens, budget, onPage } = options;
   const { signal, maxCandidates, deadlineAt } = budget;
 
-  const model = createOpenAI(apiKey, modelName, signal, options.onModelCall);
+  const provider = options.provider ?? 'openai';
+  const model = createModel(
+    provider,
+    apiKey,
+    modelName,
+    signal,
+    options.onModelCall,
+  );
 
   const progress: SplitProgress = {
     budget: { maxCandidates, deadlineAt },
@@ -229,7 +236,7 @@ export async function runSemanticSplit(
       identity: input.identity,
       hunks: input.hunks,
       tokens: {
-        counterId: 'openai-responses',
+        counterId: `${provider}:${modelName}`,
         maxTokens: maxInputTokens,
         countTokens: (context) =>
           model.count(groupingRequest([{ role: 'user', content: context }])),

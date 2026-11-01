@@ -2,9 +2,9 @@
 
 .PHONY: help install build check lint format format-check typecheck test test-watch clean cli inspect split-pr intentions intentions-eval split-pr-eval split-pr-eval-all split-pr-langfuse-upload
 
-MODEL ?= gpt-6.1-sol
+PROVIDER ?= openai
 MAX_INPUT_TOKENS ?= 16384
-export PR OUTPUT MODEL MAX_INPUT_TOKENS CASE ARTIFACT RUN_DIR GENERATION_PROMPT
+export PR OUTPUT PROVIDER MAX_INPUT_TOKENS CASE ARTIFACT RUN_DIR GENERATION_PROMPT
 
 help:
 	@printf '%s\n' \
@@ -24,15 +24,15 @@ help:
 		'                   Build and inspect into a new ignored outputs/context-* directory' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY overrides the default' \
 		'make split-pr PR=https://github.com/OWNER/REPO/pull/123' \
-		'                   Analyze diff pages with OpenAI and replace outputs/split_pr_<pr_number>/run.json' \
-		'                   Optional: OUTPUT=DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=16384' \
+		'                   Analyze diff pages with the selected provider and replace outputs/split_pr_<pr_number>/run.json' \
+		'                   Optional: OUTPUT=DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=16384' \
 		'make intentions PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Print intention cards as JSON and save a new outputs/intentions-* run' \
-		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6-sol MAX_INPUT_TOKENS=256000' \
+		'                   Optional: OUTPUT=NEW_DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=256000' \
 		'make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json' \
 		'                   Generate fresh intentions and judge them against gold' \
 		'                   Optional: ARTIFACT=PATH regrades a saved run; omit CASE for ordinary judging' \
-		'                   Optional: OUTPUT=NEW_DIRECTORY MODEL=gpt-6.1-sol MAX_INPUT_TOKENS=256000 GENERATION_PROMPT=PATH' \
+		'                   Optional: OUTPUT=NEW_DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=256000 GENERATION_PROMPT=PATH' \
 		'make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json' \
 		'                   Compare saved groups with labels offline; drafts are provisional' \
 		'                   Print results; optional OUTPUT=NEW_FILE outside the gold dataset' \
@@ -75,7 +75,7 @@ inspect:
 
 split-pr:
 	@test -n "$$PR" || { \
-		printf '%s\n' 'Usage: make split-pr PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=DIRECTORY] [MODEL=gpt-6.1-sol] [MAX_INPUT_TOKENS=16384]' >&2; \
+		printf '%s\n' 'Usage: make split-pr PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=DIRECTORY] [PROVIDER=openai|anthropic] [MAX_INPUT_TOKENS=16384]' >&2; \
 		exit 1; \
 	}
 	bun run build
@@ -84,13 +84,12 @@ split-pr:
 		mkdir -p outputs || exit 1; \
 		OUTPUT="outputs/split_pr_$${pr_number}"; \
 	fi; \
-	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
+	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS"
 
-intentions: MODEL = gpt-6-sol
 intentions: MAX_INPUT_TOKENS = 256000
 intentions:
 	@test -n "$$PR" || { \
-		printf '%s\n' 'Usage: make intentions PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=NEW_DIRECTORY] [MODEL=gpt-6-sol] [MAX_INPUT_TOKENS=256000]' >&2; \
+		printf '%s\n' 'Usage: make intentions PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=NEW_DIRECTORY] [PROVIDER=openai|anthropic] [MAX_INPUT_TOKENS=256000]' >&2; \
 		exit 1; \
 	}
 	@bun run --silent build
@@ -98,12 +97,12 @@ intentions:
 		mkdir -p outputs || exit 1; \
 		OUTPUT="outputs/intentions-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
 	fi; \
-	bun run --silent cli -- intentions --pr "$$PR" --output "$$OUTPUT" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS"
+	bun run --silent cli -- intentions --pr "$$PR" --output "$$OUTPUT" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS"
 
 intentions-eval: MAX_INPUT_TOKENS = 256000
 intentions-eval:
 	@test -n "$$CASE" || test -n "$$ARTIFACT" || { \
-		printf '%s\n' 'Usage: make intentions-eval CASE=GOLD_CASE [ARTIFACT=PATH] [OUTPUT=NEW_DIRECTORY] [MODEL=gpt-6.1-sol] [MAX_INPUT_TOKENS=256000] [GENERATION_PROMPT=PATH]' >&2; \
+		printf '%s\n' 'Usage: make intentions-eval CASE=GOLD_CASE [ARTIFACT=PATH] [OUTPUT=NEW_DIRECTORY] [PROVIDER=openai|anthropic] [MAX_INPUT_TOKENS=256000] [GENERATION_PROMPT=PATH]' >&2; \
 		exit 1; \
 	}
 	@bun run --silent build
@@ -139,7 +138,7 @@ split-pr-eval-all:
 		fresh="$$run_dir/$$case_name/run.json"; \
 		printf '\n%s\n' "$$case_name"; \
 		pr_url=$$(node -e 'const run = require(process.argv[1]); if (typeof run.pr !== "string") process.exit(1); process.stdout.write(run.pr)' "./$$reference") || { status=1; continue; }; \
-		bun run --silent cli -- split-pr --pr "$$pr_url" --output "$$run_dir/$$case_name" --model "$$MODEL" --max-input-tokens "$$MAX_INPUT_TOKENS" || { status=1; continue; }; \
+		bun run --silent cli -- split-pr --pr "$$pr_url" --output "$$run_dir/$$case_name" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS" || { status=1; continue; }; \
 		node -e 'const fs = require("node:fs"); const [reference, fresh] = process.argv.slice(1).map((path) => JSON.parse(fs.readFileSync(path, "utf8"))); const keys = ["repositoryUrl", "baseCommit", "targetCommit", "headCommit"]; if (keys.some((key) => !reference.identity?.[key] || reference.identity[key] !== fresh.identity?.[key])) { console.error("PR code changed since the gold capture; refusing to score."); process.exitCode = 1; }' "$$reference" "$$fresh" || { status=1; continue; }; \
 		bun run --silent eval -- split-pr eval --case "$$case_file" --artifact "$$fresh" --reference "$$reference" --output "$$run_dir/$$case_name/eval.json" || status=1; \
 	done; \
