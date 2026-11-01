@@ -27,9 +27,11 @@ Optional `GITHUB_TOKEN` authenticates PR metadata requests only; the Git adapter
 
 ## Read the result
 
-Each intention has a `title`, associated `changeIds`, `before` and `after` claims, and a `why`. Claims cite known changes or exact source bytes from the pinned base/head revisions. Code citations include source resolved by the host. Reasons distinguish `stated` PR quotations, `inferred` explanations with evidence, and `unknown`. An intention may overlap another; this is not the splitter's exactly-once hunk partition. Valid citations do not prove that the explanation is accurate.
+Each intention has a `title`, associated `changeIds`, actual `before` and `after` behavior, `intendedOutcome`, `why`, and `issues`. Intended outcome describes the desired result; why explains its motivation. Both distinguish `stated` PR quotations, `inferred` explanations with evidence, and `unknown`. Behavior claims cite known changes or exact source bytes from the pinned base/head revisions. Code citations include source resolved by the host. An intention may overlap another; this is not the splitter's exactly-once hunk partition. Valid citations do not prove that the explanation is accurate.
 
-The `daphne-intentions-v2` artifact preserves:
+Potential issues explain implementation or engineering decisions that introduce, worsen or make a problem relevant to the transition. Each has narrative `text`, `relevance`, nullable `uncertainty` and nonempty `citations`. Issues may cite both revisions, including unchanged callers, contracts and dependencies inspected through the existing tools. Unknown premises must be explicit; inferred purpose is not a new requirement. An empty issues array means no supported concern was reported, not that the PR is correct.
+
+The `daphne-intentions-v3` artifact preserves:
 
 - `metadata`, `identity`, `changes`, collected `hunks` and acquisition `limitations`, including PR title/body and pinned commits.
 - `investigation`: captured comparison, resolved run budget, request/memory capacities, retained evidence, hunk mappings, conversation-specific delivery receipts, tool records, completed writer/reviewer turns, candidate attempts and diagnostics. `acceptedCandidate` selects the exact writer draft and its approving review; top-level `response` is that writer response. It is null when acquisition never reached the investigation.
@@ -37,10 +39,16 @@ The `daphne-intentions-v2` artifact preserves:
 - `modelCalls`: count/generation kind, sequence number within that kind, writer/reviewer role, candidate number, conversation ID, model, status, native `usage`, token-count endpoint `inputTokens`, and per-call timestamps/duration. Missing usage is null, not zero; it is not a cost estimate.
 - `timing`: workflow start/end and elapsed milliseconds, including acquisition and cleanup but excluding artifact serialization/publication. `errors` contain safe stage/code/message descriptions without raw exception causes or configuration credentials.
 
-V2 reviewer reports include source-to-text coverage accounting and host-derived
-dimension statuses. Accuracy/citation defects in title/before/after block even if
-advisory; why/rationale remains diagnostic. The eval loader accepts only v2.
-Old artifacts are not supported or migrated; their saved bytes remain untouched.
+V3 reviewer reports include source-to-text coverage accounting, targets for individual
+issues and host-derived dimension statuses. Accuracy/citation defects in asserted
+behavior, purpose or observations block even if advisory; other material findings
+and omissions also block. Advisory presentation and rationale preferences remain
+nonblocking. Acceptance concerns the explanation, so a supported account of a flawed
+PR can pass. It does not certify the PR or guarantee issue discovery.
+
+The eval loader accepts only v3. Old saved runs remain unchanged and require their
+corresponding old reader or a fresh run. Relabeling a v2 artifact is not migration:
+new required fields and strict review validation still apply.
 
 Exit 0 requires a complete workflow and saved artifact. Exit 1 means invalid arguments, setup, acquisition, investigation, cleanup or publication failed. Handled failures preserve completed work where the filesystem permits; accepted top-level output is cleared. SIGINT/SIGTERM and any explicitly configured run deadline cancel ongoing work before Git cleanup and failed-report finalization. Cleanup/finalization may outlast the deadline. A publication failure triggers one attempt to save a failed report; if that also fails, stdout reports `output: null`. Files left by a failed publication are not a confirmed successful run. Artifacts are saved at finalization, with no crash recovery or resume.
 

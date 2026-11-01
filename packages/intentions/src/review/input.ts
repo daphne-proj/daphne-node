@@ -52,7 +52,12 @@ export function toReviewProposal(
       changeIds: card.changeIds,
       before: claim(card.before),
       after: claim(card.after),
+      intendedOutcome: reason(card.intendedOutcome),
       why: reason(card.why),
+      issues: card.issues.map((issue) => ({
+        ...issue,
+        citations: issue.citations.map(citation),
+      })),
     })),
     warnings: proposal.warnings,
   };

@@ -68,7 +68,9 @@ With `OPENAI_API_KEY` configured, run:
 make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/2
 ```
 
-The command prints indented JSON containing intention cards and saves an inspectable `run.json` in a new `outputs/intentions-*` directory. Cards explain before/after behavior with citations and distinguish stated, inferred and unknown reasons. It uses `gpt-6-sol`; optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `MODEL=...` and `MAX_INPUT_TOKENS=256000`. Each structurally valid candidate receives a semantic review inside the evaluator-optimizer loop; acceptance requires that review to pass. It makes paid writer/reviewer calls and returns exit 0 only after the workflow and artifact publication succeed. The compiled CLI accepts optional `--max-candidates N` and `--run-timeout-ms N` flags; neither has a default. See the [CLI guide](apps/cli/docs/intentions.md) for output fields, budgets and failure handling.
+The command prints indented JSON containing intention cards and saves an inspectable v3 `run.json` in a new `outputs/intentions-*` directory. Cards separate actual before/after behavior, desired outcome, motivation and supported potential issues. Purpose can be stated, inferred or unknown. Writer and reviewer can inspect relevant unchanged source in either revision to understand consequences. Acceptance means the account passed review, not that the PR is safe; empty issues do not certify correctness.
+
+It uses `gpt-6-sol`; optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `MODEL=...` and `MAX_INPUT_TOKENS=256000`. Each structurally valid candidate receives semantic review inside the existing evaluator-optimizer loop. It makes paid writer/reviewer calls and returns exit 0 only after the workflow and artifact publication succeed. The compiled CLI accepts optional `--max-candidates N` and `--run-timeout-ms N` flags; neither has a default. See the [CLI guide](apps/cli/docs/intentions.md) for output fields, budgets and failure handling.
 
 ## Evaluate against the golden dataset
 

@@ -16,6 +16,7 @@ export type {
   Intention,
   IntentionCitation,
   IntentionClaim,
+  IntentionIssue,
   IntentionReason,
   IntentionsProposal,
   IntentionsInput,

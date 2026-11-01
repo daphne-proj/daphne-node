@@ -24,6 +24,47 @@ const remedy = z.union([
   z.strictObject({ kind: z.literal('unresolved'), reason: text }),
 ]);
 const index = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+const findingBase = {
+  criterion,
+  severity: z.enum(['material', 'advisory']),
+  explanation: text,
+  evidenceIds: ids,
+  changeIds: ids,
+  remedy,
+};
+/* Only issue targets carry an index; an ordinary field cannot silently ignore one. */
+const finding = z.union([
+  z.strictObject({
+    ...findingBase,
+    field: z.enum([
+      'title',
+      'changeIds',
+      'before',
+      'after',
+      'intendedOutcome',
+      'why',
+    ]),
+  }),
+  z.strictObject({
+    ...findingBase,
+    field: z.literal('issue'),
+    issueIndex: index,
+  }),
+]);
+/* Coverage quotes describe actual behavior, including a consequence explained in an issue. */
+const coverageMatch = z.union([
+  z.strictObject({
+    cardIndex: index,
+    field: z.enum(['before', 'after']),
+    quote: text,
+  }),
+  z.strictObject({
+    cardIndex: index,
+    field: z.literal('issue'),
+    issueIndex: index,
+    quote: text,
+  }),
+]);
 const coverageBase = {
   behavior: text,
   changeIds: ids.min(1),
@@ -34,15 +75,7 @@ const coverageEntry = z.union([
   z.strictObject({
     ...coverageBase,
     status: z.literal('covered'),
-    matches: z
-      .array(
-        z.strictObject({
-          cardIndex: index,
-          field: z.enum(['before', 'after']),
-          quote: text,
-        }),
-      )
-      .min(1),
+    matches: z.array(coverageMatch).min(1),
   }),
   z.strictObject({
     ...coverageBase,
@@ -74,17 +107,7 @@ export const intentionReviewOutputSchema = z.strictObject({
   cards: z.array(
     z.strictObject({
       index,
-      findings: z.array(
-        z.strictObject({
-          criterion,
-          field: z.enum(['title', 'changeIds', 'before', 'after', 'why']),
-          severity: z.enum(['material', 'advisory']),
-          explanation: text,
-          evidenceIds: ids,
-          changeIds: ids,
-          remedy,
-        }),
-      ),
+      findings: z.array(finding),
     }),
   ),
   omissions: z.array(

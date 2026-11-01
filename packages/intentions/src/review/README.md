@@ -35,9 +35,10 @@ intention cards; the workflow supplies those decisions.
    inspect more evidence. It does not receive writer reasoning or prior verdicts.
 4. `parseIntentionReview` validates references and coverage accounting, then
    derives dimension statuses locally. `deriveIntentionReviewDecision` uses the
-   same blocking policy: factual accuracy/citation defects in title/before/after
+   same blocking policy: factual accuracy/citation defects in title, before, after,
+   intendedOutcome, why or an issue
    block regardless of severity, as do other material findings and omissions.
-   Why/rationale findings remain diagnostic. Repairable blocking findings request
+   Advisory presentation and rationale preferences remain diagnostic. Repairable blocking findings request
    revision; unresolved blocking findings stop; otherwise the candidate accepts.
 5. On revision, the continuing writer receives the complete report and any newly
    discovered source bytes. The replacement repeats **all** checks and criteria.
@@ -59,23 +60,29 @@ their enriched citations with source text.
 
 ## Review procedure and proportional effort
 
-The reviewer first identifies consequential changes from source and matches them
-to actual explanation text. It then checks each card's claims and scope, and whether
+The reviewer first identifies consequential changes and potential problems from source
+and matches them to actual explanation text. Relevant unchanged callers, contracts,
+dependencies and failure paths can reveal missing concerns, including problems in the
+engineering choice even when it is implemented faithfully. Existing weaknesses matter
+only when introduced, worsened or made relevant by the transition. It then checks each card's claims and scope, and whether
 the citations attached to each field actually support those claims. Truth and
 citation sufficiency are separate: a true statement can still need a better
 citation. Conversely, a short range can be sufficient. A visible call can support
 an ordering claim without a separate read of the callee's implementation; a
 claim about the callee's internal behavior may require that read.
 
-The reviewer then distinguishes an author-stated purpose from a supported
-inference or unknown motivation, and examines consequential coverage and
+The reviewer distinguishes desired outcome from motivation, and author-stated purpose
+from supported inference or unknown purpose. It checks each observation's mechanism,
+reachability, consequence, threatened constraint, relevance and uncertainty against
+evidence and counterevidence. Specific conditional concerns are allowed; generic
+speculation and invented requirements are not. It examines consequential coverage and
 coherence across the proposal. Material findings explain what behavior, condition,
 capability or relationship the reader would misunderstand, or what support for a
 material claim is missing. Incidental file narration and wording preferences do
 not justify blocking acceptance. Qualifications must preserve meaningful coverage.
 
 Repairs follow the same contract as the writer validator: `before` code citations
-use BASE, `after` code citations use HEAD, inferred reasons can cite either, and
+use BASE, `after` code citations use HEAD, inferred purpose and issues can cite either, and
 stated reasons quote captured PR text exactly. For example, a comparison that needs
 old code should cite it in `before` or an inferred reason, rather than adding a
 BASE citation to `after`. Source merely present in the shared ledger is not
@@ -98,16 +105,19 @@ Raw model dimensions contain only `explanation`. Parsed dimensions gain a host
 `issues_found` for any blocking finding, otherwise `pass`. Findings and their
 original severities remain unchanged. For example, an advisory accuracy finding
 that a card reverses validation/copy ordering still requests correction. A
-material why-only finding remains visible but does not block. Nonblocking
+false asserted motivation also blocks, even when advisory. Unknown purpose is valid.
+Nonblocking
 findings must use an optional `revise` remedy; `unresolved` is invalid for them.
 
 Each required `coverage` entry names a behavior, distinct known `changeIds` and
 distinct delivered `evidenceIds`, plus one disposition:
 
 - `covered`: nonempty `matches` with zero-based `cardIndex`, `field` (`before` or
-  `after`) and an exact nonblank `quote` from that field.
+  `after`) and an exact nonblank `quote` from that field, or `field: 'issue'` with
+  zero-based `issueIndex` and an exact quote from that observation's `text`.
 - `omitted`: `omissionIndex` linking the existing omissions array. Every omission
   is linked exactly once and has the same change-ID set as its coverage entry.
+  A material missing concern uses this mechanism, never a nonexistent issue index.
 - `incidental`: an `explanation` of why separate coverage is unnecessary.
 
 Every inventory change occurs in at least one entry. Several behaviors can share
@@ -117,6 +127,12 @@ Supplementary delivered sources are allowed; evidence can be empty only for
 metadata-only changes (non-text or text without hunks). An empty inventory has
 empty coverage. Missing or malformed accounting fails rather than being filled in.
 
+Findings on existing observations use `field: 'issue'` and `issueIndex`, assessing
+the whole observation, including relevance and uncertainty. Ordinary fields, including
+`intendedOutcome`, reject issue indexes. Coverage cannot quote intendedOutcome or why:
+desired behavior does not establish actual behavior. An issue quote must explain the
+represented behavior, not merely mention related code.
+
 These checks establish IDs, quotes and inventory accounting, not semantic truth.
 A quote about adjustment receipts does not explain general ledger-copying behavior
 merely because both use the same hunk. The reviewer must make that judgment. This
@@ -125,9 +141,9 @@ hunk selection, source packets, delivery receipts and request limits remain inta
 
 The full parsed report, including coverage, travels through existing turn saving
 and repair feedback. Raw reply text remains separate and unchanged. New host
-artifacts use `daphne-intentions-v2`; eval accepts only this current contract.
+artifacts use `daphne-intentions-v3`; eval accepts only this current contract.
 Old artifacts are not supported, migrated or rewritten. Relabeling an old report
-v2 still fails strict parsing; failed workflows remain failed.
+v3 still fails strict parsing; failed workflows remain failed.
 
 ## Conversation boundaries
 
@@ -172,7 +188,7 @@ These extend the example without changing its generate/evaluate/revise loop:
 - Deterministic shape and citation checks run before paid semantic review.
 - The reviewer returns structured findings and coverage; local policy derives
   statuses and acceptance. Factual defects cannot be waived as advisory, while
-  wording preferences and why/rationale remain diagnostic. The
+  advisory presentation and rationale preferences remain diagnostic. The
   cookbook's example instead requests a pass only when no improvement suggestions
   remain.
 - Optional run limits, cancellation and explicit unresolved stops prevent a
@@ -191,9 +207,13 @@ intentions flow.
 This reviewer decides runtime acceptance. The independent judge in `apps/eval`
 assesses saved accepted output separately. Neither schema validation nor an LLM
 verdict proves semantic correctness; intact hunks and structurally valid coverage
-also cannot prove it. The independent rubric v2 reports accuracy, citation support
+also cannot prove it. The independent rubric v5 reports accuracy, citation support
 and coverage as primary quality, while keeping rationale and coherence separate.
 Live quality evaluation remains necessary.
+Acceptance means the account is adequate, not that the PR is safe or its intention
+desirable. A supported potential issue can remain in an accepted card. An empty
+issues array does not certify correctness; issue discovery and reviewer effort still
+need empirical evaluation.
 The implementation follows the pattern mechanically, but repeated live cases
 must still establish whether its feedback improves explanations without causing
 regressions. Offline checks do not establish live schema acceptance or reviewer

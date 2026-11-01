@@ -45,7 +45,7 @@ function citation(
       ? context.identity.baseCommit
       : context.identity.headCommit;
 
-  /* Before and after are revision-specific; inferred reasons can cite either side. */
+  /* Before and after are revision-specific; purpose and issues can cite either side. */
   if (
     ref.sessionId !== context.identity.sessionId ||
     ref.commit !== expectedCommit ||
@@ -122,7 +122,7 @@ function reason(
     citations: value.citations.map(({ field, quote }) => {
       if (!context.pr[field]?.includes(quote)) {
         throw new Error(
-          'An author-stated reason must quote the captured PR title or body exactly.',
+          'An author-stated purpose must quote the captured PR title or body exactly.',
         );
       }
 
@@ -192,7 +192,12 @@ export function validateIntentions(
         changeIds,
         before: claim(card.before, context, 'base'),
         after: claim(card.after, context, 'head'),
+        intendedOutcome: reason(card.intendedOutcome, context),
         why: reason(card.why, context),
+        issues: card.issues.map((issue) => ({
+          ...issue,
+          citations: issue.citations.map((item) => citation(item, context)),
+        })),
       };
     });
 

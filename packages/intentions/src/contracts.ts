@@ -47,11 +47,12 @@ export interface IntentionClaim {
 }
 
 /*
- * Separates an author's stated reason from a reason inferred from evidence, so
+ * Separates stated purpose from purpose inferred from evidence, so
  * consumers do not present a guess as a PR quote. An Intention can use
  * { basis: 'unknown' } when neither is supported. validateIntentions requires
  * stated quotes to occur in the captured PR title or body, while inferred
- * reasons need IntentionCitation evidence from either revision.
+ * purpose needs IntentionCitation evidence from either revision. Intention uses
+ * this for both intendedOutcome (the desired result) and why (its motivation).
  */
 export type IntentionReason =
   | {
@@ -63,17 +64,36 @@ export type IntentionReason =
   | { basis: 'unknown' };
 
 /*
- * Groups the changes that serve one purpose into a before/after explanation.
+ * Records a potential problem relevant to the transition, not a defect in
+ * Daphne's explanation. For example, a newly reachable failure cites its caller
+ * and failure path, with relevance 'made_relevant'. validateIntentions resolves
+ * nonempty citations from either revision; the reviewer checks the condition,
+ * consequence, threatened outcome or constraint, and connection to the PR.
+ * Non-null uncertainty names an unverified premise; null is not proof of safety.
+ */
+export interface IntentionIssue {
+  text: string;
+  relevance: 'introduced' | 'worsened' | 'made_relevant';
+  uncertainty: string | null;
+  citations: IntentionCitation[];
+}
+
+/*
+ * Groups changes into an account of actual behavior, desired outcome and concerns.
  * For example, changeIds: ['change-1'] scopes the card to a known change.
  * validateIntentions rejects duplicate or unknown IDs and checks the claims
- * and reason before adding this card to an IntentionsProposal.
+ * and purpose before adding this card to an IntentionsProposal. intendedOutcome
+ * may differ from after when the implementation falls short. An empty issues
+ * array means no supported observation was reported, not that the PR is correct.
  */
 export interface Intention {
   title: string;
   changeIds: string[];
   before: IntentionClaim;
   after: IntentionClaim;
+  intendedOutcome: IntentionReason;
   why: IntentionReason;
+  issues: IntentionIssue[];
 }
 
 /*

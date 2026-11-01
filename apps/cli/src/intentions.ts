@@ -136,7 +136,7 @@ export async function runIntentionsPr(
     describeFailure(stage, error),
   );
   const report = {
-    format: 'daphne-intentions-v2',
+    format: 'daphne-intentions-v3',
     status: result.status,
     pr: ref.url,
     model: options.model,

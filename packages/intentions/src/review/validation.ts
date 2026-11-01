@@ -13,15 +13,14 @@ import type {
 function isBlockingFinding(
   finding: RawIntentionReview['cards'][number]['findings'][number],
 ): boolean {
-  if (finding.field === 'why' || finding.criterion === 'rationale') {
-    return false;
-  }
-
   const factualClaim =
     (finding.criterion === 'accuracy' || finding.criterion === 'citations') &&
     (finding.field === 'title' ||
       finding.field === 'before' ||
-      finding.field === 'after');
+      finding.field === 'after' ||
+      finding.field === 'intendedOutcome' ||
+      finding.field === 'why' ||
+      finding.field === 'issue');
 
   return factualClaim || finding.severity === 'material';
 }
@@ -92,6 +91,15 @@ export function parseIntentionReview(
       const field = `review.cards.${String(card.index)}.findings.${String(index)}`;
       knownIds(finding.evidenceIds, evidenceIds, `${field}.evidenceIds`);
       knownIds(finding.changeIds, changeIds, `${field}.changeIds`);
+
+      if (
+        finding.field === 'issue' &&
+        !context.proposal.intentions[card.index]?.issues[finding.issueIndex]
+      ) {
+        throw new ModelError(
+          `${field}.issueIndex: expected an existing issue on this card.`,
+        );
+      }
 
       if (!isBlockingFinding(finding) && finding.remedy.kind === 'unresolved') {
         throw new ModelError(

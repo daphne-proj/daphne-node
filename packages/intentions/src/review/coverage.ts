@@ -81,8 +81,12 @@ export function validateIntentionCoverage(
     if (entry.status === 'covered') {
       for (const match of entry.matches) {
         const card = context.proposal.intentions[match.cardIndex];
+        const text =
+          match.field === 'issue'
+            ? card?.issues[match.issueIndex]?.text
+            : card?.[match.field].text;
 
-        if (!card || !card[match.field].text.includes(match.quote)) {
+        if (!text?.includes(match.quote)) {
           throw new ModelError(
             `${field}.matches: expected an exact quote from the referenced card field.`,
           );

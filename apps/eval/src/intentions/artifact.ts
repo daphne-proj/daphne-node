@@ -63,7 +63,7 @@ function decodeArtifact(
   artifactHash: string,
 ): PreparedIntentionArtifact {
   const artifact = parse.object(value, 'artifact');
-  parse.choice(artifact.format, ['daphne-intentions-v2'], 'artifact.format');
+  parse.choice(artifact.format, ['daphne-intentions-v3'], 'artifact.format');
   const status = parse.choice(
     artifact.status,
     ['complete', 'failed'],
@@ -192,7 +192,7 @@ function decodeArtifact(
 }
 
 /*
- * Reads one local v2 run without repository or model calls. For example,
+ * Reads one local v3 run without repository or model calls. For example,
  * loadIntentionArtifact('outputs/intentions/run.json') returns a judge packet
  * only after revalidating source delivery, the selected writer and its review. Malformed
  * report data returns invalid_output with no judge packet; failed runs remain

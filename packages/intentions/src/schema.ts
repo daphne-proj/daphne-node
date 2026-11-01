@@ -61,7 +61,16 @@ export const intentionsOutputSchema = z.strictObject({
       changeIds: z.array(text).min(1),
       before: claim,
       after: claim,
+      intendedOutcome: reason,
       why: reason,
+      issues: z.array(
+        z.strictObject({
+          text,
+          relevance: z.enum(['introduced', 'worsened', 'made_relevant']),
+          uncertainty: text.nullable(),
+          citations,
+        }),
+      ),
     }),
   ),
   warnings: z.array(text),
