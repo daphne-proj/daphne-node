@@ -4,22 +4,22 @@ Build with `bun run build`; run compiled commands with `bun run cli -- ...`. The
 
 ## Explain a PR's intentions
 
-Set `OPENAI_API_KEY` in the ignored root `.env` or environment, then run from the repository root:
+Set the selected provider's `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the ignored root `.env` or environment, then run from the repository root. OpenAI is the default; add `PROVIDER=anthropic` to switch providers:
 
 ```sh
 make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/2
 ```
 
-This builds the CLI, investigates the public PR using `gpt-6-sol`, and prints a JSON object containing `status`, `proposal`, `output` and `errors`. JSON uses two-space indentation on both interactive and redirected stdout. Terminal summaries use the shared `formatCommandOutput` helper on stderr, so stdout can be redirected to a JSON file. The proposal contains ordered `intentions` and `warnings`; the raw provider response is saved in the artifact.
+This builds the CLI, investigates the public PR using the selected provider's default model, and prints a JSON object containing `status`, `proposal`, `output` and `errors`. JSON uses two-space indentation on both interactive and redirected stdout. Terminal summaries use the shared `formatCommandOutput` helper on stderr, so stdout can be redirected to a JSON file. The proposal contains ordered `intentions` and `warnings`; the raw provider response is saved in the artifact.
 
-Each run saves `run.json` under a fresh ignored `outputs/intentions-<timestamp>-<pid>` directory. Optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `MODEL=gpt-6-sol` and `MAX_INPUT_TOKENS=256000`. An explicit output must be a new directory in an existing writable parent; existing runs and gold datasets are protected. The equivalent command is:
+Each run saves `run.json` under a fresh ignored `outputs/intentions-<timestamp>-<pid>` directory. Optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `PROVIDER=openai|anthropic` and `MAX_INPUT_TOKENS=256000`. An explicit output must be a new directory in an existing writable parent; existing runs and gold datasets are protected. The equivalent command is:
 
 ```sh
 bun run build
 bun run cli -- intentions \
   --pr https://github.com/daphne-proj/pr-review-test/pull/2 \
   --output ./intentions-2 \
-  --model gpt-6-sol \
+  --provider openai \
   --max-input-tokens 256000
 ```
 
@@ -29,10 +29,12 @@ Optional `GITHUB_TOKEN` authenticates PR metadata requests only; the Git adapter
 
 Each intention has a `title`, associated `changeIds`, `before` and `after` claims, and a `why`. Claims cite known changes or exact source bytes from the pinned base/head revisions. Code citations include source resolved by the host. Reasons distinguish `stated` PR quotations, `inferred` explanations with evidence, and `unknown`. An intention may overlap another; this is not the splitter's exactly-once hunk partition. Valid citations do not prove that the explanation is accurate.
 
+Use `PROVIDER=anthropic` to switch both writer and semantic reviewer together. Defaults live in `packages/llm/src/providers.ts`; the compiled CLI also accepts `--model` for pinned comparisons. Only the selected provider's key is required.
+
 The `daphne-intentions-v2` artifact preserves:
 
-- `metadata`, `identity`, `changes`, collected `hunks` and acquisition `limitations`, including PR title/body and pinned commits.
-- `investigation`: captured comparison, resolved run budget, request/memory capacities, retained evidence, hunk mappings, conversation-specific delivery receipts, tool records, completed writer/reviewer turns, candidate attempts and diagnostics. `acceptedCandidate` selects the exact writer draft and its approving review; top-level `response` is that writer response. It is null when acquisition never reached the investigation.
+- `provider`, `model`, `metadata`, `identity`, `changes`, collected `hunks` and acquisition `limitations`, including PR title/body and pinned commits.
+- `investigation`: captured comparison, resolved run budget, request/memory capacities, retained evidence, hunk mappings, conversation-specific delivery receipts, tool records, completed writer/reviewer turns with their actual instructions, candidate attempts and diagnostics. `acceptedCandidate` selects the exact writer draft and its approving review; top-level `response` is that writer response. It is null when acquisition never reached the investigation.
 - Top-level `proposal` and `response`: accepted output only when the whole run completes. A nested draft remains diagnostic if cleanup or publication subsequently fails.
 - `modelCalls`: count/generation kind, sequence number within that kind, writer/reviewer role, candidate number, conversation ID, model, status, native `usage`, token-count endpoint `inputTokens`, and per-call timestamps/duration. Missing usage is null, not zero; it is not a cost estimate.
 - `timing`: workflow start/end and elapsed milliseconds, including acquisition and cleanup but excluding artifact serialization/publication. `errors` contain safe stage/code/message descriptions without raw exception causes or configuration credentials.

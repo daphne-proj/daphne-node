@@ -1,6 +1,10 @@
 import type { DiffContextHunk, DiffContextPage } from '@daphne/context-engine';
 import type { Change, ReviewIdentity } from '@daphne/review-evidence/contracts';
-import type { ModelReply, ModelCallObservation } from '@daphne/llm';
+import type {
+  ModelReply,
+  ModelCallObservation,
+  ModelProvider,
+} from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import type { Proposal, ProposalValidation } from './proposal.js';
 
@@ -36,8 +40,10 @@ export interface SemanticSplitInput {
 
 /*
  * Share the host's run budget across paging, analysis and grouping; input tokens limit each request.
+ * Set provider to select the adapter for the supplied key and model; omission preserves OpenAI callers.
  */
 export interface SemanticSplitOptions {
+  provider?: ModelProvider;
   apiKey: string;
   model: string;
   maxInputTokens: number;

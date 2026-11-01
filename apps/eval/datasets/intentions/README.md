@@ -38,7 +38,7 @@ The loader checks structure, hashes, references and inventory accounting. Source
 make intentions-eval CASE=path/to/case.json
 ```
 
-Make builds, generates fresh intentions for the case's PR, then evaluates them. It defaults to `MODEL=gpt-6.1-sol` for both stages and `MAX_INPUT_TOKENS=256000` for generation. Each run gets a dedicated `outputs/intentions-eval-<timestamp>-<pid>/` folder containing `generation/`, `evaluation/`, and their logs. Optional `OUTPUT=NEW_DIRECTORY` overrides the folder. Generation requires `OPENAI_API_KEY` and judging uses Codex CLI authentication.
+Make builds, generates fresh intentions for the case's PR, then evaluates them. Select `PROVIDER=openai|anthropic` for generation; OpenAI is the default. Generation uses the selected provider's default model, while the independent Codex judge uses the OpenAI default. Both model strings are maintained in `packages/llm/src/providers.ts`. The generation input budget defaults to `MAX_INPUT_TOKENS=256000`. Each run gets a dedicated `outputs/intentions-eval-<timestamp>-<pid>/` folder containing `generation/`, `evaluation/`, and their logs. Optional `OUTPUT=NEW_DIRECTORY` overrides the folder. Generation requires the selected provider's `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`; judging uses Codex CLI authentication.
 
 Pass `ARTIFACT=path/to/run.json` to regrade a saved run instead. With `ARTIFACT`, omitting `CASE` runs ordinary judging without gold expectations. The generated PR revisions and evidence must match the frozen case; changed PRs are rejected before judging.
 

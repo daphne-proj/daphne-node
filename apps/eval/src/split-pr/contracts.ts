@@ -8,6 +8,7 @@ import type {
   ProposalValidation,
   SemanticSplitResult,
 } from '@daphne/semantic-split';
+import type { ModelProvider } from '@daphne/llm';
 import type { RecordedModelCall } from '../model-calls.js';
 import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 
@@ -104,7 +105,11 @@ export interface SplitTrial {
   inputHash: string;
   caseHash: string;
   trialNumber: number;
-  modelConfig: { model: string; maxInputTokens: number };
+  modelConfig: {
+    provider?: ModelProvider;
+    model: string;
+    maxInputTokens: number;
+  };
   elapsedMs: number;
   modelCalls: RecordedModelCall[];
   result:
@@ -122,6 +127,7 @@ export interface SplitRunOptions extends RunBudgetPolicy {
   suitePath: string;
   partition: SplitCase['partition'];
   outputDirectory: string;
+  provider?: ModelProvider;
   model: string;
   maxInputTokens: number;
   trials: number;

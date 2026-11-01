@@ -3,6 +3,7 @@ import { lstat, readdir, realpath } from 'node:fs/promises';
 import { findPackageJSON } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
+import type { ModelProvider } from '@daphne/llm';
 import type { Evaluation } from '@langfuse/client';
 import type { RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import {
@@ -21,6 +22,7 @@ import { parseRunBudget } from '../run-budget.js';
 type SavedCase = {
   prepared: PreparedSplitCase;
   report: Awaited<ReturnType<typeof evaluateSplitCaseArtifact>>;
+  provider: ModelProvider;
   model: string;
   maxInputTokens: number;
   budget: RunBudgetSnapshot;
@@ -146,6 +148,11 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
     items.set(caseId, {
       prepared,
       report,
+      provider: parse.choice(
+        artifact.value.provider ?? 'openai',
+        ['openai', 'anthropic'],
+        'artifact.provider',
+      ),
       model,
       maxInputTokens,
       budget: parseRunBudget(artifact.value.budget),
@@ -211,7 +218,7 @@ export async function uploadSplitEvaluation(
         timing: 'upload-time-only',
       },
       data: cases.map(
-        ({ prepared, report, model, maxInputTokens, budget }) => ({
+        ({ prepared, report, provider, model, maxInputTokens, budget }) => ({
           input: {
             caseId: prepared.definition.id,
             inputHash: prepared.inputHash,
@@ -221,6 +228,7 @@ export async function uploadSplitEvaluation(
             caseId: prepared.definition.id,
             caseHash: prepared.caseHash,
             artifactSha256: report.artifactSha256,
+            provider,
             model,
             maxInputTokens,
             budget,

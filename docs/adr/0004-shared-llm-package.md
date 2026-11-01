@@ -3,6 +3,8 @@
 - Status: accepted for the user-authorized rename and usage extraction
 - Date: 2026-10-27
 
+The original decision below records the package rename. The [second-provider amendment](#second-provider-2026-11-01) supersedes its single-provider assumption; current workflows use `createModel` and `ModelClient` with either supported provider.
+
 ## Problem
 
 `@daphne/review-agent` contains provider transport rather than a review workflow. Its name obscures reuse by other model-backed features. Meanwhile, eval interprets OpenAI's raw usage fields, so another application would have to duplicate that provider-specific parsing.
@@ -28,3 +30,7 @@ There is no compatibility wrapper under the old package name; all workspace cons
 Splitting counting from generation would separate shared request preparation and failure handling. Adding a generic provider framework is unnecessary while there is one implemented provider. Revisit configuration and provider interfaces when a real caller needs another setting or provider.
 
 See the [package overview](../../packages/llm/README.md) for the public APIs and official provider documentation. This refactoring does not establish Rust behavior parity.
+
+## Second provider (2026-11-01)
+
+Anthropic now supplies the second implementation of the existing model operations. `ModelClient` and `createModel` expose the shared count/generate contract; adapters own provider transport, replay, schema conversion, response validation and usage normalization. Apps select credentials and maintain provider/model metadata. The two default model strings live in `packages/llm/src/providers.ts` and are updated manually. Workflows retain their prompts, validation and run policy.

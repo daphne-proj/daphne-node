@@ -63,6 +63,11 @@ function decodeArtifact(
   artifactHash: string,
 ): PreparedIntentionArtifact {
   const artifact = parse.object(value, 'artifact');
+  const provider = parse.choice(
+    artifact.provider ?? 'openai',
+    ['openai', 'anthropic'],
+    'artifact.provider',
+  );
   parse.choice(artifact.format, ['daphne-intentions-v2'], 'artifact.format');
   const status = parse.choice(
     artifact.status,
@@ -150,7 +155,11 @@ function decodeArtifact(
     );
   }
 
-  const accepted = parseIntentionTrace(investigation, { ...evidence, pr });
+  const accepted = parseIntentionTrace(investigation, {
+    ...evidence,
+    pr,
+    provider,
+  });
 
   if (
     !isDeepStrictEqual(artifact.proposal, accepted.proposal) ||
@@ -164,15 +173,11 @@ function decodeArtifact(
   }
 
   const delivered = new Set(accepted.deliveredEvidenceIds);
-  const savedInstructions = instructions(
-    accepted.response,
-    'accepted writer response',
-  );
 
   return {
     artifactHash,
     diagnostics: [],
-    generationInstructions: savedInstructions,
+    generationInstructions: accepted.generationInstructions,
     status: 'complete',
     packet: {
       identity: evidence.identity,

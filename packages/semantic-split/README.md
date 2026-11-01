@@ -14,7 +14,7 @@ The package also exports its prompts and the generated plain `proposalSchema` so
 
 ## Main types
 
-- `SemanticSplitInput` / `SemanticSplitOptions`: pinned identity, inventory and hunk evidence, plus model credentials, a per-request token limit, a shared `RunBudget` and callbacks.
+- `SemanticSplitInput` / `SemanticSplitOptions`: pinned identity, inventory and hunk evidence, plus an optional `provider` (defaults to OpenAI), model credentials, a per-request token limit, a shared `RunBudget` and callbacks.
 - `Proposal` / `ProposalValidation`: intention groups with titles, reasons and unit IDs, or actionable validation diagnostics.
 - `PageAnalysis` / `SplitAttempt`: each page's optional model notes and each completed grouping reply with its validation result.
 - `SemanticSplitResult`: complete or failed output retaining the resolved budget snapshot, pages, attempts and call counts; failure carries an error and null accepted proposal/response.
@@ -25,7 +25,7 @@ The package also exports its prompts and the generated plain `proposalSchema` so
 2. Group a single page's raw diff directly. For several pages, generate separate notes with unit IDs, then group from all notes. A single-page run has no page analysis.
 3. Produce and synchronously validate each proposal, retaining that reply even when cancellation arrives immediately afterward. The shared runner accepts a valid proposal or requests a complete replacement with diagnostics. Missing or duplicated known IDs also bring in every relevant original page/fragment not yet supplied as raw evidence, in page order. Unknown-only failures add no evidence pages. Complete provider output is replayed unchanged.
 
-`context-engine` supplies `splitDiffIntoContextPages`; `llm` supplies `createOpenAI` for complete-request token counts, generation and replayable output. Only the identical initial single-page grouping request reuses the pager's count; analysis and revision requests are counted separately. `review-evidence/contracts` supplies data types without repository I/O. The workflow performs no direct Git or filesystem operations.
+`context-engine` supplies `splitDiffIntoContextPages`; `llm` supplies `createModel` for complete-request token counts, generation and replayable output. Only the identical initial single-page grouping request reuses the pager's count; analysis and revision requests are counted separately. `review-evidence/contracts` supplies data types without repository I/O. The workflow performs no direct Git or filesystem operations.
 
 ## Run policy
 
@@ -41,6 +41,6 @@ Zod **4.6.7** owns the strict root/group shape in `src/schema.ts`, the inferred 
 
 `validateProposal` decodes JSON, parses that shape and then checks exactly-once coverage against the original inventory. Missing IDs retain inventory order; duplicate and unknown IDs retain first-seen order. A structurally valid empty proposal is valid for an empty inventory. Zod does not prove coverage or grouping quality, and this workflow does not establish Rust migration parity.
 
-Native [Zod JSON Schema generation](https://zod.dev/json-schema) exports the same schema used for token counts, generation and eval prompt hashing. Its required fields, strict objects, string pattern and minimum array size were inspected against the [OpenAI structured-output subset](https://developers.openai.com/api/docs/guides/structured-outputs). Live provider acceptance remains unverified; no model calls are needed to build or inspect the schema. The common runner and CLI/eval packages have no direct Zod dependency.
+Native [Zod JSON Schema generation](https://zod.dev/json-schema) exports the schema supplied to LLM for token counts and generation, and used for eval prompt hashing. Provider-specific schema handling belongs to the [LLM adapters](../llm/README.md#main-flow-and-limits): OpenAI receives the original schema, while Anthropic converts unsupported constraints at the transport boundary. Counting and generation use the same prepared schema for the selected provider. This workflow always validates the original Zod schema. Live provider acceptance remains unverified; no model calls are needed to build or inspect the schema. The common runner and CLI/eval packages have no direct Zod dependency.
 
 See the [workflow](src/workflow.ts), [contracts](src/contracts.ts), [proposal validator](src/proposal.ts) and [architecture](../../docs/architecture.md) for details.

@@ -7,7 +7,7 @@
 | Entry point                                       | Purpose                                                                                                                       |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `context inspect --pr URL --output NEW_DIRECTORY` | Retrieve bounded PR evidence and build a context packet without model calls.                                                  |
-| `split-pr --pr URL --output DIRECTORY`            | Collect exact PR evidence and request an intention-based split proposal; requires OpenAI credentials.                         |
+| `split-pr --pr URL --output DIRECTORY`            | Collect exact PR evidence and request an intention-based split proposal; requires credentials for the selected provider.      |
 | `intentions --pr URL [--output NEW_DIRECTORY]`    | Investigate cited intention cards and emit formatted JSON with a fresh run artifact.                                          |
 | `@daphne/cli/command-output`                      | Export `formatCommandOutput(title, rows)` for shared terminal summaries.                                                      |
 | `@daphne/cli/output-path`                         | Export `isGoldenDatasetPath(path)` so CLI and eval writers protect manually maintained gold cases, including symlink aliases. |
@@ -33,3 +33,5 @@ Inspection admits whole tool pages under a 64 KiB source allowance and distingui
 See the root [inspection instructions](../../README.md#getting-started) and [split instructions](../../README.md#try-an-llm-split-proposal) for usage and credentials, or [command dispatch](src/main.ts) for process behavior.
 
 See the [intentions command guide](docs/intentions.md) for credentials, output fields, limits and failure behavior.
+
+Model commands accept `--provider openai|anthropic` (default `openai`) and optional `--model` for an explicit model. Make exposes only `PROVIDER`; the default model strings live in `packages/llm/src/providers.ts`. The app reads the corresponding `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.

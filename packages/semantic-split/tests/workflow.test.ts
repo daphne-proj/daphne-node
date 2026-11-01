@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { ContextInputError } from '@daphne/context-engine';
-import { createOpenAI, ModelError } from '@daphne/llm';
+import { createModel, ModelError } from '@daphne/llm';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
 import { runSemanticSplit } from '@daphne/semantic-split';
 import {
@@ -12,11 +12,11 @@ import {
 
 vi.mock(import('@daphne/llm'), async (importOriginal) => ({
   ...(await importOriginal()),
-  createOpenAI: vi.fn<typeof createOpenAI>(),
+  createModel: vi.fn<typeof createModel>(),
 }));
 
 beforeEach(() => {
-  vi.mocked(createOpenAI).mockReset();
+  vi.mocked(createModel).mockReset();
 });
 
 test.each([

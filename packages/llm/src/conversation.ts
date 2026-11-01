@@ -1,11 +1,11 @@
 import { setImmediate } from 'node:timers/promises';
-import { ModelError } from './openai.js';
+import { ModelError } from './response.js';
 import type {
-  createOpenAI,
+  ModelClient,
   ModelFunctionCall,
   ModelReply,
   ModelRequest,
-} from './openai.js';
+} from './contracts.js';
 
 /*
  * One caller-owned conversation, continued in place across terminal replies.
@@ -23,7 +23,7 @@ export interface ModelConversation {
  * work, not optional observers, and their original failures propagate.
  */
 export interface ModelConversationOptions<Turn> {
-  model: ReturnType<typeof createOpenAI>;
+  model: ModelClient;
   request: Omit<ModelRequest, 'input'>;
   maxInputTokens: number;
   maxRequestBytes: number;

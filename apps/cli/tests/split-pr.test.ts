@@ -66,6 +66,7 @@ test.each([
       format: 'daphne-split-pr-v3',
       status,
       pr: options.pr,
+      provider: 'openai',
       model: options.model,
       maxInputTokens: 128,
       budget: result.budget,

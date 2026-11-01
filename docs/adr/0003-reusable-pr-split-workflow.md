@@ -3,7 +3,7 @@
 - Status: accepted for the user-authorized split refactoring
 - Date: 2026-10-23
 
-Package naming and provider-usage ownership were refined by [ADR 0004](0004-shared-llm-package.md): the model adapter now lives in `@daphne/llm`. The decision below retains its original package names.
+Package naming and provider-usage ownership were refined by [ADR 0004](0004-shared-llm-package.md): model access now lives in `@daphne/llm`. Its [second-provider amendment](0004-shared-llm-package.md#second-provider-2026-11-01) supersedes the single-provider restriction below with `createModel` and a shared `ModelClient` contract for OpenAI and Anthropic. The original decision remains as a historical record.
 
 ## Problem
 

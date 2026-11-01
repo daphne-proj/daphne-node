@@ -1,7 +1,7 @@
 import { createContextEngine } from '@daphne/context-engine';
 import type { ContextEngine } from '@daphne/context-engine';
 import { runEvaluatorOptimizer } from '@daphne/evaluator-optimizer';
-import { createOpenAI, ModelError } from '@daphne/llm';
+import { createModel, ModelError } from '@daphne/llm';
 import type {
   IntentionsInput,
   IntentionsOptions,
@@ -75,16 +75,22 @@ export async function runIntentions(
   const { signal, maxCandidates, deadlineAt } = budget;
   let activeConversation: IntentionConversation | null = null;
 
-  const model = createOpenAI(apiKey, modelName, signal, (event) => {
-    if (activeConversation) {
-      onModelCall?.({
-        ...event,
-        role: activeConversation.role,
-        candidateNumber: activeConversation.candidateNumber,
-        conversationId: activeConversation.conversationId,
-      });
-    }
-  });
+  const model = createModel(
+    options.provider ?? 'openai',
+    apiKey,
+    modelName,
+    signal,
+    (event) => {
+      if (activeConversation) {
+        onModelCall?.({
+          ...event,
+          role: activeConversation.role,
+          candidateNumber: activeConversation.candidateNumber,
+          conversationId: activeConversation.conversationId,
+        });
+      }
+    },
+  );
 
   let engine: ContextEngine | null = null;
 

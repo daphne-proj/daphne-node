@@ -21,6 +21,7 @@ export interface IntentionArtifactContext extends IntentionDeliveryContext {
 }
 
 export interface ParsedIntentionTrace {
+  generationInstructions: string | null;
   proposal: IntentionsProposal;
   response: Record<string, unknown> | null;
   deliveredEvidenceIds: readonly string[];
@@ -72,6 +73,7 @@ export function parseIntentionTrace(
     }
 
     return {
+      generationInstructions: null,
       proposal: { intentions: [], warnings: [] },
       response: null,
       deliveredEvidenceIds: [],
@@ -253,6 +255,7 @@ export function parseIntentionTrace(
         }
 
         accepted = {
+          generationInstructions: writer.instructions,
           proposal: validation.proposal,
           response: writer.reply.response,
           deliveredEvidenceIds: writer.deliveredEvidenceIds,

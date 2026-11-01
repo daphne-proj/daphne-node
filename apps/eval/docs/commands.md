@@ -88,11 +88,11 @@ bun run eval -- split-pr run \
   --concurrency 1
 ```
 
-This explicitly calls OpenAI and writes experiments to Langfuse. Configure `OPENAI_API_KEY` and the three Langfuse variables below in your environment or root `.env`. Defaults are model `gpt-6.1-sol`, input budget `16384`, three independent trials and concurrency `2`; override them with `--model`, `--max-input-tokens`, `--trials` and `--concurrency`. The partition is required, every selected case must be reviewed, and the output directory must be new with an existing parent. Validation happens before credential loading or telemetry. The run uses frozen evidence without fetching GitHub or exposing labels to the splitter. Optional `--max-candidates N` and `--run-timeout-ms N` flags select one global policy for each case run; neither has a default. Each case resolves a fresh budget when its task starts, retaining the original deadline through preparation, model work and publication. The manifest records the selected policy and each result records its resolved budget. These settings are separate from per-request input/output capacities.
+This explicitly calls the selected provider and writes experiments to Langfuse. Select `--provider openai|anthropic` (default `openai`) and configure its `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` and the three Langfuse variables below in your environment or root `.env`. Defaults are the model from `packages/llm/src/providers.ts`, input budget `16384`, three independent trials and concurrency `2`; override them with `--model`, `--max-input-tokens`, `--trials` and `--concurrency`. The partition is required, every selected case must be reviewed, and the output directory must be new with an existing parent. Validation happens before credential loading or telemetry. The run uses frozen evidence without fetching GitHub or exposing labels to the splitter. Optional `--max-candidates N` and `--run-timeout-ms N` flags select one global policy for each case run; neither has a default. Each case resolves a fresh budget when its task starts, retaining the original deadline through preparation, model work and publication. The manifest records the selected policy and each result records its resolved budget. These settings are separate from per-request input/output capacities.
 
 Each trial number creates one native experiment, with one item per selected case. Item scores are `completed`, `accepted`, `constraints_passed`, `together_rate`, `separate_rate`, `corrections`, `count_calls` and `generate_calls`. Unavailable rates use categorical `not_applicable`. The run's `accepted_rate` includes every scheduled case in its denominator, including missing or failed work. Acceptance means structurally valid output; `constraints_passed` additionally checks the reviewed relationships.
 
-Langfuse stores the original compact evidence once as item input, reviewed labels as expected output, and only status plus proposal or sanitized error as output. Child `semantic-split`, `openai.count` and `openai.generate` observations record durations. Generations carry the actual response model and provider token usage, including usage from rejected replies. Cached input and reasoning output use separate, non-overlapping buckets. Count-endpoint estimates are not consumed tokens. Cost comes from matching Langfuse model prices; missing usage or prices means unavailable cost, never verified zero. Raw responses, replay items and repeated page text stay local.
+Langfuse stores the original compact evidence once as item input, reviewed labels as expected output, and only status plus proposal or sanitized error as output. Child `semantic-split`, `<provider>.count` and `<provider>.generate` observations record durations. Generations carry the actual response model and provider token usage, including usage from rejected replies. Cached input, cache creation and reasoning output use separate, non-overlapping buckets when reported. Count-endpoint estimates are not consumed tokens. Cost comes from matching Langfuse model prices; missing usage or prices means unavailable cost, never verified zero. Raw responses, replay items and repeated page text stay local.
 
 The output directory contains an initial `scheduled.json`, full `trial-N-case-M.json` artifacts, and a final `manifest.json` with scores, hashes, Git commit/dirty state, prompt/schema hash, model configuration, SDK version and experiment links. Files are published without overwriting. Cancellation preserves completed work and every scheduled entry, including unstarted rounds. These artifacts support later regrading; they do not provide crash resume. A dirty-state flag identifies an uncommitted build but is not a source-code snapshot.
 
@@ -124,7 +124,7 @@ SIGINT/SIGTERM request cancellation. The command waits for the native runner and
 - `src/split-pr` owns frozen dataset contracts, evidence and label validation, fingerprints, pure scoring, saved-run evaluation, uploads and live experiments. Its `langfuse-scores.ts` maps split scores for both live experiments and saved uploads.
 - `src/parse.ts` provides JSON reading, primitive validation, hashing and the app's `EvaluationError`; case-specific validation stays with each evaluation.
 - `src/artifacts.ts` publishes complete JSON files without overwriting existing files and preserves golden-dataset write protection.
-- `src/model-calls.ts` records model-call observations, normalizes OpenAI usage and checks workflow call accounting. It also owns the recorded-call and token-usage types.
+- `src/model-calls.ts` records model-call observations, normalizes provider usage and checks workflow call accounting. It owns the recorded-call type; `@daphne/llm` owns token usage.
 - `src/langfuse.ts` validates the explicit connection and owns one client/provider lifecycle across a command's experiments.
 - `src/langfuse-diagnostics.ts` captures SDK/OTel errors that are logged without rejecting export promises. Logger changes are scoped to this command; do not embed this lifecycle alongside another telemetry provider.
 - `src/experiment-completeness.ts` checks case identity and required-score accounting independently of score quality for live experiments, saved uploads and the smoke command.
@@ -140,7 +140,7 @@ make intentions-eval ARTIFACT=outputs/intentions-CURRENT/run.json
 
 This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It reconstructs delivery per conversation, revalidates raw writer proposals and reviewer reports, and requires exact accepted-writer/review linkage before judging with the shared [rubric](../prompts/intentions.md). Failed host runs are never judged. The judge sees only accepted cards, writer-eligible evidence and writer instructions; runtime verdicts, iteration counts and model identity are excluded. Only host format `daphne-intentions-v2` is supported, with current policy and mandatory coverage accounting. Old formats and inconsistent traces are rejected; no compatibility parser, migration or fallback is provided. Saved historical artifacts remain untouched. It does not regenerate intentions, fetch repository context or upload to Langfuse.
 
-Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. `MODEL=NAME` overrides the default judge model. When the saved provider response lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
+Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. The judge uses the OpenAI model default in `packages/llm/src/providers.ts`; direct eval CLI calls still accept `--model`. When an older saved run lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
 
 Make prints only dimension scores and saves judge output in `OUTPUT/evaluation/`, with console output in `OUTPUT/evaluation.log`. `input.json` uses `daphne-intentions-judge-input-v2` and preserves the judge prompt, schema and provenance hashes. `report.json` uses `daphne-intentions-judge-v2` and records the structured judgment, diagnostics, execution details and `quality` summary. Both record `rubricVersion: 3` for the 1–5 scale. Gold reports also record `goldRubricVersion: 2`. Historical judge reports are neither rewritten nor reparsed under the new rubric; a regrade creates a fresh artifact. Failed runs and invalid outputs receive reports without a judge call. Low scores still yield a completed evaluation; malformed input, cancellation, missing or invalid judgments and publication failures exit unsuccessfully. Oversized judge input fails explicitly without truncating evidence. Unreadable or oversized artifact files fail before output creation; readable but invalid artifact data produces invalid_output with no judge call.
 
@@ -220,8 +220,9 @@ and failures. One run per PR is a pilot, not a general quality estimate.
 For every scheduled run, report writer, reviewer and writer-revision usage;
 generation counts, tools per generation, terminal candidates, failures and
 latency; and separate independent-judge consumption. Count-endpoint calls are
-requests, not another copy of generation usage. Read cache writes from raw
-provider responses because normalized `TokenUsage` does not retain that field.
+requests, not another copy of generation usage. Read cache writes from
+`TokenUsage.cacheCreationInputTokens` when available; otherwise inspect raw
+provider usage for fields normalization does not expose.
 Missing usage breakdowns remain unknown. Calculate dollars only with verified
 rates and disjoint ordinary-input, cache-read and cache-write quantities; never
 charge inclusive input again or treat cached input as free.
@@ -353,14 +354,16 @@ typechecking, and success on these known PRs does not establish generalization.
 
 Use `make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json`
 to build, validate the case, generate fresh intentions for its PR and evaluate them.
-The Make target uses `MODEL` (default `gpt-6.1-sol`) for generation and judging,
-and `MAX_INPUT_TOKENS=256000` for generation. It creates a dedicated
+The Make target uses `PROVIDER=openai|anthropic` for generation and
+`MAX_INPUT_TOKENS=256000`. Its Codex judge always uses the OpenAI default model;
+changing the generation provider does not change the judge. Both default model
+strings are maintained in `packages/llm/src/providers.ts`. It creates a dedicated
 `outputs/intentions-eval-<timestamp>-<pid>/` folder, or uses the optional `OUTPUT`.
 Generated artifacts go in `generation/`, judge input and reports in `evaluation/`,
 and console logs in `generation.log` and `evaluation.log`. The terminal prints only
 dimension scores (1–5 or null) and `requiredBehaviorCoverage` (0–1 or null).
 Failures exit unsuccessfully and identify the error or saved log.
-Generation requires `OPENAI_API_KEY`; judging uses Codex CLI authentication.
+Generation requires the selected provider's `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`; judging uses Codex CLI authentication. New saved turns retain the actual generation instructions even when the provider does not echo them.
 PR revisions and evidence must still match the frozen case before judging.
 
 Optional `ARTIFACT=PATH` skips generation and regrades a saved run. `OUTPUT` and

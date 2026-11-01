@@ -7,6 +7,7 @@ import type {
   ModelCallObservation,
   ModelFunctionCall,
   ModelReply,
+  ModelProvider,
 } from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import type { IntentionReview } from './review/contracts.js';
@@ -106,8 +107,10 @@ export interface IntentionsInput {
  * lookup. The executor must validate the unknown request before repository I/O;
  * runIntentions requires maxInputTokens to be a positive safe integer. Bind the
  * executor to budget.signal so acquisition, model calls and tools share cancellation.
+ * Select provider for the supplied key and model; omission preserves OpenAI callers.
  */
 export interface IntentionsOptions {
+  provider?: ModelProvider;
   apiKey: string;
   model: string;
   budget: RunBudget;
@@ -206,6 +209,8 @@ export type IntentionEvidenceDelivery =
  * while generationNumber identifies the shared client's generation call.
  */
 export type IntentionTurn = {
+  /* New turns retain the sent prompt; older saved OpenAI turns may omit it. */
+  instructions?: string;
   number: number;
   candidateNumber: number;
   conversationId: string;

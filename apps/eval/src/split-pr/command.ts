@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { defaultModels } from '@daphne/llm';
 import { resolve } from 'node:path';
 import { LangfuseConfigurationError } from '../langfuse.js';
 import { loadSplitCase, loadSplitSuite } from './dataset.js';
@@ -14,7 +15,7 @@ import { runSplitEvaluation } from './run.js';
 import { uploadSplitEvaluation } from './upload.js';
 
 const usage =
-  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
+  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--provider openai|anthropic] [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
 
 function options(
   args: string[],
@@ -161,7 +162,7 @@ export async function runSplitCommand(
       process.stdout.write(JSON.stringify(report) + '\n');
     } else if (command === 'run') {
       const defaults = {
-        model: 'gpt-6.1-sol',
+        provider: 'openai',
         'max-input-tokens': '16384',
         trials: '3',
         concurrency: '2',
@@ -173,11 +174,18 @@ export async function runSplitCommand(
           'partition',
           'output',
           ...Object.keys(defaults),
+          'model',
           'max-candidates',
           'run-timeout-ms',
         ],
         defaults,
-        ['max-candidates', 'run-timeout-ms'],
+        ['model', 'max-candidates', 'run-timeout-ms'],
+      );
+
+      const provider = choice(
+        values.provider,
+        ['openai', 'anthropic'],
+        '--provider',
       );
 
       return await runSplitEvaluation(
@@ -189,7 +197,8 @@ export async function runSplitCommand(
             '--partition',
           ),
           outputDirectory: text(values.output, '--output'),
-          model: text(values.model, '--model'),
+          provider,
+          model: values.model ?? defaultModels[provider],
           maxInputTokens: Number(values['max-input-tokens']),
           trials: Number(values.trials),
           concurrency: Number(values.concurrency),
