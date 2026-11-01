@@ -119,3 +119,50 @@ export const intentionReviewOutputSchema = z.strictObject({
 export const intentionReviewSchema = z.toJSONSchema(
   intentionReviewOutputSchema,
 );
+
+/* Fixed roles bound concurrency and keep aggregation independent of completion order. */
+export const intentionReviewers = [
+  'accuracy',
+  'issues',
+  'completeness',
+] as const;
+
+/* Each model explains only its assigned dimensions; all may report cross-cutting findings. */
+export const intentionReviewerSchemas = {
+  accuracy: intentionReviewOutputSchema.extend({
+    dimensions: z.strictObject({
+      accuracy: dimension,
+      citations: dimension,
+      rationale: dimension,
+    }),
+  }),
+  issues: intentionReviewOutputSchema.extend({
+    dimensions: z.strictObject({
+      accuracy: dimension,
+      citations: dimension,
+      coverage: dimension,
+    }),
+  }),
+  completeness: intentionReviewOutputSchema.extend({
+    dimensions: z.strictObject({
+      coverage: dimension,
+      coherence: dimension,
+    }),
+  }),
+};
+
+/* The host supplies the role, so a reply cannot choose a more permissive coverage contract. */
+export const intentionReviewerReportSchema = z.discriminatedUnion('reviewer', [
+  z.strictObject({
+    reviewer: z.literal('accuracy'),
+    report: intentionReviewerSchemas.accuracy,
+  }),
+  z.strictObject({
+    reviewer: z.literal('issues'),
+    report: intentionReviewerSchemas.issues,
+  }),
+  z.strictObject({
+    reviewer: z.literal('completeness'),
+    report: intentionReviewerSchemas.completeness,
+  }),
+]);

@@ -14,7 +14,8 @@ import type {
  * original hunk evidence shown to the reviewer, and card 2 contains that exact
  * sentence. Metadata-only changes do not require hunk evidence.
  *
- * Every change must be accounted for as covered, omitted or incidental. Each
+ * Completeness and combined reports account for every change; other scoped reports
+ * may be partial. Each
  * reported omission must be linked exactly once with the same change IDs.
  * parseIntentionReview calls this after schema validation; valid reports return
  * normally, while invalid references or incomplete accounting throw ModelError.
@@ -23,8 +24,9 @@ import type {
  * or explains the code change. The reviewer model still makes that judgment.
  */
 export function validateIntentionCoverage(
-  report: RawIntentionReview,
+  report: Pick<RawIntentionReview, 'coverage' | 'omissions'>,
   context: IntentionReviewContext,
+  requireInventory = true,
 ): void {
   const changes = new Map(context.changes.map((change) => [change.id, change]));
   const delivered = new Set(context.deliveredEvidenceIds);
@@ -110,7 +112,7 @@ export function validateIntentionCoverage(
     }
   }
 
-  if (accounted.size !== changes.size) {
+  if (requireInventory && accounted.size !== changes.size) {
     throw new ModelError(
       'review.coverage: every inventory change must be accounted for.',
     );

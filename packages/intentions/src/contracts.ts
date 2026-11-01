@@ -10,7 +10,11 @@ import type {
   ModelProvider,
 } from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
-import type { IntentionReview } from './review/contracts.js';
+import type {
+  IntentionReview,
+  IntentionReviewerReport,
+  IntentionReviewTurnNumbers,
+} from './review/contracts.js';
 import type {
   ByteRange,
   Change,
@@ -139,7 +143,7 @@ export interface IntentionsOptions {
   onModelCall?: (event: IntentionModelCallObservation) => void;
 }
 
-/* Attribute successful and failed requests to their conversation without resetting client counters. */
+/* Attribute requests to a conversation and its local client counter, including failures. */
 export type IntentionModelCallObservation = ModelCallObservation & {
   role: 'writer' | 'reviewer';
   candidateNumber: number;
@@ -218,7 +222,7 @@ export type IntentionEvidenceDelivery =
   | { kind: 'tool'; toolNumber: number }
   | {
       kind: 'review_feedback';
-      reviewTurnNumber: number;
+      reviewTurnNumbers: IntentionReviewTurnNumbers;
       evidenceIds: readonly string[];
     };
 
@@ -226,7 +230,7 @@ export type IntentionEvidenceDelivery =
  * Preserve one provider reply with its conversation and source-delivery snapshot.
  * For example, a writer tool turn has validation: null; terminal validation may
  * also remain null if cancellation skips evaluation. Tool references use number,
- * while generationNumber identifies the shared client's generation call.
+ * while generationNumber identifies the conversation client's generation call.
  */
 export type IntentionTurn = {
   /* New turns retain the sent prompt; older saved OpenAI turns may omit it. */
@@ -241,7 +245,7 @@ export type IntentionTurn = {
   reply: ModelReply;
 } & (
   | { role: 'writer'; validation: IntentionsValidation | null }
-  | { role: 'reviewer'; review: IntentionReview | null }
+  | { role: 'reviewer'; review: IntentionReviewerReport | null }
 );
 
 /* Completed checks reference their retained report; an interrupted evaluation is null on its attempt. */
@@ -250,7 +254,8 @@ export type IntentionEvaluation =
   | {
       kind: 'semantic';
       status: 'accept' | 'revise' | 'stop';
-      reviewTurnNumber: number;
+      report: IntentionReview;
+      reviewTurnNumbers: IntentionReviewTurnNumbers;
     };
 
 /* One-based candidates count terminal writer drafts, not reviewer replies or tool continuations. */
@@ -261,11 +266,11 @@ export interface IntentionAttempt {
   evaluation: IntentionEvaluation | null;
 }
 
-/* Select the accepted writer and its approving reviewer even when the final reply is a review. */
+/* Select the accepted writer and all three approving reviews, independent of completion order. */
 export interface AcceptedIntentionCandidate {
   candidateNumber: number;
   writerTurnNumber: number;
-  reviewTurnNumber: number;
+  reviewTurnNumbers: IntentionReviewTurnNumbers;
 }
 
 /*

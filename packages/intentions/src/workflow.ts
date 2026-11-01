@@ -1,7 +1,7 @@
 import { createContextEngine } from '@daphne/context-engine';
 import type { ContextEngine } from '@daphne/context-engine';
 import { runEvaluatorOptimizer } from '@daphne/evaluator-optimizer';
-import { createModel, ModelError } from '@daphne/llm';
+import { ModelError } from '@daphne/llm';
 import type {
   IntentionsInput,
   IntentionsOptions,
@@ -21,23 +21,23 @@ import {
   createIntentionConversation,
   runIntentionConversation,
 } from './conversation.js';
-import type {
-  IntentionCandidate,
-  IntentionConversation,
-  IntentionConversationRuntime,
-} from './conversation.js';
+import type { IntentionCandidate } from './conversation.js';
 import { intentionsLimits } from './limits.js';
 import { correctionInstructions, intentionsInstructions } from './prompts.js';
 import { validateIntentions } from './proposal.js';
 import { intentionsSchema } from './schema.js';
 import { reviewIntentionCandidate } from './review/review.js';
-import type { IntentionReview } from './review/contracts.js';
+import type {
+  IntentionReview,
+  IntentionReviewTurnNumbers,
+} from './review/contracts.js';
+import { createIntentionRuntime } from './runtime.js';
 
 type IntentionFeedback =
   | { kind: 'structural'; diagnostics: string[] }
   | {
       kind: 'semantic';
-      reviewTurnNumber: number;
+      reviewTurnNumbers: IntentionReviewTurnNumbers;
       report: IntentionReview;
       evidenceIds: string[];
     };
@@ -45,7 +45,7 @@ type IntentionFeedback =
 interface IntentionAcceptance {
   proposal: IntentionsProposal;
   writerTurnNumber: number;
-  reviewTurnNumber: number;
+  reviewTurnNumbers: IntentionReviewTurnNumbers;
 }
 
 type IntentionsProgress = Omit<
@@ -64,33 +64,8 @@ export async function runIntentions(
   input: IntentionsInput,
   options: IntentionsOptions,
 ): Promise<IntentionsResult> {
-  const {
-    apiKey,
-    model: modelName,
-    budget,
-    maxInputTokens,
-    executeTool,
-    onModelCall,
-  } = options;
+  const { budget, maxInputTokens } = options;
   const { signal, maxCandidates, deadlineAt } = budget;
-  let activeConversation: IntentionConversation | null = null;
-
-  const model = createModel(
-    options.provider ?? 'openai',
-    apiKey,
-    modelName,
-    signal,
-    (event) => {
-      if (activeConversation) {
-        onModelCall?.({
-          ...event,
-          role: activeConversation.role,
-          candidateNumber: activeConversation.candidateNumber,
-          conversationId: activeConversation.conversationId,
-        });
-      }
-    },
-  );
 
   let engine: ContextEngine | null = null;
 
@@ -114,7 +89,7 @@ export async function runIntentions(
     return {
       ...progress,
       evidence,
-      calls: { ...model.calls, tools: progress.calls.tools },
+      calls: { ...progress.calls },
       limitations: [
         ...progress.limitations,
         ...(evidence ? retrievalLimitations(evidence) : []),
@@ -185,17 +160,8 @@ export async function runIntentions(
       initial.includedEvidenceIds,
     );
 
-    const runtime: IntentionConversationRuntime = {
-      model,
-      engine,
-      executeTool,
-      budget,
-      maxInputTokens,
-      progress,
-      onConversation(conversation) {
-        activeConversation = conversation;
-      },
-    };
+    const runtime = createIntentionRuntime(options, engine, progress);
+    const writerRuntime = runtime.forConversation(writer);
     const evaluations = new Map<number, IntentionEvaluation>();
 
     const result = await runEvaluatorOptimizer<
@@ -219,7 +185,7 @@ export async function runIntentions(
             context = packet.renderedContext;
             writer.pendingDeliveries.push({
               kind: 'review_feedback',
-              reviewTurnNumber: feedback.reviewTurnNumber,
+              reviewTurnNumbers: feedback.reviewTurnNumbers,
               evidenceIds: packet.includedEvidenceIds,
             });
           }
@@ -234,7 +200,7 @@ export async function runIntentions(
           });
         }
 
-        const reply = await runIntentionConversation(writer, runtime);
+        const reply = await runIntentionConversation(writer, writerRuntime);
 
         return {
           writerTurnNumber: reply.turnNumber,
@@ -277,7 +243,7 @@ export async function runIntentions(
         }
 
         const review = await reviewIntentionCandidate(candidate, {
-          ...runtime,
+          runtime,
           input: captured,
           hunks: progress.hunks,
           limitations: [
@@ -285,11 +251,12 @@ export async function runIntentions(
             ...retrievalLimitations(runtime.engine.getEvidenceSnapshot()),
           ],
         });
-        const reviewTurnNumber = review.turn.number;
+        const reviewTurnNumbers = review.reviewTurnNumbers;
         evaluations.set(number, {
           kind: 'semantic',
           status: review.decision.status,
-          reviewTurnNumber,
+          report: review.report,
+          reviewTurnNumbers,
         });
 
         switch (review.decision.status) {
@@ -299,7 +266,7 @@ export async function runIntentions(
               value: {
                 proposal: validation.proposal,
                 writerTurnNumber: turn.number,
-                reviewTurnNumber,
+                reviewTurnNumbers,
               },
             };
           case 'stop':
@@ -309,10 +276,10 @@ export async function runIntentions(
               status: 'revise',
               feedback: {
                 kind: 'semantic',
-                reviewTurnNumber,
+                reviewTurnNumbers,
                 report: review.report,
                 /* Send source bytes the reviewer discovered, including evidence for proposal-wide omissions. */
-                evidenceIds: review.turn.deliveredEvidenceIds.filter(
+                evidenceIds: review.deliveredEvidenceIds.filter(
                   (id) => !candidate.deliveredEvidenceIds.includes(id),
                 ),
               },
@@ -333,7 +300,7 @@ export async function runIntentions(
     switch (result.status) {
       case 'accepted': {
         checkIntentionCancellation(signal);
-        const { proposal, writerTurnNumber, reviewTurnNumber } = result.value;
+        const { proposal, writerTurnNumber, reviewTurnNumbers } = result.value;
         const turn = progress.turns[writerTurnNumber - 1];
 
         if (!turn || turn.role !== 'writer') {
@@ -350,7 +317,7 @@ export async function runIntentions(
           acceptedCandidate: {
             candidateNumber: turn.candidateNumber,
             writerTurnNumber,
-            reviewTurnNumber,
+            reviewTurnNumbers,
           },
         };
       }

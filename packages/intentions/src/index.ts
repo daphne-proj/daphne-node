@@ -2,8 +2,11 @@ export { runIntentions } from './workflow.js';
 export { validateIntentions } from './proposal.js';
 export {
   parseIntentionReview,
+  parseIntentionReviewerReport,
   deriveIntentionReviewDecision,
 } from './review/validation.js';
+export { combineIntentionReviews } from './review/combine.js';
+export { intentionReviewers } from './review/schema.js';
 export type {
   RawIntentionReview,
   IntentionCoverageEntry,
@@ -11,6 +14,9 @@ export type {
   IntentionReviewCriterion,
   IntentionReviewContext,
   IntentionReviewDecision,
+  IntentionReviewer,
+  IntentionReviewerReport,
+  IntentionReviewTurnNumbers,
 } from './review/contracts.js';
 export type {
   Intention,

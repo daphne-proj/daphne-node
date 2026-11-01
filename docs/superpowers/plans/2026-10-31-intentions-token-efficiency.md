@@ -17,7 +17,7 @@
 - Preserve full supported diff coverage, complete change inventory, exact source bytes, evidence IDs, source ordering, UTF-8 byte ranges, and pinned BASE/HEAD identity. Do not merge overlapping excerpts or renumber evidence to shrink requests.
 - Preserve deterministic validation before semantic review, full replacements, a fresh whole-proposal reviewer for every structurally valid candidate, all five criteria, failure retention, and accepted writer/reviewer linkage.
 - Retained evidence is not delivered evidence. Keep conversation-specific receipts, successful-generation delivery confirmation, and transfer of all newly delivered reviewer sources during repair, including evidence for omissions.
-- Keep `daphne-intentions-v1` artifacts, enriched public proposals, and the existing `daphne-context-v1` packet shape. Existing context assembly without the new selection must retain byte-identical rendering and packet IDs. No historical-artifact decoder or migration is introduced.
+- Keep run artifacts, enriched public proposals, and the existing `daphne-context-v1` packet shape. Existing context assembly without the new selection must retain byte-identical rendering and packet IDs.
 - Keep output capacity 16,384 tokens, context/request capacity 8,388,608 bytes, and retention capacity 33,554,432 bytes. Count the exact complete request before generation; no silent truncation or capacity increases.
 - Do not add or modify tests unless explicitly requested, except existing tests broken by the new behavior as allowed by repository policy. This overrides generic TDD steps. Do not disguise new tests as temporary assertion scripts. Run existing checks and disclose the missing focused coverage.
 - Use public workspace exports, relative `.js` imports, existing strictness, and Node runtime APIs. Add concise comments for changed contracts and update their owning documentation.
@@ -130,7 +130,7 @@ The existing conversation checks exercise delivery isolation and cancellation, n
 
 **Files:** Modify `apps/eval/docs/commands.md`; create measurement records and reports only in the new ignored experiment directory. Reuse the CLI, `loadIntentionArtifact`, existing independent judge, and raw model usage; no new benchmark package or production telemetry interface.
 
-**Interfaces:** Consume current `daphne-intentions-v1` artifacts and `loadIntentionArtifact(path: string): Promise<PreparedIntentionArtifact>`. Keep all judge inputs/rubrics unchanged. Inspection and offline measurement do not authorize the CLI's paid generation/judge commands.
+**Interfaces:** Consume current run artifacts and `loadIntentionArtifact(path: string): Promise<PreparedIntentionArtifact>`. Keep all judge inputs/rubrics unchanged. Inspection and offline measurement do not authorize the CLI's paid generation/judge commands.
 
 - [ ] Before paid calls, report per-task offline payload differences using identical saved trajectories. Compare base → Task 1 → Task 2 → Task 3 separately. Record that a fixed trajectory measures serialization, not how the model will choose tools or repair candidates after a change.
 - [ ] Prepare a concrete manifest with exact pinned PR URLs/commits and captured metadata from the original three cases, isolated baseline/candidate source hashes, models, prompt/schema hashes, output directories, execution order, concurrency, quality assessor, and paid-call allocation. Keep both arms on the current batched code; hold all prompts and budgets fixed.

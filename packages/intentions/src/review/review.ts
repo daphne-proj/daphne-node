@@ -1,3 +1,4 @@
+import * as z from 'zod';
 import { ContextLimitError } from '@daphne/context-engine';
 import { ModelError } from '@daphne/llm';
 import type { ContextNotice } from '@daphne/review-evidence/contracts';
@@ -9,37 +10,40 @@ import {
   runIntentionConversation,
 } from '../conversation.js';
 import { intentionsLimits } from '../limits.js';
+import type { IntentionCandidate } from '../conversation.js';
+import { intentionReviewerInstructions } from './prompts.js';
+import { combineIntentionReviews } from './combine.js';
+import type { IntentionRuntime } from '../runtime.js';
 import type {
-  IntentionCandidate,
-  IntentionConversationRuntime,
-} from '../conversation.js';
-import { intentionReviewInstructions } from './prompts.js';
+  IntentionReviewer,
+  IntentionReviewTurnNumbers,
+} from './contracts.js';
 import { toReviewProposal } from './input.js';
-import { intentionReviewSchema } from './schema.js';
+import { intentionReviewers, intentionReviewerSchemas } from './schema.js';
 import {
   deriveIntentionReviewDecision,
-  parseIntentionReview,
+  parseIntentionReviewerReport,
 } from './validation.js';
 
-export interface IntentionReviewRuntime extends IntentionConversationRuntime {
+export interface IntentionReviewRuntime {
+  runtime: IntentionRuntime;
   input: IntentionsInput;
   hunks: IntentionHunkEvidence[];
   limitations: ContextNotice[];
 }
 
 /*
- * Evaluate one structurally valid writer candidate in a fresh conversation using
- * the same client, evidence store and budget. Seed actual writer-delivered source
- * content, not its reasoning or prior verdicts. A malformed/failed review throws
- * without retry; the conversation has already retained completed replies/tools.
- * Keep the initial diff in a stable first message and the current candidate in
- * the next one. Both packets must fit the same context allowance together, and
- * their sources must exactly match the candidate's delivery snapshot.
+ * Evaluate a fixed writer candidate in three isolated conversations concurrently.
+ * Initial packets contain exactly the writer-delivered sources; tool results remain
+ * local until confirmed in that conversation. On failure abort model siblings and
+ * drain all queued tools before returning, preserving completed diagnostics.
+ * Only three valid reports can reach the unchanged acceptance policy.
  */
 export async function reviewIntentionCandidate(
   candidate: IntentionCandidate,
-  runtime: IntentionReviewRuntime,
+  input: IntentionReviewRuntime,
 ) {
+  const { runtime } = input;
   const writer = runtime.progress.turns[candidate.writerTurnNumber - 1];
 
   if (
@@ -52,7 +56,7 @@ export async function reviewIntentionCandidate(
     );
   }
 
-  const diffIds = new Set(runtime.hunks.flatMap((hunk) => hunk.evidenceIds));
+  const diffIds = new Set(input.hunks.flatMap((hunk) => hunk.evidenceIds));
   const deliveredIds = new Set(candidate.deliveredEvidenceIds);
 
   if (
@@ -94,53 +98,119 @@ export async function reviewIntentionCandidate(
     );
   }
 
-  const conversation = createIntentionConversation(
+  const history = [
     {
-      role: 'reviewer',
-      conversationId: `reviewer-${String(writer.candidateNumber)}`,
-      candidateNumber: writer.candidateNumber,
-      instructions: intentionReviewInstructions,
-      schema: { name: 'intention_review', schema: intentionReviewSchema },
-      history: [
-        {
-          role: 'user',
-          content: JSON.stringify({
-            identity: runtime.input.identity,
-            pr: runtime.input.pr,
-            changes: runtime.input.changes,
-            hunks: runtime.hunks,
-            context: initial.renderedContext,
-          }),
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            limitations: runtime.limitations,
-            proposal: toReviewProposal(writer.validation.proposal),
-            context: supplemental.renderedContext,
-          }),
-        },
-      ],
+      role: 'user',
+      content: JSON.stringify({
+        identity: input.input.identity,
+        pr: input.input.pr,
+        changes: input.input.changes,
+        hunks: input.hunks,
+        context: initial.renderedContext,
+      }),
     },
-    candidate.deliveredEvidenceIds,
+    {
+      role: 'user',
+      content: JSON.stringify({
+        limitations: input.limitations,
+        proposal: toReviewProposal(writer.validation.proposal),
+        context: supplemental.renderedContext,
+      }),
+    },
+  ];
+  const controller = new AbortController();
+  const signal = AbortSignal.any([runtime.budget.signal, controller.signal]);
+  const failures: unknown[] = [];
+  const proposal = writer.validation.proposal;
+  const results = await Promise.allSettled(
+    intentionReviewers.map(async (reviewer) => {
+      try {
+        const conversation = createIntentionConversation(
+          {
+            role: 'reviewer',
+            conversationId: `reviewer-${reviewer}-${String(writer.candidateNumber)}`,
+            candidateNumber: writer.candidateNumber,
+            instructions: intentionReviewerInstructions(reviewer),
+            schema: {
+              name: `intention_review_${reviewer}`,
+              schema: z.toJSONSchema(intentionReviewerSchemas[reviewer]),
+            },
+            history: [...history],
+          },
+          candidate.deliveredEvidenceIds,
+        );
+        const reply = await runIntentionConversation(
+          conversation,
+          runtime.forConversation(conversation, signal),
+        );
+        checkIntentionCancellation(signal);
+        const turn = runtime.progress.turns[reply.turnNumber - 1];
+
+        if (!turn || turn.role !== 'reviewer') {
+          throw new ModelError(
+            'The semantic review has no recorded reviewer turn.',
+          );
+        }
+
+        const value: unknown = JSON.parse(turn.reply.text);
+        const report = parseIntentionReviewerReport(value, reviewer, {
+          hunks: input.hunks,
+          proposal,
+          changes: input.input.changes,
+          deliveredEvidenceIds: reply.deliveredEvidenceIds,
+        });
+        turn.review = report;
+
+        return { turn, report };
+      } catch (error) {
+        failures.push(error);
+        controller.abort(error);
+        throw error;
+      }
+    }),
   );
 
-  const reply = await runIntentionConversation(conversation, runtime);
-  checkIntentionCancellation(runtime.budget.signal);
-  const turn = runtime.progress.turns[reply.turnNumber - 1];
-
-  if (!turn || turn.role !== 'reviewer') {
-    throw new ModelError('The semantic review has no recorded reviewer turn.');
+  if (failures.length > 0) {
+    throw failures[0];
   }
 
-  const value: unknown = JSON.parse(turn.reply.text);
-  const report = parseIntentionReview(value, {
-    hunks: runtime.hunks,
-    proposal: writer.validation.proposal,
-    changes: runtime.input.changes,
-    deliveredEvidenceIds: reply.deliveredEvidenceIds,
-  });
-  turn.review = report;
+  checkIntentionCancellation(signal);
+  const reviews = results.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  );
+  const deliveredEvidenceIds = [
+    ...new Set(reviews.flatMap(({ turn }) => turn.deliveredEvidenceIds)),
+  ];
+  const report = combineIntentionReviews(
+    reviews.map((review) => review.report),
+    {
+      hunks: input.hunks,
+      proposal,
+      changes: input.input.changes,
+      deliveredEvidenceIds,
+    },
+  );
 
-  return { turn, report, decision: deriveIntentionReviewDecision(report) };
+  function turnNumber(reviewer: IntentionReviewer): number {
+    const review = reviews.find((entry) => entry.report.reviewer === reviewer);
+
+    if (!review) {
+      throw new ModelError(`Missing completed ${reviewer} review.`);
+    }
+
+    return review.turn.number;
+  }
+
+  const reviewTurnNumbers: IntentionReviewTurnNumbers = {
+    accuracy: turnNumber('accuracy'),
+    issues: turnNumber('issues'),
+    completeness: turnNumber('completeness'),
+  };
+
+  return {
+    report,
+    reviewTurnNumbers,
+    deliveredEvidenceIds,
+    decision: deriveIntentionReviewDecision(report),
+  };
 }

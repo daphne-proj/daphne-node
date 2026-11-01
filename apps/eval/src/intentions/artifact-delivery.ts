@@ -1,4 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
+import { intentionReviewers } from '@daphne/intentions';
+import { parseReviewTurnNumbers } from './artifact-reviews.js';
 import { decodeModelReply } from '@daphne/llm';
 import type { ModelProvider } from '@daphne/llm';
 import type { RetainedSource } from '@daphne/context-engine';
@@ -44,7 +46,7 @@ function parseTurn(value: unknown, index: number, provider: ModelProvider) {
   if (
     number !== index + 1 ||
     candidateNumber === 0 ||
-    turn.generationNumber !== number ||
+    parse.integer(turn.generationNumber, 'turn.generationNumber') < 1 ||
     !isDeepStrictEqual(decoded.output, output) ||
     text !== decoded.text ||
     !isDeepStrictEqual(reply.functionCalls ?? [], functionCalls)
@@ -63,6 +65,10 @@ function parseTurn(value: unknown, index: number, provider: ModelProvider) {
         ? null
         : parse.text(instructions, 'turn.instructions'),
     candidateNumber,
+    generationNumber: parse.integer(
+      turn.generationNumber,
+      'turn.generationNumber',
+    ),
     role: parse.choice(turn.role, ['writer', 'reviewer'], 'turn.role'),
     conversationId: parse.text(turn.conversationId, 'turn.conversationId'),
     deliveries: parse.array(turn.deliveries, 'turn.deliveries'),
@@ -192,6 +198,7 @@ export function parseDeliveredTurns(
       role: DeliveredIntentionTurn['role'];
       delivered: Set<string>;
       callIds: Set<string>;
+      generationNumber: number;
     }
   >();
   const deliveredTools = new Set<number>();
@@ -209,21 +216,31 @@ export function parseDeliveredTurns(
         role: turn.role,
         delivered: new Set(),
         callIds: new Set(),
+        generationNumber: 0,
       };
       conversations.set(turn.conversationId, conversation);
     }
 
+    const validOrigin =
+      turn.role === 'writer'
+        ? turn.conversationId === 'writer'
+        : intentionReviewers.some(
+            (reviewer) =>
+              turn.conversationId ===
+              `reviewer-${reviewer}-${String(turn.candidateNumber)}`,
+          );
+
     if (
       conversation.role !== turn.role ||
-      turn.conversationId !==
-        (turn.role === 'writer'
-          ? 'writer'
-          : `reviewer-${String(turn.candidateNumber)}`)
+      !validOrigin ||
+      turn.generationNumber !== conversation.generationNumber + 1
     ) {
       throw new parse.EvaluationError(
-        'Turn has an inconsistent conversation origin.',
+        'Turn has an inconsistent conversation origin or local generation number.',
       );
     }
+
+    conversation.generationNumber = turn.generationNumber;
 
     let initials = 0;
     let feedbacks = 0;
@@ -264,22 +281,34 @@ export function parseDeliveredTurns(
       } else if (kind === 'review_feedback') {
         feedbacks += 1;
         ids = evidenceIds(receipt.evidenceIds, known);
-        const review =
-          turns[
-            parse.integer(receipt.reviewTurnNumber, 'reviewTurnNumber') - 1
-          ];
+        const numbers = parseReviewTurnNumbers(receipt.reviewTurnNumbers);
+        const reviews = intentionReviewers.map((reviewer) => {
+          const review = turns[numbers[reviewer] - 1];
 
-        if (
-          turn.role !== 'writer' ||
-          !review ||
-          review.role !== 'reviewer' ||
-          review.number >= turn.number ||
-          review.candidateNumber !== turn.candidateNumber - 1 ||
-          review.reply.functionCalls.length > 0 ||
-          ids.some((id) => !review.deliveredEvidenceIds.includes(id))
-        ) {
+          if (
+            turn.role !== 'writer' ||
+            !review ||
+            review.role !== 'reviewer' ||
+            review.number >= turn.number ||
+            review.candidateNumber !== turn.candidateNumber - 1 ||
+            review.conversationId !==
+              `reviewer-${reviewer}-${String(review.candidateNumber)}` ||
+            review.reply.functionCalls.length > 0
+          ) {
+            throw new parse.EvaluationError(
+              'Review feedback must name all previous candidate reviewer terminals.',
+            );
+          }
+
+          return review;
+        });
+        const delivered = new Set(
+          reviews.flatMap((review) => review.deliveredEvidenceIds),
+        );
+
+        if (ids.some((id) => !delivered.has(id))) {
           throw new parse.EvaluationError(
-            'Review feedback must refer to the previous candidate’s completed reviewer delivery.',
+            'Feedback evidence was not delivered to any referenced reviewer.',
           );
         }
       } else {
@@ -296,7 +325,6 @@ export function parseDeliveredTurns(
         if (
           !tool ||
           tool.number !== number ||
-          number !== deliveredTools.size + 1 ||
           deliveredTools.has(number) ||
           tool.status !== 'complete' ||
           tool.delivered !== true ||
@@ -350,19 +378,31 @@ export function parseDeliveredTurns(
     );
   }
 
-  for (const [index, requested] of requestedTools.entries()) {
-    const tool = tools[index];
+  const requests = new Map(
+    requestedTools.map((requested) => [
+      `${String(requested.turn.number)}:${requested.call.call_id}`,
+      requested,
+    ]),
+  );
+  const matched = new Set<string>();
+
+  for (const [index, tool] of tools.entries()) {
+    const call = parse.object(tool.call, 'tool.call');
+    const key = `${String(tool.turnNumber)}:${parse.text(call.call_id, 'tool call ID')}`;
+    const requested = requests.get(key);
 
     if (
-      !tool ||
+      !requested ||
+      matched.has(key) ||
       tool.number !== index + 1 ||
-      tool.turnNumber !== requested.turn.number ||
-      !isDeepStrictEqual(tool.call, requested.call)
+      !isDeepStrictEqual(call, requested.call)
     ) {
       throw new parse.EvaluationError(
         'Tool records differ from the requesting provider calls.',
       );
     }
+
+    matched.add(key);
   }
 
   return turns;

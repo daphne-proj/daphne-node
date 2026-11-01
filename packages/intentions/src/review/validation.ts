@@ -1,5 +1,8 @@
 import { ModelError } from '@daphne/llm';
-import { intentionReviewOutputSchema } from './schema.js';
+import {
+  intentionReviewOutputSchema,
+  intentionReviewerReportSchema,
+} from './schema.js';
 import { validateIntentionCoverage } from './coverage.js';
 import type {
   RawIntentionReview,
@@ -7,6 +10,8 @@ import type {
   IntentionReviewCriterion,
   IntentionReviewContext,
   IntentionReviewDecision,
+  IntentionReviewer,
+  IntentionReviewerReport,
 } from './contracts.js';
 
 /* Both dimension statuses and acceptance use this policy; severity cannot waive a factual defect. */
@@ -71,6 +76,70 @@ export function parseIntentionReview(
   }
 
   const report = parsed.data;
+  validateReviewReferences(report, context);
+  const blocking = blockingIssues(report);
+
+  function dimension(
+    criterion: IntentionReviewCriterion,
+  ): IntentionReview['dimensions'][IntentionReviewCriterion] {
+    const findings = blocking.filter(
+      (finding) => finding.criterion === criterion,
+    );
+    let status: IntentionReview['dimensions'][IntentionReviewCriterion]['status'] =
+      'pass';
+
+    if (findings.some((finding) => finding.remedy.kind === 'unresolved')) {
+      status = 'insufficient_evidence';
+    } else if (findings.length > 0) {
+      status = 'issues_found';
+    }
+
+    return { ...report.dimensions[criterion], status };
+  }
+
+  return {
+    ...report,
+    dimensions: {
+      accuracy: dimension('accuracy'),
+      citations: dimension('citations'),
+      rationale: dimension('rationale'),
+      coverage: dimension('coverage'),
+      coherence: dimension('coherence'),
+    },
+  };
+}
+
+/* Check a scoped reply against only this reviewer's receipts before combining evidence.
+ * For example, the issues reviewer may omit inventory entries, but must anchor each
+ * missing issue. Completeness must account for every change. Malformed replies throw. */
+export function parseIntentionReviewerReport(
+  value: unknown,
+  reviewer: IntentionReviewer,
+  context: IntentionReviewContext,
+): IntentionReviewerReport {
+  const parsed = intentionReviewerReportSchema.safeParse({
+    reviewer,
+    report: value,
+  });
+
+  if (!parsed.success) {
+    throw new ModelError(parsed.error.message);
+  }
+
+  validateReviewReferences(
+    parsed.data.report,
+    context,
+    reviewer === 'completeness',
+  );
+
+  return parsed.data;
+}
+
+function validateReviewReferences(
+  report: Pick<RawIntentionReview, 'cards' | 'omissions' | 'coverage'>,
+  context: IntentionReviewContext,
+  requireInventory = true,
+): void {
   const indexes = report.cards.map((card) => card.index);
 
   if (
@@ -117,37 +186,7 @@ export function parseIntentionReview(
     );
   }
 
-  validateIntentionCoverage(report, context);
-  const blocking = blockingIssues(report);
-
-  function dimension(
-    criterion: IntentionReviewCriterion,
-  ): IntentionReview['dimensions'][IntentionReviewCriterion] {
-    const findings = blocking.filter(
-      (finding) => finding.criterion === criterion,
-    );
-    let status: IntentionReview['dimensions'][IntentionReviewCriterion]['status'] =
-      'pass';
-
-    if (findings.some((finding) => finding.remedy.kind === 'unresolved')) {
-      status = 'insufficient_evidence';
-    } else if (findings.length > 0) {
-      status = 'issues_found';
-    }
-
-    return { ...report.dimensions[criterion], status };
-  }
-
-  return {
-    ...report,
-    dimensions: {
-      accuracy: dimension('accuracy'),
-      citations: dimension('citations'),
-      rationale: dimension('rationale'),
-      coverage: dimension('coverage'),
-      coherence: dimension('coherence'),
-    },
-  };
+  validateIntentionCoverage(report, context, requireInventory);
 }
 
 /* Apply the same policy after every parsed review; advisory wording preferences never force repair. */

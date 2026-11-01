@@ -1,16 +1,19 @@
 import type { ContextEngine } from '@daphne/context-engine';
 import type { RunBudget } from '@daphne/evaluator-optimizer';
 import { ModelError, runModelConversation } from '@daphne/llm';
-import type { ModelClient, ModelConversation } from '@daphne/llm';
+import type {
+  ModelClient,
+  ModelConversation,
+  ModelFunctionCall,
+} from '@daphne/llm';
 import type {
   IntentionEvidenceDelivery,
-  IntentionsOptions,
   IntentionsResult,
   IntentionToolRecord,
   IntentionTurn,
 } from './contracts.js';
 import { intentionsLimits } from './limits.js';
-import { executeIntentionTool, intentionsTools } from './tools.js';
+import { intentionsTools } from './tools.js';
 
 /*
  * A writer candidate references its retained terminal reply instead of copying
@@ -42,16 +45,17 @@ export interface IntentionConversation extends ModelConversation {
   pendingTools: Extract<IntentionToolRecord, { status: 'complete' }>[];
 }
 
-/* Borrow one client, evidence store and budget; shared runtimes execute conversations sequentially. */
+/* Conversations own clients and receipts; shared recording and tool retention remain run-local. */
 export interface IntentionConversationRuntime {
   model: ModelClient;
   engine: ContextEngine;
-  executeTool: IntentionsOptions['executeTool'];
+  runTool: (
+    call: ModelFunctionCall,
+    turn: IntentionTurn,
+  ) => Promise<IntentionToolRecord>;
   budget: RunBudget;
   maxInputTokens: number;
   progress: Pick<IntentionsResult, 'turns' | 'tools' | 'calls'>;
-  /* Attribute the shared client's observations before counting or generating, including failures. */
-  onConversation?: (conversation: IntentionConversation) => void;
 }
 
 export interface IntentionConversationReply {
@@ -112,8 +116,8 @@ export function checkIntentionCancellation(signal: AbortSignal): void {
  * cannot be cited by the writer until a writer request includes it and succeeds.
  *
  * Mutate the supplied conversation and shared progress in place. Reuse the writer
- * across revisions, but create a separate conversation for each review. Execute
- * conversations sequentially when sharing the client, evidence store and budget.
+ * across revisions, but create a separate conversation/client for each review.
+ * The shared runtime queues tools while model calls can run concurrently.
  *
  * Return the terminal turn's number and evidence snapshot; its full reply remains
  * in progress.turns. Errors propagate while completed work stays recorded, and
@@ -125,14 +129,7 @@ export async function runIntentionConversation(
   conversation: IntentionConversation,
   runtime: IntentionConversationRuntime,
 ): Promise<IntentionConversationReply> {
-  const { model, engine, executeTool, budget, maxInputTokens, progress } =
-    runtime;
-
-  /*
-   * Identify the active conversation before counting or generating so model-call
-   * records, including failures, carry its role, conversation ID and candidate number.
-   */
-  runtime.onConversation?.(conversation);
+  const { model, budget, maxInputTokens, progress } = runtime;
 
   const terminal = await runModelConversation(conversation, {
     model,
@@ -199,17 +196,7 @@ export async function runIntentionConversation(
       return turn;
     },
     async executeTool(call, turn) {
-      progress.calls.tools += 1;
-
-      const tool = await executeIntentionTool(call, engine, executeTool, {
-        number: progress.tools.length + 1,
-        role: conversation.role,
-        candidateNumber: conversation.candidateNumber,
-        conversationId: conversation.conversationId,
-        turnNumber: turn.number,
-      });
-
-      progress.tools.push(tool);
+      const tool = await runtime.runTool(call, turn);
 
       if (tool.status === 'failed') {
         throw tool.error;

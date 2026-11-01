@@ -138,7 +138,7 @@ The build includes these smoke files because the command imports them. It preser
 make intentions-eval ARTIFACT=outputs/intentions-CURRENT/run.json
 ```
 
-This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It reconstructs delivery per conversation, revalidates raw writer proposals and reviewer reports, and requires exact accepted-writer/review linkage before judging with the shared [rubric](../prompts/intentions.md). Failed host runs are never judged. The judge sees only accepted cards, writer-eligible evidence and writer instructions; runtime verdicts, iteration counts and model identity are excluded. Only host format `daphne-intentions-v3` is supported, with current policy and mandatory coverage accounting. Old formats and inconsistent traces are rejected; no compatibility parser, migration or fallback is provided. Saved historical artifacts remain untouched. It does not regenerate intentions, fetch repository context or upload to Langfuse.
+This command makes a live Codex CLI call using the saved run's original generation instructions, pinned PR metadata, complete diff, delivered evidence and final cards. It reconstructs delivery per conversation, revalidates raw writer proposals and three independently delivered reviewer reports plus their code-combined aggregate, and requires exact accepted-writer/three-review linkage before judging with the shared [rubric](../prompts/intentions.md). Failed host runs are never judged. The judge sees only accepted cards, writer-eligible evidence and writer instructions; runtime verdicts, iteration counts and model identity are excluded. The loader requires coverage accounting and rejects inconsistent traces. It does not regenerate intentions, fetch repository context or upload to Langfuse.
 
 Optional `OUTPUT=NEW_DIRECTORY` selects a fresh output directory with an existing parent; otherwise Make creates one under `outputs/`. The judge uses the OpenAI model default in `packages/llm/src/providers.ts`; direct eval CLI calls still accept `--model`. When an older saved run lacks the original instructions, supply `GENERATION_PROMPT=PATH` pointing to their exact text. A supplied prompt must match embedded instructions when both exist; the evaluator never substitutes the current generation prompt.
 
@@ -343,11 +343,7 @@ This controlled probe does not estimate normal retrieval or end-to-end success.
 
 Before authorization, freeze a manifest with exact candidate/turn numbers,
 proposal and source hashes, both source snapshots and prompt/schema hashes,
-runtime versions, alternating arm order and fresh output paths. The current
-loader does not accept old artifacts. Any future diagnostic extraction must be
-separate from production loading, verify the recorded source bytes and delivery,
-and never relabel old artifacts as current accepted runs. Do not add a permanent
-replay framework for this pilot.
+runtime versions, alternating arm order and fresh output paths.
 
 Measure detected-error acceptance, confirmed consequential omissions and
 unnecessary repair requests on adequate controls. Record missing or inconsistent

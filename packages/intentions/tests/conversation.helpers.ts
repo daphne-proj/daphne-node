@@ -4,7 +4,6 @@ import {
   defaultContextLimits,
 } from '@daphne/context-engine';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
-import { createOpenAI } from '@daphne/llm';
 import type { ModelReply } from '@daphne/llm';
 import type {
   SourceEvidence,
@@ -12,6 +11,7 @@ import type {
 } from '@daphne/review-evidence/contracts';
 import { createIntentionConversation } from '../src/conversation.js';
 import { assembleEvidence } from '../src/context.js';
+import { createIntentionRuntime } from '../src/runtime.js';
 import type { IntentionConversationRuntime } from '../src/conversation.js';
 
 const identity = {
@@ -78,13 +78,6 @@ export function intentionConversationHarness() {
     text: 'b\n',
   };
   const initialId = engine.addSource(initial);
-  const model = createOpenAI('unused-key', 'test-model', budget.signal);
-  const count = vi.spyOn(model, 'count').mockResolvedValue(42);
-  const generate = vi.fn(() => Promise.resolve(intentionReply()));
-  vi.spyOn(model, 'generate').mockImplementation(() => {
-    model.calls.generate += 1;
-    return generate();
-  });
   const executeTool = vi.fn((): Promise<ToolResult> =>
     Promise.resolve({
       identity,
@@ -108,18 +101,29 @@ export function intentionConversationHarness() {
     }),
   );
 
-  const runtime: IntentionConversationRuntime = {
-    model,
-    engine,
-    budget,
-    executeTool,
-    maxInputTokens: 100_000,
-    progress: {
-      turns: [],
-      tools: [],
-      calls: { count: 0, generate: 0, tools: 0 },
-    },
+  const progress: IntentionConversationRuntime['progress'] = {
+    turns: [],
+    tools: [],
+    calls: { count: 0, generate: 0, tools: 0 },
   };
+  const runtime = createIntentionRuntime(
+    {
+      apiKey: 'unused-key',
+      model: 'test-model',
+      budget,
+      maxInputTokens: 100_000,
+      executeTool,
+    },
+    engine,
+    progress,
+  ).forConversation(conversation('writer'));
+  const model = runtime.model;
+  const count = vi.spyOn(model, 'count').mockResolvedValue(42);
+  const generate = vi.fn(() => Promise.resolve(intentionReply()));
+  vi.spyOn(model, 'generate').mockImplementation(() => {
+    model.calls.generate += 1;
+    return generate();
+  });
 
   function conversation(role: 'writer' | 'reviewer') {
     return createIntentionConversation(

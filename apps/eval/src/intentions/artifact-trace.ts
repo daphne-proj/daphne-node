@@ -1,16 +1,17 @@
 import { isDeepStrictEqual } from 'node:util';
-import {
-  deriveIntentionReviewDecision,
-  parseIntentionReview,
-  validateIntentions,
-} from '@daphne/intentions';
+import { validateIntentions } from '@daphne/intentions';
 import type {
   IntentionsProposal,
   IntentionsValidationContext,
   IntentionHunkEvidence,
+  IntentionReviewTurnNumbers,
 } from '@daphne/intentions';
 import { parseDeliveredTurns } from './artifact-delivery.js';
 import type { IntentionDeliveryContext } from './artifact-delivery.js';
+import {
+  parseCandidateReviews,
+  parseReviewTurnNumbers,
+} from './artifact-reviews.js';
 import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
@@ -82,7 +83,10 @@ export function parseIntentionTrace(
 
   let cursor = 0;
   let accepted: ParsedIntentionTrace | null = null;
-  let previousReview: { number: number; evidenceIds: string[] } | null = null;
+  let previousReview: {
+    numbers: IntentionReviewTurnNumbers;
+    evidenceIds: string[];
+  } | null = null;
 
   for (const [index, value] of attempts.entries()) {
     const attempt = parse.object(value, 'attempt');
@@ -131,7 +135,7 @@ export function parseIntentionTrace(
         : [
             {
               kind: 'review_feedback',
-              reviewTurnNumber: previousReview.number,
+              reviewTurnNumbers: previousReview.numbers,
               evidenceIds: previousReview.evidenceIds,
             },
           ];
@@ -186,67 +190,39 @@ export function parseIntentionTrace(
         );
       }
     } else {
-      const reviewNumber = parse.integer(
-        evaluation.reviewTurnNumber,
-        'evaluation.reviewTurnNumber',
+      if (validation.status !== 'valid') {
+        throw new parse.EvaluationError(
+          'Semantic review requires a structurally valid writer draft.',
+        );
+      }
+
+      const numbers = parseReviewTurnNumbers(evaluation.reviewTurnNumbers);
+      const review = parseCandidateReviews(
+        turns,
+        writer,
+        validation.proposal,
+        numbers,
+        context,
       );
-      const reviewer = turns[reviewNumber - 1];
-      const reviewerTurns = turns.slice(cursor, reviewNumber);
 
       if (
-        validation.status !== 'valid' ||
-        !reviewer ||
-        reviewer.role !== 'reviewer' ||
-        reviewer.candidateNumber !== number ||
-        reviewer.reply.functionCalls.length > 0 ||
-        reviewerTurns.length === 0 ||
-        reviewerTurns.some(
-          (turn) => turn.role !== 'reviewer' || turn.candidateNumber !== number,
-        ) ||
-        reviewerTurns
-          .slice(0, -1)
-          .some(
-            (turn) =>
-              turn.reply.functionCalls.length === 0 || turn.review !== null,
-          )
+        !isDeepStrictEqual(evaluation.report, review.report) ||
+        review.decision.status !== status
       ) {
         throw new parse.EvaluationError(
-          'Semantic evaluation requires this writer’s completed review conversation.',
+          'Saved aggregate or decision differs from the three raw reviews.',
         );
       }
 
-      const rawReport: unknown = JSON.parse(reviewer.reply.text);
-      const report = parseIntentionReview(rawReport, {
-        proposal: validation.proposal,
-        changes: context.changes,
-        deliveredEvidenceIds: reviewer.deliveredEvidenceIds,
-        hunks: context.hunks,
-      });
-      const decision = deriveIntentionReviewDecision(report);
-
-      if (
-        !isDeepStrictEqual(reviewer.review, report) ||
-        decision.status !== status
-      ) {
-        throw new parse.EvaluationError(
-          'Saved review or evaluation differs from the parsed raw review policy.',
-        );
-      }
-
-      cursor = reviewNumber;
-      previousReview = {
-        number: reviewNumber,
-        evidenceIds: reviewer.deliveredEvidenceIds.filter(
-          (id) => !writer.deliveredEvidenceIds.includes(id),
-        ),
-      };
+      cursor = review.last;
+      previousReview = { numbers, evidenceIds: review.evidenceIds };
 
       if (status === 'accept') {
         if (
           !isDeepStrictEqual(investigation.acceptedCandidate, {
             candidateNumber: number,
             writerTurnNumber: writerNumber,
-            reviewTurnNumber: reviewNumber,
+            reviewTurnNumbers: numbers,
           })
         ) {
           throw new parse.EvaluationError(

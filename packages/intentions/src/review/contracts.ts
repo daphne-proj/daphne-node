@@ -4,7 +4,20 @@ import type {
   IntentionHunkEvidence,
   IntentionsProposal,
 } from '../contracts.js';
-import type { intentionReviewOutputSchema } from './schema.js';
+import type {
+  intentionReviewOutputSchema,
+  intentionReviewerReportSchema,
+  intentionReviewers,
+} from './schema.js';
+
+export type IntentionReviewer = (typeof intentionReviewers)[number];
+/* Host-assigned role selects the model schema and inventory-accounting requirement. */
+export type IntentionReviewerReport = z.infer<
+  typeof intentionReviewerReportSchema
+>;
+
+/* Link every role to its terminal turn; none can be omitted from accepted output. */
+export type IntentionReviewTurnNumbers = Record<IntentionReviewer, number>;
 
 /* The model supplies explanations and findings; only the host assigns statuses. */
 export type RawIntentionReview = z.infer<typeof intentionReviewOutputSchema>;
