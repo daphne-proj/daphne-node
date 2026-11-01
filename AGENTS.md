@@ -4,6 +4,7 @@ This is the TypeScript migration workspace for Daphne. Read `docs/architecture.m
 
 ## Skills and policies
 
+- Daphne is not in production. Do not add or maintain backward compatibility, legacy handling, compatibility fallbacks, or version markers for previous development contracts or artifacts. Change producers and consumers together and regenerate development outputs when needed; do not preserve obsolete shapes.
 - For TypeScript implementation, refactoring, or review, use `.agents/skills/daphne-typescript/SKILL.md` and `docs/agents/typescript-quality.md`.
 - For Rust-to-TypeScript migration, use `.agents/skills/daphne-migration-parity/SKILL.md` and `docs/migration/parity.md`.
 - Do not write or modify tests unless the user explicitly asks. Implementation and bug-fix requests alone do not authorize test changes. Run the existing required checks and report any verification limitations. Update tests only when newly added stuff are breaking existing ones.
