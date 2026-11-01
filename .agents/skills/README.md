@@ -10,6 +10,7 @@
 | `typescript-discriminated-unions` | Variant modelling                                       | Mutually exclusive states and exhaustive handling                |
 | `property-based-testing`          | Invariant/parity testing                                | Generators, reference comparisons, and counterexamples           |
 | `vitest`                          | Test work                                               | Pinned upstream Vitest API reference                             |
+| `agent-workflow-design`           | LLM agent architecture and workflow composition         | Pattern selection and workflow composition                       |
 | `shape`                           | Explicit only                                           | Pressure-test an unresolved concept                              |
 | `external-research`               | Explicit only                                           | Separate external evidence from interpretation                   |
 | `disposable-prototype`            | Explicit only                                           | Settle a decision with a bounded experiment                      |
@@ -27,3 +28,5 @@ The three additional skills were installed through the Skills CLI; `skills-lock.
 `daphne-code-readability` is locally authored guidance, not a vendored upstream skill. It routes to the readability policy and is required by `AGENTS.md` when writing, editing, reviewing or presenting code, including documentation and chat snippets in any language. Its prose complements the enforced ESLint rules; it does not replace formatter, type, or behavior checks.
 
 `codebase-design` is vendored unchanged from a pinned `mattpocock/skills` commit, including its two supporting references and agent metadata. The MIT license is in `.agents/licenses/mattpocock-skills.txt`; `.agents/skills-sources.json` records the revision and file hashes. Use it with `docs/architecture.md` when designing module contracts. Daphne terminology and explicit task constraints remain authoritative; the skill does not require renaming our APIs, adding speculative adapters, deleting existing tests, or running parallel design exploration for every change.
+
+`agent-workflow-design` is locally authored guidance based on Anthropic's [Building effective agents](https://www.anthropic.com/research/building-effective-agents). Use it for product agent architecture and pattern composition, including parallelization; it does not change the five reasoning workflows' explicit-only activation policy.
