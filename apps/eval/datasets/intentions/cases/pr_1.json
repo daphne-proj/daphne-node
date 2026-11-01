@@ -1,5 +1,5 @@
 {
-  "format": "daphne-intentions-gold-v1",
+  "format": "daphne-intentions-gold-v2",
   "id": "pr_1",
   "partition": "development",
   "review": {
@@ -23,7 +23,7 @@
         ]
       },
       "after": {
-        "meaning": "With a nonempty key, checkout looks up a saved result using a key composed from tenant ID and the supplied key. The same fingerprint returns that result before new checkout work; a changed fingerprint throws a conflict before inventory or payment work. Only successful keyed results are stored, so stock or payment failures can be retried as fresh attempts. Missing or empty keys bypass this lookup and storage. The fingerprint includes customer, SKU, quantity, unit price and promotion. Scope note (not required narration): storage is in memory and joins tenant and key with a colon. Distinct pairs such as (a:b, c) and (a, b:c) collide; unconditional isolation for arbitrary tenant/key strings is not guaranteed.",
+        "meaning": "With a nonempty key, checkout looks up a saved result using a key composed from tenant ID and the supplied key. The same fingerprint returns that result before new checkout work; a changed fingerprint throws a conflict before inventory or payment work. Only successful keyed results are stored, so stock or payment failures can be retried as fresh attempts. Missing or empty keys bypass this lookup and storage. The fingerprint includes customer, SKU, quantity, unit price and promotion. Scope note: storage is in memory and joins tenant and key with a colon. The separate tenant-key-collision issue expectation determines whether the concern was identified; behavioral coverage alone does not. Distinct pairs such as (a:b, c) and (a, b:c) collide; unconditional isolation for arbitrary tenant/key strings is not guaranteed.",
         "changeIds": [
           "change-25",
           "change-24",
@@ -276,6 +276,62 @@
         "change-36"
       ],
       "reason": "Exports, construction wiring, project registration and README support the behaviors above; they do not require separate cards or file-by-file narration."
+    }
+  ],
+  "expectedIssues": [
+    {
+      "id": "tenant-key-collision",
+      "meaning": "Report the introduced ambiguity in the in-memory idempotency repository: when tenant IDs and keys can contain colons, distinct pairs such as (a:b, c) and (a, b:c) both become a:b:c. Checkout trusts the returned record without verifying its tenant/key; matching fingerprints can return the other tenant's saved result, while different fingerprints incorrectly reject an independent checkout as a conflict. This threatens the tenant-scoped retry behavior described in the PR and README. The header validator permits colons in keys, but frozen evidence does not establish tenant-ID issuance/authentication restrictions. Keep the trigger explicit and do not assert a demonstrated production exploit. The SQL composite key does not guard this in-memory repository. An equivalent conditional concern is sufficient; certainty about deployment reachability is not required.",
+      "changeIds": [
+        "change-28",
+        "change-25",
+        "change-24",
+        "change-15",
+        "change-14",
+        "change-1"
+      ],
+      "sourceIds": [
+        "evidence-51",
+        "evidence-76",
+        "evidence-32",
+        "evidence-21",
+        "evidence-78",
+        "evidence-2",
+        "evidence-75",
+        "evidence-28"
+      ]
+    }
+  ],
+  "falseAlarmControls": [
+    {
+      "id": "saved-replay-charges-again",
+      "meaning": "Reject a reported issue claiming that replaying an already-saved successful request for the same tenant, key and fingerprint reserves stock or charges payment again. Checkout returns existing.result before attempt creation, pricing, inventory or payment. This control is limited to an existing matching record in the same repository instance; it does not dismiss concerns about restarts, missing records, other instances, or colliding tenant/key pairs.",
+      "changeIds": [
+        "change-25",
+        "change-24",
+        "change-28"
+      ],
+      "sourceIds": [
+        "evidence-76",
+        "evidence-32",
+        "evidence-51"
+      ]
+    },
+    {
+      "id": "projection-removes-tenant-isolation",
+      "meaning": "Reject a reported issue claiming that omitting tenantId from OrderListItem causes the shown dashboard query to mix tenants. OrderQueryService first calls forTenant(tenantId), whose filter checks exact tenant equality, before filtering, sorting and projecting list items; the dashboard obtains its rows through that query. This does not establish caller authentication or certify unrelated query paths.",
+      "changeIds": [
+        "change-7",
+        "change-30",
+        "change-32",
+        "change-31"
+      ],
+      "sourceIds": [
+        "evidence-8",
+        "evidence-58",
+        "evidence-61",
+        "evidence-59"
+      ]
     }
   ]
 }

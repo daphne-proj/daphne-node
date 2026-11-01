@@ -2,7 +2,7 @@ import type { IntentionJudgment } from './judgment.js';
 
 export type IntentionQualityStatus = 'pass' | 'issues_found' | 'unassessed';
 
-/* Rubric v3 keeps the three user priorities separate from rationale and coherence. */
+/* Rubric v5 keeps the three user priorities separate from rationale and coherence. */
 export interface IntentionQualitySummary {
   accuracy: IntentionQualityStatus;
   citationSupport: IntentionQualityStatus;
@@ -21,10 +21,12 @@ function qualityStatus(
 }
 
 /*
- * Summarize a newly parsed rubric-v3 judgment: 5 passes, 1–4 identify defects.
+ * Summarize a newly parsed rubric-v5 judgment: 5 passes, 1–4 identify defects.
  * The command passes null for failed or unassessed runs. A known defect outranks
  * an unknown dimension; for example, accuracy=1 and coverage=null still means
- * issues_found. Do not use this to reinterpret historical rubric-v1/v2 reports.
+ * issues_found. A finding based only on missing evidence is unassessed, not a
+ * demonstrated defect. Neither can yield a clean priority summary. Do not
+ * reinterpret historical reports.
  */
 export function summarizeIntentionQuality(
   judgment: IntentionJudgment | null,
@@ -37,13 +39,20 @@ export function summarizeIntentionQuality(
     judgment !== null &&
     (judgment.omissions.length > 0 ||
       judgment.cards.some((card) =>
-        card.findings.some((finding) => finding.field !== 'why'),
+        card.findings.some(
+          (finding) => finding.problem !== 'insufficient_evidence',
+        ),
       ));
+  const unassessedFinding = judgment?.cards.some((card) =>
+    card.findings.some(
+      (finding) => finding.problem === 'insufficient_evidence',
+    ),
+  );
   let priority: IntentionQualityStatus = 'pass';
 
   if (hasFinding || primary.includes('issues_found')) {
     priority = 'issues_found';
-  } else if (primary.includes('unassessed')) {
+  } else if (unassessedFinding || primary.includes('unassessed')) {
     priority = 'unassessed';
   }
 

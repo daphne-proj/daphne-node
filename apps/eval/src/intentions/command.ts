@@ -9,6 +9,7 @@ import { EvaluationError, sha256, text } from '../parse.js';
 import { loadIntentionArtifact } from './artifact.js';
 import { judgmentSchema, parseJudgment } from './judgment.js';
 import { summarizeIntentionQuality } from './quality.js';
+import { formatIntentionEvaluation } from './presentation.js';
 import { loadIntentionGoldCase, prepareGoldPacket } from './gold-case.js';
 import { goldJudgmentSchema, parseGoldJudgment } from './gold-judgment.js';
 
@@ -91,12 +92,12 @@ export async function runIntentionsCommand(
             partition: gold.partition,
             review: gold.review,
             provisional: gold.review.status !== 'reviewed',
-            goldRubricVersion: 2,
+            goldRubricVersion: 4,
           };
     const provenance = {
       artifactHash: candidate.artifactHash,
       requestedModel: input.model,
-      rubricVersion: 3,
+      rubricVersion: 5,
       ...goldProvenance,
     };
 
@@ -157,6 +158,8 @@ export async function runIntentionsCommand(
             gold: {
               behaviors: gold.behaviors,
               incidentalChanges: gold.incidentalChanges,
+              expectedIssues: gold.expectedIssues,
+              falseAlarmControls: gold.falseAlarmControls,
             },
           }),
     };
@@ -182,8 +185,8 @@ export async function runIntentionsCommand(
     await writeJsonArtifact(join(input.output, 'input.json'), {
       format:
         gold === null
-          ? 'daphne-intentions-judge-input-v2'
-          : 'daphne-intentions-gold-input-v1',
+          ? 'daphne-intentions-judge-input-v4'
+          : 'daphne-intentions-gold-input-v3',
       ...provenance,
       instructionsSource:
         generationInstructions === null ? 'unavailable' : instructionsSource,
@@ -248,8 +251,8 @@ export async function runIntentionsCommand(
     await writeJsonArtifact(reportPath, {
       format:
         gold === null
-          ? 'daphne-intentions-judge-v2'
-          : 'daphne-intentions-gold-report-v1',
+          ? 'daphne-intentions-judge-v4'
+          : 'daphne-intentions-gold-report-v3',
       ...provenance,
       status,
       judgment,
@@ -259,6 +262,7 @@ export async function runIntentionsCommand(
         : {
             behaviors: goldResult?.behaviors ?? null,
             coverage: goldResult?.coverage ?? null,
+            issueEvaluation: goldResult?.issueEvaluation ?? null,
           }),
       issues,
       codex,
@@ -266,19 +270,24 @@ export async function runIntentionsCommand(
       timing: { startedAt, elapsedMs: performance.now() - start },
     });
     process.stdout.write(
-      JSON.stringify(
-        {
-          status,
-          ...goldProvenance,
-          ...(gold === null ? {} : { coverage: goldResult?.coverage ?? null }),
-          reportPath,
-          dimensions: judgment?.dimensions ?? null,
-          quality,
-          issues,
-        },
-        null,
-        2,
-      ) + '\n',
+      formatIntentionEvaluation({
+        status,
+        judgment,
+        gold: goldResult,
+        provisional: gold !== null && gold.review.status !== 'reviewed',
+        quality,
+        diagnostics: issues,
+        unassessedBehaviors:
+          goldResult?.behaviors.filter(
+            (behavior) =>
+              gold?.behaviors.some(
+                (expected) => expected.id === behavior.id && expected.required,
+              ) &&
+              (behavior.before.status === 'unassessed' ||
+                behavior.after.status === 'unassessed'),
+          ).length ?? 0,
+        reportPath,
+      }),
     );
 
     return status === 'complete' && !signal.aborted ? 0 : 1;

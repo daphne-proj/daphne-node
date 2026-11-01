@@ -31,7 +31,7 @@ export async function loadIntentionGoldCase(path: string) {
     parse.object(value, 'case'),
   );
   const input = file.value;
-  parse.choice(input.format, ['daphne-intentions-gold-v1'], 'case.format');
+  parse.choice(input.format, ['daphne-intentions-gold-v2'], 'case.format');
   const id = parse.text(input.id, 'case.id');
   const partition = parse.choice(
     input.partition,
@@ -192,12 +192,62 @@ export async function loadIntentionGoldCase(path: string) {
     );
   }
 
+  /* Issue labels may combine revisions, but must cite frozen evidence and affected changes. */
+  function issueLabels(value: unknown, field: string) {
+    const labels = parse.array(value, field).map((value) => {
+      const label = parse.object(value, field);
+      const changeIds = ids(label.changeIds, changes, `${field}.changeIds`);
+      const sourceIds = ids(
+        label.sourceIds,
+        new Set(sources.keys()),
+        `${field}.sourceIds`,
+      );
+
+      if (changeIds.length === 0 || sourceIds.length === 0) {
+        throw new parse.EvaluationError(
+          `${field}: labels need changes and source support.`,
+        );
+      }
+
+      return {
+        id: parse.text(label.id, `${field}.id`),
+        meaning: parse.text(label.meaning, `${field}.meaning`),
+        changeIds,
+        sourceIds,
+      };
+    });
+
+    if (new Set(labels.map((label) => label.id)).size !== labels.length) {
+      throw new parse.EvaluationError(`${field}: duplicate label IDs.`);
+    }
+
+    return labels;
+  }
+
+  const expectedIssues = issueLabels(input.expectedIssues, 'expectedIssues');
+  const falseAlarmControls = issueLabels(
+    input.falseAlarmControls,
+    'falseAlarmControls',
+  );
+
+  if (
+    falseAlarmControls.some((control) =>
+      expectedIssues.some((issue) => issue.id === control.id),
+    )
+  ) {
+    throw new parse.EvaluationError(
+      'Expected issues and false-alarm controls need distinct IDs.',
+    );
+  }
+
   return {
     id,
     partition,
     review: { status, reviewer, reviewedAt },
     behaviors,
     incidentalChanges,
+    expectedIssues,
+    falseAlarmControls,
     caseHash: parse.sha256(file.bytes),
     evidenceHash: parse.sha256(frozen.bytes),
     pr,

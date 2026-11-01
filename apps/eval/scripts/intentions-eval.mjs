@@ -97,21 +97,7 @@ try {
 
   runStage('eval', args, join(output, 'evaluation.log'));
 
-  const report = JSON.parse(
-    await readFile(join(evaluation, 'report.json'), 'utf8'),
-  );
-  const scores = Object.fromEntries(
-    Object.entries(report.judgment.dimensions).map(([name, grade]) => [
-      name,
-      grade?.score ?? null,
-    ]),
-  );
-
-  if (report.coverage) {
-    scores.requiredBehaviorCoverage = report.coverage.rate;
-  }
-
-  process.stdout.write(JSON.stringify(scores, null, 2) + '\n');
+  process.stdout.write(await readFile(join(output, 'evaluation.log'), 'utf8'));
 } catch (error) {
   process.stderr.write(`${error.message}\n`);
   process.exitCode = 1;

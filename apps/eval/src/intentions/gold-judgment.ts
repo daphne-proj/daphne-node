@@ -2,6 +2,8 @@ import type { IntentionJudgePacket } from './artifact.js';
 import type { IntentionGoldCase } from './gold-case.js';
 import { judgmentSchema, parseJudgment } from './judgment.js';
 import { summarizeIntentionQuality } from './quality.js';
+import { parseGoldIssues } from './gold-issues.js';
+import { goldIssuesSchema } from './gold-issues-schema.js';
 import * as parse from '../parse.js';
 
 const statuses = [
@@ -26,16 +28,28 @@ const sideSchema = record({
   explanation: { type: 'string', minLength: 1 },
   matches: {
     type: 'array',
-    items: record({
-      cardIndex: { type: 'integer', minimum: 0 },
-      quote: { type: 'string', minLength: 1 },
-    }),
+    items: {
+      anyOf: [
+        record({
+          cardIndex: { type: 'integer', minimum: 0 },
+          field: { type: 'string', enum: ['before', 'after'] },
+          quote: { type: 'string', minLength: 1 },
+        }),
+        record({
+          cardIndex: { type: 'integer', minimum: 0 },
+          field: { type: 'string', enum: ['issue'] },
+          issueIndex: { type: 'integer', minimum: 0 },
+          quote: { type: 'string', minLength: 1 },
+        }),
+      ],
+    },
   },
 });
 
 /* Gold grading adds explicit before/after matches to the existing independent rubric. */
 export const goldJudgmentSchema = record({
   judgment: judgmentSchema,
+  issueEvaluation: goldIssuesSchema,
   behaviors: {
     type: 'array',
     items: record({
@@ -61,7 +75,9 @@ function fields(value: unknown, names: string[], label: string) {
 
 /*
  * Validate a model's matches before computing gold coverage. Each behavior must
- * appear exactly once, and matches quote the corresponding candidate field.
+ * appear exactly once, and matches quote the corresponding behavior field or
+ * a current issue narrative. For example, an after assessment cannot quote before;
+ * an issue quote must still explain the assessed revision's behavior semantically.
  * A quote proves location, not entailment; human calibration remains necessary.
  * Missing required coverage cannot be hidden by a clean ordinal coverage score.
  */
@@ -70,8 +86,18 @@ export function parseGoldJudgment(
   gold: IntentionGoldCase,
   packet: IntentionJudgePacket,
 ) {
-  const input = fields(value, ['judgment', 'behaviors'], 'gold judgment');
+  const input = fields(
+    value,
+    ['judgment', 'behaviors', 'issueEvaluation'],
+    'gold judgment',
+  );
   const judgment = parseJudgment(input.judgment, packet);
+  const issueEvaluation = parseGoldIssues(
+    input.issueEvaluation,
+    gold,
+    packet,
+    judgment,
+  );
   const known = new Map(
     gold.behaviors.map((behavior) => [behavior.id, behavior]),
   );
@@ -82,19 +108,43 @@ export function parseGoldJudgment(
     const matches = parse
       .array(input.matches, `${field}.matches`)
       .map((value) => {
-        const match = fields(value, ['cardIndex', 'quote'], 'match');
+        const target = parse.choice(
+          parse.object(value, 'match').field,
+          ['before', 'after', 'issue'],
+          'match.field',
+        );
+        const names = ['cardIndex', 'field', 'quote'];
+        const match = fields(
+          value,
+          target === 'issue' ? [...names, 'issueIndex'] : names,
+          'match',
+        );
         const cardIndex = parse.integer(match.cardIndex, 'match.cardIndex');
         const quote = parse.text(match.quote, 'match.quote');
+        const card = packet.proposal.intentions[cardIndex];
 
-        if (
-          !packet.proposal.intentions[cardIndex]?.[field].text.includes(quote)
-        ) {
+        if (target === 'issue') {
+          const issueIndex = parse.integer(
+            match.issueIndex,
+            'match.issueIndex',
+          );
+
+          if (!card?.issues[issueIndex]?.text.includes(quote)) {
+            throw new parse.EvaluationError(
+              'Gold match must quote an existing issue narrative exactly.',
+            );
+          }
+
+          return { cardIndex, field: target, issueIndex, quote };
+        }
+
+        if (target !== field || !card?.[target].text.includes(quote)) {
           throw new parse.EvaluationError(
             'Gold match must quote the referenced before/after field exactly.',
           );
         }
 
-        return { cardIndex, quote };
+        return { cardIndex, field: target, quote };
       });
 
     if (
@@ -152,9 +202,11 @@ export function parseGoldJudgment(
     behavior.before,
     behavior.after,
   ]);
-  const hasGap = assessments.some(
-    (item) => item.status === 'partial' || item.status === 'missing',
-  );
+  const hasGap =
+    issueEvaluation.metrics.expected.missing > 0 ||
+    assessments.some(
+      (item) => item.status === 'partial' || item.status === 'missing',
+    );
   const hasContradiction = behaviors.some(
     (item) =>
       item.before.status === 'contradicted' ||
@@ -177,7 +229,10 @@ export function parseGoldJudgment(
 
   const quality = summarizeIntentionQuality(judgment);
 
-  if (assessments.some((item) => item.status === 'unassessed')) {
+  if (
+    issueEvaluation.metrics.expected.unassessed > 0 ||
+    assessments.some((item) => item.status === 'unassessed')
+  ) {
     if (quality.coverage === 'pass') {
       quality.coverage = 'unassessed';
     }
@@ -185,6 +240,14 @@ export function parseGoldJudgment(
     if (quality.priority === 'pass') {
       quality.priority = 'unassessed';
     }
+  }
+
+  if (
+    quality.priority === 'pass' &&
+    (issueEvaluation.metrics.reported.onPoint.unassessed > 0 ||
+      issueEvaluation.metrics.controls.unassessed > 0)
+  ) {
+    quality.priority = 'unassessed';
   }
 
   const covered = required.filter(
@@ -196,6 +259,7 @@ export function parseGoldJudgment(
     judgment,
     behaviors,
     quality,
+    issueEvaluation,
     coverage: {
       required: required.length,
       covered,
