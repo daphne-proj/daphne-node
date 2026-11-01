@@ -9,7 +9,7 @@ import { loadIntentionGoldCase } from '../dist/src/intentions/gold-case.js';
 
 /*
  * Make calls this after building. Each stage keeps its output in a log so a
- * successful terminal run shows only scores. Failure stops subsequent stages
+ * successful terminal run shows scores and generation metrics. Failure stops subsequent stages
  * and names the retained log; signals from interrupted children also fail.
  */
 function runStage(command, args, logPath) {
@@ -21,6 +21,17 @@ function runStage(command, args, logPath) {
       ['run', '--silent', command, '--', ...args],
       {
         stdio: ['inherit', log, log],
+        env:
+          command === 'eval' && process.stdout.isTTY
+            ? {
+                ...process.env,
+                COLUMNS: String(process.stdout.columns),
+                ...(process.env.NO_COLOR === undefined &&
+                process.env.FORCE_COLOR === undefined
+                  ? { FORCE_COLOR: '1' }
+                  : {}),
+              }
+            : process.env,
       },
     );
 

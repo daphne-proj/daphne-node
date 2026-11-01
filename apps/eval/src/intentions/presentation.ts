@@ -1,5 +1,10 @@
 import { formatCommandOutput } from '@daphne/cli/command-output';
 import type { CommandOutputRow } from '@daphne/cli/command-output';
+import {
+  formatElapsedTime,
+  formatIntentionRunSummary,
+} from '@daphne/cli/intentions-summary';
+import type { IntentionRunSummary } from '@daphne/cli/intentions-summary';
 import type { IntentionJudgment } from './judgment.js';
 import type { parseGoldJudgment } from './gold-judgment.js';
 import type { IntentionQualitySummary } from './quality.js';
@@ -53,11 +58,18 @@ export function formatIntentionEvaluation(input: {
   unassessedBehaviors: number;
   diagnostics: string[];
   reportPath: string;
+  generationSummary: IntentionRunSummary | null;
+  elapsedMs: number;
 }): string {
   const sections = [
     'Intentions evaluation — scores out of 100; higher is better',
     `Status: ${input.status}${input.provisional ? ' · provisional gold labels' : ''}`,
     `Quality: ${input.quality.priority.replaceAll('_', ' ')}`,
+    '',
+    input.generationSummary === null
+      ? 'Generation metrics unavailable.\n'
+      : formatIntentionRunSummary(input.generationSummary),
+    `Evaluation elapsed: ${formatElapsedTime(input.elapsedMs)}`,
     '',
   ];
 
@@ -96,7 +108,10 @@ export function formatIntentionEvaluation(input: {
 
   const explanationScore = average(explanation);
   groups.push(explanationScore);
-  rows.push({ label: 'Area score', value: display(explanationScore) });
+  rows.push({
+    label: 'Area score',
+    value: display(explanationScore),
+  });
   sections.push(formatCommandOutput('Explanation quality', rows));
 
   if (input.gold !== null) {
@@ -193,7 +208,12 @@ export function formatIntentionEvaluation(input: {
     '',
     'Summary index v1: equal weight per applicable area; N/A areas excluded.',
     'Ratings are rescaled judgments, not probabilities. Raw scores and counts remain in the report.',
-    `OVERALL: ${display(overall)}${input.provisional ? ' (provisional)' : ''}`,
+    formatCommandOutput('Overall', [
+      {
+        label: 'Score',
+        value: `${display(overall)}${input.provisional ? ' (provisional)' : ''}`,
+      },
+    ]),
     '',
   );
   return sections.join('\n');

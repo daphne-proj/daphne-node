@@ -10,9 +10,12 @@ import { createRunBudget } from '@daphne/evaluator-optimizer';
 import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 import type { IntentionModelCallObservation } from '@daphne/intentions';
 import { formatCommandOutput } from './command-output.js';
-import type { CommandOutputRow } from './command-output.js';
 import { CliInputError, describeFailure } from './errors.js';
-import { serializeInvestigation } from './intentions-report.js';
+import {
+  serializeInvestigation,
+  formatIntentionsOutput,
+} from './intentions-report.js';
+import { summarizeIntentionRun } from './intentions-summary.js';
 import { createRunDirectory, writeArtifact } from './output.js';
 
 interface IntentionsOptions extends RunBudgetPolicy {
@@ -79,7 +82,8 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
  * Runs the PR workflow for the CLI, for example after parseIntentionsArgs(args).
  * The output directory must be new. Cancellation or the optional run deadline
  * stops the workflow, which closes Git before returning its collected work.
- * Save that work even on failure and print indented JSON; exit 0 requires both
+ * Save that work even on failure; print tables interactively and JSON when
+ * redirected. Exit 0 requires both
  * a complete workflow and successful artifact publication. Setup errors throw
  * to main.ts; publication errors return exit 1 after a best-effort failed report.
  */
@@ -148,6 +152,14 @@ export async function runIntentionsPr(
   const errors = result.errors.map(({ stage, error }) =>
     describeFailure(stage, error),
   );
+  const elapsedMs = performance.now() - startedMs;
+  const summary = summarizeIntentionRun(
+    modelCalls,
+    result.investigation,
+    provider,
+    options.model,
+    elapsedMs,
+  );
   const report = {
     status: result.status,
     pr: ref.url,
@@ -170,6 +182,7 @@ export async function runIntentionsPr(
     investigation: serializeInvestigation(result.investigation),
     proposal: result.proposal,
     response: result.response,
+    summary,
     modelCalls: modelCalls.map((call) => ({
       kind: call.kind,
       role: call.role,
@@ -188,7 +201,7 @@ export async function runIntentionsPr(
     timing: {
       startedAt,
       finishedAt: new Date(),
-      elapsedMs: performance.now() - startedMs,
+      elapsedMs,
     },
     errors,
   };
@@ -222,33 +235,17 @@ export async function runIntentionsPr(
     }
   }
 
-  if (process.stderr.isTTY) {
-    const rows: CommandOutputRow[] = [
-      {
-        label: 'Status',
-        value: report.status,
-        tone: report.status === 'complete' ? 'success' : 'error',
-      },
-      {
-        label: 'Intentions',
-        value: String(report.proposal?.intentions.length ?? 0),
-      },
-      { label: 'Run artifact', value: output ?? 'Could not save run.json' },
-    ];
-
-    for (const error of errors) {
-      rows.push({ label: 'Error', value: error.message, tone: 'error' });
-    }
-
-    process.stderr.write(formatCommandOutput('Intentions result', rows) + '\n');
-  }
-
+  const final = {
+    status: report.status,
+    proposal: report.proposal,
+    output,
+    errors,
+    summary,
+  };
   process.stdout.write(
-    JSON.stringify(
-      { status: report.status, proposal: report.proposal, output, errors },
-      null,
-      2,
-    ) + '\n',
+    process.stdout.isTTY
+      ? formatIntentionsOutput(final)
+      : JSON.stringify(final, null, 2) + '\n',
   );
 
   return report.status === 'complete' ? 0 : 1;

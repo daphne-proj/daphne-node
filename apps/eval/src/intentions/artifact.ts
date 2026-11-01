@@ -12,6 +12,8 @@ import type {
 import { parseIntentionEvidence, parseNotices } from './evidence.js';
 import { parseIntentionTrace } from './artifact-trace.js';
 import { parseRunBudget } from '../run-budget.js';
+import type { IntentionRunSummary } from '@daphne/cli/intentions-summary';
+import { parseIntentionRunSummary } from '@daphne/cli/intentions-summary';
 import * as parse from '../parse.js';
 
 /*
@@ -205,7 +207,9 @@ function decodeArtifact(
  */
 export async function loadIntentionArtifact(
   path: string,
-): Promise<PreparedIntentionArtifact> {
+): Promise<
+  PreparedIntentionArtifact & { generationSummary: IntentionRunSummary | null }
+> {
   const maxBytes = 64 * 1024 * 1024;
   const handle = await open(path, 'r');
   let bytes: Buffer;
@@ -264,7 +268,13 @@ export async function loadIntentionArtifact(
       );
     }
 
-    return decodeArtifact(value, artifactHash);
+    const prepared = decodeArtifact(value, artifactHash);
+    const artifact = parse.object(value, 'artifact');
+
+    return {
+      ...prepared,
+      generationSummary: parseIntentionRunSummary(artifact.summary),
+    };
   } catch (error) {
     if (
       !(error instanceof parse.EvaluationError) &&
@@ -281,6 +291,7 @@ export async function loadIntentionArtifact(
       generationInstructions: null,
       status: 'invalid_output',
       packet: null,
+      generationSummary: null,
     };
   }
 }

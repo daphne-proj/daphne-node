@@ -11,6 +11,10 @@
     "./command-output": {
       "types": "./dist/command-output.d.ts",
       "import": "./dist/command-output.js"
+    },
+    "./intentions-summary": {
+      "types": "./dist/intentions-summary.d.ts",
+      "import": "./dist/intentions-summary.js"
     }
   },
   "scripts": {
@@ -30,6 +34,8 @@
     "@daphne/review-evidence": "workspace:*",
     "@daphne/context-engine": "workspace:*",
     "@daphne/llm": "workspace:*",
-    "@daphne/intentions": "workspace:*"
+    "@daphne/intentions": "workspace:*",
+    "cli-table3": "0.6.5",
+    "zod": "4.6.7"
   }
 }

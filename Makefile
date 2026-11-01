@@ -27,7 +27,7 @@ help:
 		'                   Analyze diff pages with the selected provider and replace outputs/split_pr_<pr_number>/run.json' \
 		'                   Optional: OUTPUT=DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=16384' \
 		'make intentions PR=https://github.com/OWNER/REPO/pull/123' \
-		'                   Print intention cards as JSON and save a new outputs/intentions-* run' \
+		'                   Show intention tables, time and cost; save a new outputs/intentions-* run' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=256000' \
 		'make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json' \
 		'                   Generate fresh intentions and judge them against gold' \

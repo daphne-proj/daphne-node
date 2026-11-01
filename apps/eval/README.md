@@ -53,3 +53,5 @@ Gold rubric v4 can match actual behavior in before/after text or an issue narrat
 The initial draft labels use one PR: a conditional tenant/key collision and two false-alarm controls from its existing source. They do not establish total issue recall or reviewer usefulness. See the [dataset guide](datasets/intentions/README.md#read-the-issue-metrics) for formulas and annotation limits. Explicit issue metrics are currently available through gold `intentions eval`; ordinary judging retains issue-target findings.
 
 Fresh model runs accept `--provider openai|anthropic`; Make uses `PROVIDER`. `intentions-eval` selects the generation provider, while its independent Codex judge always uses the OpenAI default. Model defaults are maintained in `packages/llm/src/providers.ts`.
+
+Intentions output uses wrapping score tables with status colors and includes the saved generation summary: elapsed time, estimated USD cost, tokens and each producer/reviewer conversation. Evaluation time is shown separately. Unknown usage or rates remain explicit; generation estimates exclude Codex judge billing. See [generation accounting](../cli/docs/intentions.md#time-agents-and-cost).

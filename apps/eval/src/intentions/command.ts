@@ -248,6 +248,7 @@ export async function runIntentionsCommand(
 
     const reportPath = join(input.output, 'report.json');
     const quality = goldResult?.quality ?? summarizeIntentionQuality(judgment);
+    const elapsedMs = performance.now() - start;
     await writeJsonArtifact(reportPath, {
       format:
         gold === null
@@ -257,6 +258,7 @@ export async function runIntentionsCommand(
       status,
       judgment,
       quality,
+      generationSummary: candidate.generationSummary,
       ...(gold === null
         ? {}
         : {
@@ -267,7 +269,7 @@ export async function runIntentionsCommand(
       issues,
       codex,
       rawOutput,
-      timing: { startedAt, elapsedMs: performance.now() - start },
+      timing: { startedAt, elapsedMs },
     });
     process.stdout.write(
       formatIntentionEvaluation({
@@ -276,6 +278,8 @@ export async function runIntentionsCommand(
         gold: goldResult,
         provisional: gold !== null && gold.review.status !== 'reviewed',
         quality,
+        generationSummary: candidate.generationSummary,
+        elapsedMs,
         diagnostics: issues,
         unassessedBehaviors:
           goldResult?.behaviors.filter(
