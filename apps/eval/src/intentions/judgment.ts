@@ -39,7 +39,7 @@ export const judgmentSchema = recordSchema({
       dimensionNames.map((name) => [
         name,
         recordSchema({
-          score: { type: ['integer', 'null'], enum: [0, 1, 2, null] },
+          score: { type: ['integer', 'null'], enum: [1, 2, 3, 4, 5, null] },
           explanation: textSchema,
         }),
       ]),
@@ -95,7 +95,7 @@ function knownIds(value: unknown, known: Set<string>, label: string) {
  * Accept a judgment only when it covers every card and dimension.
  * For example, a missing card or invented evidence ID fails evaluation instead of
  * disappearing from the results. Concrete defects also require a non-clean score
- * under rubric v2; historical saved judgments are not reparsed here. These checks
+ * under rubric v3 (1–5); historical saved judgments are not reparsed here. These checks
  * validate report integrity, not the truth of the judge's observations.
  */
 export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
@@ -111,9 +111,9 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
       const score =
         grade.score === null ? null : parse.integer(grade.score, name);
 
-      if (score !== null && score > 2) {
+      if (score !== null && (score < 1 || score > 5)) {
         throw new parse.EvaluationError(
-          `${name}: score must be 0, 1, 2 or null.`,
+          `${name}: score must be an integer from 1 to 5 or null.`,
         );
       }
 
@@ -206,9 +206,9 @@ export function parseJudgment(value: unknown, packet: IntentionJudgePacket) {
   ] as const) {
     const score = dimensions[name]?.score;
 
-    if (hasDefect && score !== 0 && score !== 1) {
+    if (hasDefect && (score === null || score === undefined || score === 5)) {
       throw new parse.EvaluationError(
-        `${name}: a reported defect requires score 0 or 1.`,
+        `${name}: a reported defect requires a score from 1 to 4.`,
       );
     }
   }

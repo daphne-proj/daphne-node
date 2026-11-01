@@ -1,5 +1,7 @@
 # Intentions calibration, rubric v2
 
+This is a historical calibration record using the 0–2 scale. Current evaluations use [rubric v3](../prompts/intentions.md), with scores from 1 to 5. Regrade saved artifacts to obtain current ratings; do not rescale these historical scores.
+
 These six PRs are known development cases, not an unseen benchmark or a runtime answer key. The examples were checked against the saved source packets during implementation. They are proposed standards for human validation; disputed materiality remains explicit. Neither runtime prompts nor ordinary judge packets include these expected answers. Historical rubric-v1 reports remain unchanged and are not reparsed under v2 consistency rules.
 
 ## Frozen provenance

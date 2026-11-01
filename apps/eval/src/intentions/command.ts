@@ -65,7 +65,7 @@ export async function runIntentionsCommand(
     const provenance = {
       artifactHash: candidate.artifactHash,
       requestedModel: input.model,
-      rubricVersion: 2,
+      rubricVersion: 3,
     };
 
     if (await isGoldenDatasetPath(input.output)) {
