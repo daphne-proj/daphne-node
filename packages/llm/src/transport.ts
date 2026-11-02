@@ -1,5 +1,5 @@
 import type { ModelCallObservation, ModelProvider } from './contracts.js';
-import { ModelError, object } from './response.js';
+import { ModelError, isObject, object } from './response.js';
 
 /* Share deadlines, observations and failure accounting across both HTTP adapters. */
 export function createTransport(
@@ -33,9 +33,24 @@ export function createTransport(
       });
 
       if (!response.ok) {
-        await response.body?.cancel();
+        let detail = '';
+
+        try {
+          const body: unknown = await response.json();
+
+          if (
+            isObject(body) &&
+            isObject(body.error) &&
+            typeof body.error.message === 'string'
+          ) {
+            detail = ': ' + body.error.message.slice(0, 1000);
+          }
+        } catch {
+          /* Preserve the HTTP failure when the server body is not readable JSON. */
+        }
+
         throw new ModelError(
-          `${label} request failed (HTTP ${String(response.status)}).`,
+          `${label} request failed (HTTP ${String(response.status)})${detail}.`,
         );
       }
 

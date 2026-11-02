@@ -10,10 +10,10 @@ export function strictObject(properties: Record<string, object>) {
   };
 }
 
-/* Preserve model text exactly; UTF-8 and NUL checks also run locally after JSON decoding. */
+/* Keep nonblank checks local; regex constraints make provider grammars too large. Preserve text exactly. */
 const text = z
   .string()
-  .regex(/\S/, 'Expected nonblank text.')
+  .refine((value) => /\S/.test(value), 'Expected nonblank text.')
   .refine(
     (value) =>
       !value.includes('\0') && Buffer.from(value).toString('utf8') === value,
@@ -83,5 +83,10 @@ export type RawIntentionCitation = RawIntentionClaim['citations'][number];
 export type RawIntentionReason =
   RawIntentionsProposal['intentions'][number]['why'];
 
-/* UTF-8 integrity refinements are local checks; the exported JSON schema contains the structural constraints. */
-export const intentionsSchema = z.toJSONSchema(intentionsOutputSchema);
+/*
+ * Reuse shared definitions to keep Anthropic's compiled grammar within its size
+ * limit. Structural constraints stay in the schema; UTF-8 refinements run locally.
+ */
+export const intentionsSchema = z.toJSONSchema(intentionsOutputSchema, {
+  reused: 'ref',
+});

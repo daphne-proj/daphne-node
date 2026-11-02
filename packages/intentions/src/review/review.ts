@@ -133,7 +133,9 @@ export async function reviewIntentionCandidate(
             instructions: intentionReviewerInstructions(reviewer),
             schema: {
               name: `intention_review_${reviewer}`,
-              schema: z.toJSONSchema(intentionReviewerSchemas[reviewer]),
+              schema: z.toJSONSchema(intentionReviewerSchemas[reviewer], {
+                reused: 'ref',
+              }),
             },
             history: [...history],
           },

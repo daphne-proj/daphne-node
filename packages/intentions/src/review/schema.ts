@@ -1,14 +1,17 @@
 import * as z from 'zod';
 
+/* Keep nonblank checks local; regex constraints make provider grammars too large. */
 const text = z
   .string()
-  .regex(/\S/, 'Expected nonblank text.')
+  .refine((value) => /\S/.test(value), 'Expected nonblank text.')
   .refine(
     (value) =>
       !value.includes('\0') && Buffer.from(value).toString('utf8') === value,
     'Expected UTF-8 text without NUL characters.',
   );
 const ids = z.array(text);
+/* Keep the nonempty constraint on its array definition when references are reused. */
+const nonemptyIds = z.array(text).min(1);
 const criterion = z.enum([
   'accuracy',
   'citations',
@@ -67,7 +70,7 @@ const coverageMatch = z.union([
 ]);
 const coverageBase = {
   behavior: text,
-  changeIds: ids.min(1),
+  changeIds: nonemptyIds,
   evidenceIds: ids,
 };
 /* Distinct status literals keep the variants exclusive; z.union emits provider-supported anyOf. */
@@ -111,7 +114,7 @@ export const intentionReviewOutputSchema = z.strictObject({
     }),
   ),
   omissions: z.array(
-    z.strictObject({ changeIds: ids.min(1), explanation: text, remedy }),
+    z.strictObject({ changeIds: nonemptyIds, explanation: text, remedy }),
   ),
   coverage: z.array(coverageEntry),
 });
