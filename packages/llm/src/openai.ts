@@ -40,11 +40,8 @@ export function createOpenAI(
       const input = { ...request };
       delete input.max_output_tokens;
 
-      return observe(
-        'count',
-        '/input_tokens',
-        { reasoning: { effort: 'low' }, ...input },
-        (response) => inputTokenCount(response, 'OpenAI'),
+      return observe('count', '/input_tokens', input, (response) =>
+        inputTokenCount(response, 'OpenAI'),
       );
     },
     async generate(request: ModelRequest) {
@@ -54,7 +51,6 @@ export function createOpenAI(
         'generate',
         '',
         {
-          reasoning: { effort: 'low' },
           ...request,
           store: false,
           max_output_tokens: maxOutputTokens,
