@@ -8,6 +8,7 @@ import type {
 } from '@daphne/intentions';
 import { parseDeliveredTurns } from './artifact-delivery.js';
 import type { IntentionDeliveryContext } from './artifact-delivery.js';
+import type { IntentionSearchReceipt } from './artifact-tools.js';
 import {
   parseCandidateReviews,
   parseReviewTurnNumbers,
@@ -21,11 +22,13 @@ export interface IntentionArtifactContext extends IntentionDeliveryContext {
   hunks: readonly IntentionHunkEvidence[];
 }
 
+/* Accepted output keeps writer-delivered source IDs separate from directly confirmed search receipts across conversations. */
 export interface ParsedIntentionTrace {
   generationInstructions: string | null;
   proposal: IntentionsProposal;
   response: Record<string, unknown> | null;
   deliveredEvidenceIds: readonly string[];
+  searches: readonly IntentionSearchReceipt[];
 }
 
 /*
@@ -45,7 +48,7 @@ export function parseIntentionTrace(
     investigation.attempts,
     'investigation.attempts',
   );
-  const turns = parseDeliveredTurns(investigation, context);
+  const { turns, searches } = parseDeliveredTurns(investigation, context);
   const calls = parse.object(investigation.calls, 'investigation.calls');
 
   if (
@@ -78,6 +81,7 @@ export function parseIntentionTrace(
       proposal: { intentions: [], warnings: [] },
       response: null,
       deliveredEvidenceIds: [],
+      searches: [],
     };
   }
 
@@ -235,6 +239,7 @@ export function parseIntentionTrace(
           proposal: validation.proposal,
           response: writer.reply.response,
           deliveredEvidenceIds: writer.deliveredEvidenceIds,
+          searches,
         };
       }
     }

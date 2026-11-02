@@ -1,7 +1,12 @@
 import { open } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { ModelError } from '@daphne/llm';
-import { ContextInputError } from '@daphne/context-engine';
+import { EvidenceInputError } from '@daphne/review-evidence';
+import {
+  ContextConflictError,
+  ContextInputError,
+  ContextLimitError,
+} from '@daphne/context-engine';
 import type { IntentionsProposal } from '@daphne/intentions';
 import type { RetainedSource } from '@daphne/context-engine';
 import type {
@@ -11,6 +16,7 @@ import type {
 } from '@daphne/review-evidence/contracts';
 import { parseIntentionEvidence, parseNotices } from './evidence.js';
 import { parseIntentionTrace } from './artifact-trace.js';
+import type { IntentionSearchReceipt } from './artifact-tools.js';
 import { parseRunBudget } from '../run-budget.js';
 import type { IntentionRunSummary } from '@daphne/cli/intentions-summary';
 import { parseIntentionRunSummary } from '@daphne/cli/intentions-summary';
@@ -20,7 +26,9 @@ import * as parse from '../parse.js';
  * Contains only the accepted cards and evidence needed to judge them. For
  * example, hunks map the complete diff to sources by evidenceId, while proposal
  * citations contain freshly resolved byte ranges. Model names and earlier
- * assessments stay outside this packet to avoid influencing the judge.
+ * assessments stay outside this packet to avoid influencing the judge. Search
+ * receipts establish scoped investigation history without granting code citation
+ * eligibility; for example, an empty search is not proof that no callers exist.
  */
 export interface IntentionJudgePacket {
   identity: ReviewIdentity;
@@ -33,6 +41,7 @@ export interface IntentionJudgePacket {
   }[];
   sources: RetainedSource[];
   limitations: ContextNotice[];
+  searches: readonly IntentionSearchReceipt[];
   proposal: IntentionsProposal;
 }
 
@@ -188,6 +197,7 @@ function decodeArtifact(
       sources: evidence.sources.filter(({ evidenceId }) =>
         delivered.has(evidenceId),
       ),
+      searches: accepted.searches,
       limitations: [
         ...parseNotices(artifact.limitations, 'artifact.limitations'),
         ...parseNotices(investigation.limitations, 'investigation.limitations'),
@@ -280,6 +290,9 @@ export async function loadIntentionArtifact(
       !(error instanceof parse.EvaluationError) &&
       !(error instanceof ModelError) &&
       !(error instanceof ContextInputError) &&
+      !(error instanceof ContextConflictError) &&
+      !(error instanceof ContextLimitError) &&
+      !(error instanceof EvidenceInputError) &&
       !(error instanceof SyntaxError)
     ) {
       throw error;

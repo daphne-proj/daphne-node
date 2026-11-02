@@ -1,6 +1,7 @@
 export { createContextEngine } from './engine.js';
 export type { ContextEngine } from './engine.js';
 export { buildContextPacket } from './assembly.js';
+export { validateAndCopySnapshot } from './evidence.js';
 export { splitDiffIntoContextPages } from './paging.js';
 export { defaultContextLimits, resolveContextLimits } from './limits.js';
 export type { ContextLimits } from './limits.js';

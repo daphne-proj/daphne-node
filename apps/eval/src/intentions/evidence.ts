@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import { createContextEngine } from '@daphne/context-engine';
+import { validateAndCopySnapshot } from '@daphne/context-engine';
 import type {
   SourceEvidence,
   ContextNotice,
@@ -7,38 +7,18 @@ import type {
 import { parseSplitEvidence } from '../split-pr/evidence.js';
 import * as parse from '../parse.js';
 
-function source(value: unknown, field: string): SourceEvidence {
-  const input = parse.object(value, field);
-  const reference = parse.object(input.ref, `${field}.ref`);
-  const range = parse.object(reference.range, `${field}.ref.range`);
-  const path = parse.text(reference.path, `${field}.ref.path`);
-  const blobId = parse.text(reference.blobId, `${field}.ref.blobId`);
+/* Snapshot validation owns source shape and identity; eval additionally requires Git paths and SHA-1 blob IDs. */
+function validateGitSource(source: SourceEvidence, field: string): void {
+  const { path, blobId } = source.ref;
 
   if (
+    !path.trim() ||
     path.startsWith('/') ||
     path.split('/').some((part) => !part || part === '.' || part === '..') ||
     !/^[0-9a-f]{40}$/.test(blobId)
   ) {
     throw new parse.EvaluationError(`${field}: invalid Git path or blob ID.`);
   }
-
-  return {
-    ref: {
-      sessionId: parse.text(reference.sessionId, `${field}.ref.sessionId`),
-      side: parse.choice(reference.side, ['base', 'head'], `${field}.ref.side`),
-      commit: parse.text(reference.commit, `${field}.ref.commit`),
-      path,
-      blobId,
-      range: {
-        startByte: parse.integer(
-          range.startByte,
-          `${field}.ref.range.startByte`,
-        ),
-        endByte: parse.integer(range.endByte, `${field}.ref.range.endByte`),
-      },
-    },
-    text: parse.text(input.text, `${field}.text`, true),
-  };
 }
 
 export function parseNotices(value: unknown, field: string): ContextNotice[] {
@@ -77,6 +57,8 @@ function lineCount(text: string): number {
  * context-engine checks retained source identities, byte lengths and conflicts.
  * Every original diff source must be retained. The trace reader reconstructs
  * conversation delivery before selecting the sources eligible for judgment.
+ * Validate complete query chains here so tool-packet reconstruction can also
+ * reject altered navigation without retrieving the repository again.
  */
 export function parseIntentionEvidence(
   artifact: Record<string, unknown>,
@@ -87,6 +69,7 @@ export function parseIntentionEvidence(
     investigation.evidence,
     'investigation.evidence',
   );
+  const retained = validateAndCopySnapshot(snapshot, 32 * 1024 * 1024);
 
   if (!isDeepStrictEqual(snapshot.identity, original.identity)) {
     throw new parse.EvaluationError(
@@ -94,33 +77,12 @@ export function parseIntentionEvidence(
     );
   }
 
-  const engine = createContextEngine(original.identity, {
-    maxContextBytes: 8 * 1024 * 1024,
-    maxRetainedBytes: 32 * 1024 * 1024,
-  });
-  const retainedIds = new Set<string>();
+  const sources = retained.sources;
 
-  for (const [index, value] of parse
-    .array(snapshot.sources, 'evidence.sources')
-    .entries()) {
-    const field = `evidence.sources[${String(index)}]`;
-    const retained = parse.object(value, field);
-    const evidenceId = parse.text(retained.evidenceId, `${field}.evidenceId`);
-
-    if (
-      retainedIds.has(evidenceId) ||
-      engine.addSource(source(retained.source, `${field}.source`)) !==
-        evidenceId
-    ) {
-      throw new parse.EvaluationError(
-        `${field}: inconsistent or duplicate evidence ID.`,
-      );
-    }
-
-    retainedIds.add(evidenceId);
+  for (const [index, retained] of sources.entries()) {
+    validateGitSource(retained.source, `evidence.sources[${String(index)}]`);
   }
 
-  const sources = engine.getEvidenceSnapshot().sources;
   const inventory = new Map(
     original.changes.map((change) => [change.id, change]),
   );
@@ -182,6 +144,7 @@ export function parseIntentionEvidence(
     changes: original.changes,
     hunks,
     sources,
+    queries: retained.queries,
     initialEvidenceIds: [...new Set(hunks.flatMap((hunk) => hunk.evidenceIds))],
   };
 }

@@ -20,6 +20,7 @@ const commonInstructions = `
 const focus = {
   accuracy: `
     You are the accuracy and evidence reviewer. Check titles and factual BASE/HEAD descriptions, attached citation sufficiency, and stated/inferred/unknown purpose and motivation. Scrutinize guarantees and absence claims for exceptions grounded in source. Explain accuracy, citations and rationale. Completeness and coherence are owned by another reviewer, so do not perform full inventory accounting; coverage entries are required only for omissions you encounter.
+    Check every material clause against only the citations attached to its field. Evidence elsewhere can establish truth or suggest a repair, but cannot satisfy that field's citation requirement. A helper call supports calling the helper; implementation-dependent guarantees require its implementation. Every clause of stated purpose must be supported by its attached PR quotations.
   `,
   issues: `
     You are the issues reviewer. Independently investigate the change for meaningful problems, including missing issues, then challenge every reported issue. Trace guards, callers and contracts before accepting or rejecting a concern. Distinguish implementation defects from invented requirements. Explain issue accuracy, citation support and coverage of material concerns. Another reviewer owns missing behavioral explanations, but you own missing issues. Full inventory accounting is not required; anchor and link every omitted issue you report.

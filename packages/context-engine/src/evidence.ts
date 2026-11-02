@@ -286,7 +286,8 @@ export function createEvidenceLedger(
  * ledger, checking their IDs, page contents, continuation order, query status
  * and retention size. For example, reject a page that refers to a source ID
  * missing from the snapshot. Return the new copy so later caller edits cannot
- * change the packet being assembled.
+ * change the packet being assembled. The evaluation artifact reader also uses
+ * this before matching saved tool results to their recorded navigation pages.
  */
 export function validateAndCopySnapshot(
   value: unknown,

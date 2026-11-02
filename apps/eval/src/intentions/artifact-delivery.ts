@@ -3,14 +3,18 @@ import { intentionReviewers } from '@daphne/intentions';
 import { parseReviewTurnNumbers } from './artifact-reviews.js';
 import { decodeModelReply } from '@daphne/llm';
 import type { ModelProvider } from '@daphne/llm';
-import type { RetainedSource } from '@daphne/context-engine';
+import type { EvidenceSnapshot } from '@daphne/context-engine';
+import { parseIntentionToolEvidence } from './artifact-tools.js';
+import type { IntentionSearchReceipt } from './artifact-tools.js';
 import type { ReviewIdentity } from '@daphne/review-evidence/contracts';
 import * as parse from '../parse.js';
 
+/* The trace reader supplies one validated ledger; query history never expands source citation eligibility. */
 export interface IntentionDeliveryContext {
   provider?: ModelProvider;
   identity: ReviewIdentity;
-  sources: readonly RetainedSource[];
+  sources: EvidenceSnapshot['sources'];
+  queries: EvidenceSnapshot['queries'];
   initialEvidenceIds: string[];
 }
 
@@ -98,91 +102,17 @@ function evidenceIds(value: unknown, known: ReadonlySet<string>): string[] {
 }
 
 /*
- * Verify a tool's serialized source bytes against both its raw result and the
- * retained snapshot. A saved delivered flag alone cannot authorize citations.
- * Navigation observations remain outside the judge packet.
- */
-function toolEvidence(
-  tool: Record<string, unknown>,
-  context: IntentionDeliveryContext,
-): string[] {
-  const result = parse.object(tool.result, 'tool.result');
-  const request = parse.object(tool.request, 'tool.request');
-  const call = parse.object(tool.call, 'tool.call');
-  const args: unknown = JSON.parse(
-    parse.text(call.arguments, 'tool.call.arguments'),
-  );
-  const expectedRequest = {
-    ...parse.object(args, 'tool arguments'),
-    name: call.name,
-  };
-  const returnedRequest = parse.object(result.request, 'tool.result.request');
-  const output: unknown = JSON.parse(parse.text(tool.output, 'tool.output'));
-  const serialized = parse.object(output, 'tool output');
-  const packet: unknown = JSON.parse(
-    parse.text(serialized.context, 'tool output.context'),
-  );
-  const rendered = parse.object(packet, 'tool context');
-  const sources = parse
-    .array(result.entries, 'tool.result.entries')
-    .flatMap((value) => {
-      const entry = parse.object(value, 'tool entry');
-      if (entry.kind !== 'source') {
-        return [];
-      }
-
-      const retained = context.sources.find((source) =>
-        isDeepStrictEqual(source.source, entry.source),
-      );
-
-      if (!retained) {
-        throw new parse.EvaluationError(
-          'Tool source bytes differ from retained evidence.',
-        );
-      }
-
-      return [retained];
-    });
-  const distinct = [
-    ...new Map(sources.map((source) => [source.evidenceId, source])).values(),
-  ];
-  const ids = distinct.map((source) => source.evidenceId);
-
-  if (
-    !isDeepStrictEqual(request, expectedRequest) ||
-    Object.entries(request).some(
-      ([key, value]) => !isDeepStrictEqual(value, returnedRequest[key]),
-    ) ||
-    !isDeepStrictEqual(result.identity, context.identity) ||
-    !isDeepStrictEqual(serialized.request, result.request) ||
-    !isDeepStrictEqual(serialized.completeness, result.completeness) ||
-    !isDeepStrictEqual(serialized.nextCursor, result.nextCursor) ||
-    !isDeepStrictEqual(serialized.notices, result.notices) ||
-    rendered.format !== 'daphne-context-v1' ||
-    !isDeepStrictEqual(rendered.identity, context.identity) ||
-    !isDeepStrictEqual(rendered.sources, distinct) ||
-    !isDeepStrictEqual(rendered.omittedEvidenceIds, []) ||
-    rendered.omittedObservationCount !== 0 ||
-    !isDeepStrictEqual(tool.includedEvidenceIds, ids)
-  ) {
-    throw new parse.EvaluationError(
-      'Tool request, result, serialized output or evidence receipt disagree.',
-    );
-  }
-
-  return ids;
-}
-
-/*
  * Reconstruct delivery from completed requests, separately for each conversation.
  * Initial reviewer context comes from its writer, tools stay in their origin,
  * and feedback transfers only a previous reviewer's delivered source content.
- * Throw on inconsistent receipts before any saved citation can reach the judge.
+ * Search receipts retain direct tool delivery separately; they do not infer that
+ * feedback transferred navigation. Throw on inconsistent receipts before any
+ * saved citation or investigation claim can reach the judge.
  */
 export function parseDeliveredTurns(
   investigation: Record<string, unknown>,
   context: IntentionDeliveryContext,
-): DeliveredIntentionTurn[] {
+) {
   const turns = parse
     .array(investigation.turns, 'investigation.turns')
     .map((value, index) =>
@@ -191,6 +121,8 @@ export function parseDeliveredTurns(
   const tools = parse
     .array(investigation.tools, 'investigation.tools')
     .map((value) => parse.object(value, 'tool'));
+  const toolEvidence = parseIntentionToolEvidence(tools, context);
+  const searches: IntentionSearchReceipt[] = [];
   const known = new Set(context.sources.map((source) => source.evidenceId));
   const conversations = new Map<
     string,
@@ -252,7 +184,7 @@ export function parseDeliveredTurns(
         ['initial', 'tool', 'review_feedback'],
         'delivery.kind',
       );
-      let ids: string[];
+      let ids: readonly string[];
 
       if (kind === 'initial') {
         initials += 1;
@@ -323,6 +255,7 @@ export function parseDeliveredTurns(
           .at(-1);
 
         if (
+          !previous ||
           !tool ||
           tool.number !== number ||
           deliveredTools.has(number) ||
@@ -331,15 +264,35 @@ export function parseDeliveredTurns(
           tool.role !== turn.role ||
           tool.candidateNumber !== turn.candidateNumber ||
           tool.conversationId !== turn.conversationId ||
-          tool.turnNumber !== previous?.number
+          tool.turnNumber !== previous.number
         ) {
           throw new parse.EvaluationError(
             'Tool delivery must follow its completed tool in the same conversation.',
           );
         }
 
-        ids = toolEvidence(tool, context);
+        const evidence = toolEvidence[number - 1];
+
+        if (!evidence) {
+          throw new parse.EvaluationError(
+            'Tool delivery has no validated packet.',
+          );
+        }
+
+        ids = evidence.evidenceIds;
         deliveredTools.add(number);
+
+        if (evidence.search) {
+          searches.push({
+            ...evidence.search,
+            toolNumber: number,
+            conversationId: turn.conversationId,
+            role: turn.role,
+            candidateNumber: turn.candidateNumber,
+            requestingTurnNumber: previous.number,
+            deliveredTurnNumber: turn.number,
+          });
+        }
       }
 
       for (const id of ids) {
@@ -405,5 +358,5 @@ export function parseDeliveredTurns(
     matched.add(key);
   }
 
-  return turns;
+  return { turns, searches };
 }

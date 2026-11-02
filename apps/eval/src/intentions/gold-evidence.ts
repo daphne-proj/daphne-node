@@ -58,6 +58,6 @@ export function parseGoldEvidence(input: Record<string, unknown>) {
 
   return parseIntentionEvidence(
     { identity: input.identity, changes: input.changes, hunks: expanded },
-    { evidence: { identity: input.identity, sources }, hunks },
+    { evidence: { identity: input.identity, sources, queries: [] }, hunks },
   );
 }

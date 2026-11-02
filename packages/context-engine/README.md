@@ -8,6 +8,7 @@
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `createContextEngine(identity, limits)`                  | Create a ledger exposing `addSource`, `addToolResult`, `getEvidenceSnapshot` and `buildContextPacket`. |
 | `buildContextPacket(snapshot, input)`                    | Build a packet from a supplied evidence snapshot, including one restored from JSON.                    |
+| `validateAndCopySnapshot(value, maxRetainedBytes?)`      | Validate saved sources and complete query chains before an artifact reader trusts their provenance.    |
 | `splitDiffIntoContextPages({ identity, hunks, tokens })` | Yield diff pages within byte and token budgets, preserving supplied source text across fragments.      |
 
 `defaultContextLimits` and `resolveContextLimits` configure retention and packet budgets. Paging does not use or mutate the ledger.
