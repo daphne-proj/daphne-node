@@ -23,28 +23,31 @@ function record(properties: Record<string, unknown>) {
   };
 }
 
-const sideSchema = record({
-  status: { type: 'string', enum: statuses },
-  explanation: { type: 'string', minLength: 1 },
-  matches: {
-    type: 'array',
-    items: {
-      anyOf: [
-        record({
-          cardIndex: { type: 'integer', minimum: 0 },
-          field: { type: 'string', enum: ['before', 'after'] },
-          quote: { type: 'string', minLength: 1 },
-        }),
-        record({
-          cardIndex: { type: 'integer', minimum: 0 },
-          field: { type: 'string', enum: ['issue'] },
-          issueIndex: { type: 'integer', minimum: 0 },
-          quote: { type: 'string', minLength: 1 },
-        }),
-      ],
+/* Keep ordinary matches on the assessed revision; issue narratives may explain either side. */
+function sideSchema(field: 'before' | 'after') {
+  return record({
+    status: { type: 'string', enum: statuses },
+    explanation: { type: 'string', minLength: 1 },
+    matches: {
+      type: 'array',
+      items: {
+        anyOf: [
+          record({
+            cardIndex: { type: 'integer', minimum: 0 },
+            field: { type: 'string', enum: [field] },
+            quote: { type: 'string', minLength: 1 },
+          }),
+          record({
+            cardIndex: { type: 'integer', minimum: 0 },
+            field: { type: 'string', enum: ['issue'] },
+            issueIndex: { type: 'integer', minimum: 0 },
+            quote: { type: 'string', minLength: 1 },
+          }),
+        ],
+      },
     },
-  },
-});
+  });
+}
 
 /* Gold grading adds explicit before/after matches to the existing independent rubric. */
 export const goldJudgmentSchema = record({
@@ -54,8 +57,8 @@ export const goldJudgmentSchema = record({
     type: 'array',
     items: record({
       id: { type: 'string' },
-      before: sideSchema,
-      after: sideSchema,
+      before: sideSchema('before'),
+      after: sideSchema('after'),
     }),
   },
 });
