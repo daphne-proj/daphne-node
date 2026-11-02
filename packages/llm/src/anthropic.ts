@@ -97,7 +97,6 @@ function requestBody(request: ModelRequest): Record<string, unknown> {
     system: request.instructions,
     messages: messages(request.input),
     output_config: {
-      effort: 'low',
       ...(request.text
         ? {
             format: {
