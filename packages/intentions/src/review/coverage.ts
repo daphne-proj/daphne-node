@@ -1,4 +1,5 @@
 import { ModelError } from '@daphne/llm';
+import { validateIntentionCoverageSide } from './coverage-side.js';
 import type {
   IntentionReviewContext,
   RawIntentionReview,
@@ -9,19 +10,20 @@ import type {
  * the reviewer's assessment of whether the cards explain the PR's meaningful
  * changes. This function checks the report's references, not that assessment.
  *
- * For example, the reviewer might say: "Change 7 is explained by card 2's after
- * text: 'Empty orders are rejected.'" Check that change 7 exists, its entry cites
- * original hunk evidence shown to the reviewer, and card 2 contains that exact
- * sentence. Metadata-only changes do not require hunk evidence.
+ * Each covered capability states BASE and HEAD facts with independent support and
+ * candidate matches. For example, a new validation rule needs the old behavior
+ * as well as a quotation explaining the new rejection. A shared card is allowed;
+ * a HEAD quotation cannot substitute for its BASE account. Metadata-only changes
+ * and absent paths can use inventory support rather than source bytes.
  *
  * Completeness and combined reports account for every change; other scoped reports
- * may be partial. Each
- * reported omission must be linked exactly once with the same change IDs.
+ * may be partial. Each reported omission must be linked exactly once with the
+ * same change IDs.
  * parseIntentionReview calls this after schema validation; valid reports return
  * normally, while invalid references or incomplete accounting throw ModelError.
  *
- * Passing these checks does not prove that "Empty orders are rejected" is true
- * or explains the code change. The reviewer model still makes that judgment.
+ * Passing these checks does not prove that a fact or quotation explains the
+ * relevant capability. The reviewer model still makes that judgment.
  */
 export function validateIntentionCoverage(
   report: Pick<RawIntentionReview, 'coverage' | 'omissions'>,
@@ -81,18 +83,14 @@ export function validateIntentionCoverage(
     }
 
     if (entry.status === 'covered') {
-      for (const match of entry.matches) {
-        const card = context.proposal.intentions[match.cardIndex];
-        const text =
-          match.field === 'issue'
-            ? card?.issues[match.issueIndex]?.text
-            : card?.[match.field].text;
-
-        if (!text?.includes(match.quote)) {
-          throw new ModelError(
-            `${field}.matches: expected an exact quote from the referenced card field.`,
-          );
-        }
+      for (const side of ['before', 'after'] as const) {
+        validateIntentionCoverageSide(
+          entry[side],
+          side,
+          entry.changeIds,
+          context,
+          `${field}.${side}`,
+        );
       }
     } else if (entry.status === 'omitted') {
       const omission = report.omissions[entry.omissionIndex];

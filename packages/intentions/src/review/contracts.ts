@@ -1,4 +1,5 @@
 import type * as z from 'zod';
+import type { RetainedSource } from '@daphne/context-engine';
 import type { Change } from '@daphne/review-evidence/contracts';
 import type {
   IntentionHunkEvidence,
@@ -22,6 +23,11 @@ export type IntentionReviewTurnNumbers = Record<IntentionReviewer, number>;
 /* The model supplies explanations and findings; only the host assigns statuses. */
 export type RawIntentionReview = z.infer<typeof intentionReviewOutputSchema>;
 export type IntentionCoverageEntry = RawIntentionReview['coverage'][number];
+/* One revision's supported fact and candidate matches, checked by validateIntentionCoverageSide. */
+export type IntentionCoverageSide = Extract<
+  IntentionCoverageEntry,
+  { status: 'covered' }
+>['before'];
 export type IntentionReviewCriterion = keyof RawIntentionReview['dimensions'];
 
 /*
@@ -39,12 +45,17 @@ export type IntentionReview = Omit<RawIntentionReview, 'dimensions'> & {
   };
 };
 
-/* Use the current proposal and this reviewer's delivered IDs, never the retained-source union. */
+/*
+ * Validate against the current candidate and pinned retained sources. Only this
+ * reviewer's delivered IDs authorize source references; retaining a peer's read
+ * does not make it eligible. Runtime review and artifact replay use this context.
+ */
 export interface IntentionReviewContext {
   proposal: IntentionsProposal;
   changes: readonly Change[];
   deliveredEvidenceIds: readonly string[];
   hunks: readonly IntentionHunkEvidence[];
+  sources: readonly RetainedSource[];
 }
 
 /* Factual defects and other blocking findings require repair or an unresolved stop. */

@@ -160,6 +160,7 @@ export async function reviewIntentionCandidate(
           proposal,
           changes: input.input.changes,
           deliveredEvidenceIds: reply.deliveredEvidenceIds,
+          sources: runtime.engine.getEvidenceSnapshot().sources,
         });
         turn.review = report;
 
@@ -190,6 +191,7 @@ export async function reviewIntentionCandidate(
       proposal,
       changes: input.input.changes,
       deliveredEvidenceIds,
+      sources: runtime.engine.getEvidenceSnapshot().sources,
     },
   );
 

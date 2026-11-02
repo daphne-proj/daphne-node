@@ -25,6 +25,19 @@ Any reviewer can report an important finding outside its focus.
    defects return feedback and newly discovered evidence to the original producer.
    Every replacement repeats validation and all three reviews.
 
+Completeness assesses each material capability separately, even when several share
+a card. A covered entry states independently supported BASE and HEAD facts and
+quotes the corresponding candidate account for each. Existing equivalents may live
+in unchanged code; the reviewer uses its tools to establish missing baselines and
+returns an omission when the account needs repair. Added-path absence comes from
+the inventory and does not establish absence of the capability elsewhere.
+
+Code checks source delivery and revision, inventory support for metadata or absent
+sides, and exact side-specific quotations. These checks make the assessment
+reviewable; they cannot establish whether a related source or quotation actually
+explains the capability. Accuracy and issues reviewers supply only omitted or
+incidental coverage entries, so a HEAD-only concern needs no invented BASE account.
+
 Conversations have separate histories, clients and evidence-delivery records,
 with shared run limits and queued tools. Citations require source bytes delivered
 to that conversation; feedback delivers reviewer-discovered bytes to the producer.

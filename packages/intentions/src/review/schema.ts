@@ -73,23 +73,40 @@ const coverageBase = {
   changeIds: nonemptyIds,
   evidenceIds: ids,
 };
+/*
+ * State the source-backed fact separately from the candidate passage that explains
+ * it. For example, an existing BASE capability needs its own fact and source,
+ * even when several capabilities share one card. Contextual validation checks
+ * revision, delivery and quotation fields; the reviewer still judges relevance.
+ */
+const coverageSide = z.strictObject({
+  text,
+  evidenceIds: ids,
+  changeIds: ids,
+  matches: z.array(coverageMatch).min(1),
+});
+const omittedCoverage = z.strictObject({
+  ...coverageBase,
+  status: z.literal('omitted'),
+  omissionIndex: index,
+});
+const incidentalCoverage = z.strictObject({
+  ...coverageBase,
+  status: z.literal('incidental'),
+  explanation: text,
+});
+/* Scoped reviewers report omissions without inventing a BASE account for a HEAD-only issue. */
+const scopedCoverage = z.union([omittedCoverage, incidentalCoverage]);
 /* Distinct status literals keep the variants exclusive; z.union emits provider-supported anyOf. */
 const coverageEntry = z.union([
   z.strictObject({
     ...coverageBase,
     status: z.literal('covered'),
-    matches: z.array(coverageMatch).min(1),
+    before: coverageSide,
+    after: coverageSide,
   }),
-  z.strictObject({
-    ...coverageBase,
-    status: z.literal('omitted'),
-    omissionIndex: index,
-  }),
-  z.strictObject({
-    ...coverageBase,
-    status: z.literal('incidental'),
-    explanation: text,
-  }),
+  omittedCoverage,
+  incidentalCoverage,
 ]);
 
 /*
@@ -138,6 +155,7 @@ export const intentionReviewerSchemas = {
       citations: dimension,
       rationale: dimension,
     }),
+    coverage: z.array(scopedCoverage),
   }),
   issues: intentionReviewOutputSchema.extend({
     dimensions: z.strictObject({
@@ -145,6 +163,7 @@ export const intentionReviewerSchemas = {
       citations: dimension,
       coverage: dimension,
     }),
+    coverage: z.array(scopedCoverage),
   }),
   completeness: intentionReviewOutputSchema.extend({
     dimensions: z.strictObject({
