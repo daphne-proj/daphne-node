@@ -185,6 +185,9 @@ discovery, architectural judgment or reduced reviewer effort.
 
 ## Compare intentions token efficiency
 
+The [November 1 investigation](intentions-efficiency.md) records the official API
+sources, verified payload/provenance fixes and remaining experiment hypotheses.
+
 The protocols below are separate evaluation proposals, not authorization to run
 them. The quality-contract pilot at the end is the current proposed next step;
 earlier efficiency and prompt-only comparisons describe different experiments.
