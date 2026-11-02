@@ -59,16 +59,41 @@ function messages(input: ModelRequest['input']): Record<string, unknown>[] {
       );
     }
 
-    result.push(item);
+    /* The initial user message stays stable when a proposal or tool results follow. */
+    if (
+      result.length === 0 &&
+      item.role === 'user' &&
+      typeof item.content === 'string'
+    ) {
+      result.push({
+        ...item,
+        content: [
+          {
+            type: 'text',
+            text: item.content,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+      });
+    } else {
+      result.push(item);
+    }
   }
 
   flushResults();
   return result;
 }
 
-/* Counting and generation must describe exactly the same prompt, tools and settings. */
+/*
+ * Counting and generation share the same prompt, tools, settings and cache policy.
+ * Conversation history caches its initial message and growing tail; scalar
+ * one-shot inputs do not opt in. Native replay blocks remain unchanged.
+ */
 function requestBody(request: ModelRequest): Record<string, unknown> {
   return {
+    ...(typeof request.input === 'string'
+      ? {}
+      : { cache_control: { type: 'ephemeral' } }),
     system: request.instructions,
     messages: messages(request.input),
     output_config: {
