@@ -53,6 +53,51 @@ cancellation and exhausted limits never publish an unaccepted draft; batch failu
 cancels sibling work and waits for in-flight work to settle. Empty comparisons use
 no model calls. Saved output links the accepted producer turn to all three reviews.
 
+## Coverage and quotations
+
+Coverage asks whether the producer explains the meaningful behavior before and
+after the PR. [validateIntentionCoverage](coverage.ts) checks that the completeness
+report accounts for every change and links omissions correctly.
+[validateIntentionCoverageSide](coverage-side.ts) checks the evidence and quoted
+producer passages for each side of a behavior marked covered.
+
+The completeness reviewer writes `matches`; code does not generate them. Each
+covered entry in `report.coverage` has `before` and `after` assessments. For
+example, suppose the producer's first card has this `before.text`:
+
+> Customers received a 10% discount on all orders.
+
+The reviewer can return this `before` assessment, assuming `evidence-1` contains
+the relevant BASE code and was shown to that reviewer:
+
+```json
+{
+  "text": "The previous discount was 10%.",
+  "evidenceIds": ["evidence-1"],
+  "changeIds": [],
+  "matches": [
+    {
+      "cardIndex": 0,
+      "field": "before",
+      "quote": "Customers received a 10% discount"
+    }
+  ]
+}
+```
+
+`matches[0]` is the first passage selected by the reviewer. `cardIndex: 0` points
+to the producer's first intention; `field: "before"` selects its `before.text`.
+The validator checks whether that text contains `quote` exactly, including case
+and spacing. The quotation above passes; changing `10%` to `15%` fails. Several
+matches can point to different passages or cards. An issue passage can also be
+selected with `field: "issue"` and its `issueIndex`.
+
+`evidenceIds` point to repository source; `matches` point to the producer's
+explanation. The reviewer's own assessment `text` is not compared with the
+quotation. This check prevents a reviewer from claiming the producer wrote a
+passage that does not exist. It does not prove that the passage explains the code
+correctly; the reviewer still judges that meaning.
+
 See [prompts.ts](prompts.ts) for instructions, [review.ts](review.ts) for execution
 and [combine.ts](combine.ts) for feedback combination.
 
