@@ -4,6 +4,7 @@ import type {
   ModelClient,
   ModelConversation,
   ModelFunctionCall,
+  ModelRequest,
 } from '@daphne/llm';
 import type {
   IntentionEvidenceDelivery,
@@ -48,6 +49,7 @@ export interface IntentionConversation extends ModelConversation {
  */
 export interface IntentionConversationRuntime {
   model: ModelClient;
+  reasoning: ModelRequest['reasoning'];
   runTool: (
     call: ModelFunctionCall,
     turn: IntentionTurn,
@@ -116,6 +118,9 @@ export async function runIntentionConversation(
     maxInputTokens,
     maxRequestBytes: intentionsLimits.maxRequestBytes,
     request: {
+      ...(runtime.reasoning === undefined
+        ? {}
+        : { reasoning: runtime.reasoning }),
       instructions: conversation.instructions,
       tools: intentionsTools,
       /* Batch independent reads into one reply; the shared loop executes them sequentially. */

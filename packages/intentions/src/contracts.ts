@@ -8,6 +8,7 @@ import type {
   ModelFunctionCall,
   ModelReply,
   ModelProvider,
+  OpenAIReasoningEffort,
 } from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import type {
@@ -130,6 +131,8 @@ export interface IntentionsInput {
  */
 export interface IntentionsOptions {
   provider?: ModelProvider;
+  /* OpenAI uses medium when omitted; do not supply this for Anthropic. */
+  reasoningEffort?: OpenAIReasoningEffort;
   apiKey: string;
   model: string;
   budget: RunBudget;

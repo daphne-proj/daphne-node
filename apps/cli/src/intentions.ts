@@ -2,8 +2,12 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { parseArgs } from 'node:util';
-import { defaultModels, parseModelProvider } from '@daphne/llm';
-import type { ModelProvider } from '@daphne/llm';
+import {
+  defaultModels,
+  parseModelProvider,
+  parseOpenAIReasoningEffort,
+} from '@daphne/llm';
+import type { ModelProvider, OpenAIReasoningEffort } from '@daphne/llm';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { analyzePullRequestIntentions } from '@daphne/pr-review/intentions';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
@@ -23,6 +27,7 @@ interface IntentionsOptions extends RunBudgetPolicy {
   output: string;
   provider?: ModelProvider;
   model: string;
+  reasoningEffort?: OpenAIReasoningEffort;
   maxInputTokens: number;
 }
 
@@ -38,12 +43,17 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
         output: { type: 'string' },
         provider: { type: 'string', default: 'openai' },
         model: { type: 'string' },
+        'reasoning-effort': { type: 'string' },
         'max-input-tokens': { type: 'string', default: '256000' },
         'max-candidates': { type: 'string' },
         'run-timeout-ms': { type: 'string' },
       },
     });
     const provider = parseModelProvider(values.provider);
+    const reasoningEffort =
+      provider === 'openai'
+        ? parseOpenAIReasoningEffort(values['reasoning-effort'])
+        : undefined;
     const model = values.model ?? defaultModels[provider];
     const maxInputTokens = Number(values['max-input-tokens']);
 
@@ -52,6 +62,7 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
       !values.output?.trim() ||
       values.output.includes('\0') ||
       !model.trim() ||
+      (provider !== 'openai' && values['reasoning-effort'] !== undefined) ||
       !Number.isSafeInteger(maxInputTokens) ||
       maxInputTokens < 1
     ) {
@@ -63,6 +74,7 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
       output: values.output,
       provider,
       model,
+      ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
       maxInputTokens,
       ...(values['max-candidates'] === undefined
         ? {}
@@ -73,7 +85,7 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
     };
   } catch {
     throw new CliInputError(
-      'Usage: intentions --pr URL --output NEW_DIRECTORY [--provider openai|anthropic] [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
+      'Usage: intentions --pr URL --output NEW_DIRECTORY [--provider openai|anthropic] [--model MODEL] [--reasoning-effort none|minimal|low|medium|high|xhigh|max (OpenAI only; default medium)] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
@@ -111,6 +123,8 @@ export async function runIntentionsPr(
   }
 
   const provider = options.provider ?? 'openai';
+  const reasoningEffort =
+    provider === 'openai' ? (options.reasoningEffort ?? 'medium') : undefined;
   const apiKeyVariable = `${provider.toUpperCase()}_API_KEY`;
   const apiKey = process.env[apiKeyVariable];
 
@@ -133,6 +147,9 @@ export async function runIntentionsPr(
         { label: 'Pull request', value: ref.url },
         { label: 'Provider', value: provider },
         { label: 'Model', value: options.model },
+        ...(reasoningEffort === undefined
+          ? []
+          : [{ label: 'Reasoning effort', value: reasoningEffort }]),
         { label: 'Run artifact', value: artifactPath },
       ]) + '\n',
     );
@@ -142,6 +159,7 @@ export async function runIntentionsPr(
     apiKey,
     provider,
     model: options.model,
+    ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
     maxInputTokens: options.maxInputTokens,
     budget,
     ...(githubToken === undefined ? {} : { githubToken }),
@@ -164,6 +182,7 @@ export async function runIntentionsPr(
     pr: ref.url,
     provider,
     model: options.model,
+    reasoningEffort: reasoningEffort ?? null,
     maxInputTokens: options.maxInputTokens,
     budget: {
       maxCandidates: budget.maxCandidates,

@@ -12,7 +12,7 @@ make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/2
 
 This builds the CLI and investigates the public PR using the selected provider's default model. Interactive stdout shows colored tables for accepted intentions, elapsed time, estimated generation cost and token totals. Redirected stdout is indented JSON containing `status`, `proposal`, `output`, `errors` and `summary`. Colors respect `NO_COLOR`. The proposal contains ordered `intentions` and `warnings`; the raw provider response is saved in the artifact.
 
-Each run saves `run.json` under a fresh ignored `outputs/intentions-<timestamp>-<pid>` directory. Optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `PROVIDER=openai|anthropic` and `MAX_INPUT_TOKENS=256000`. An explicit output must be a new directory in an existing writable parent; existing runs and gold datasets are protected. The equivalent command is:
+Each run saves `run.json` under a fresh ignored `outputs/intentions-<timestamp>-<pid>` directory. Optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `PROVIDER=openai|anthropic`, `MAX_INPUT_TOKENS=256000` and `REASONING_EFFORT=medium`. An explicit output must be a new directory in an existing writable parent; existing runs and gold datasets are protected. The equivalent command is:
 
 ```sh
 bun run build
@@ -20,8 +20,11 @@ bun run cli -- intentions \
   --pr https://github.com/daphne-proj/pr-review-test/pull/2 \
   --output ./intentions-2 \
   --provider openai \
+  --reasoning-effort medium \
   --max-input-tokens 256000
 ```
+
+OpenAI generation defaults to `medium` reasoning effort. Set `REASONING_EFFORT=high` on `make intentions` or `make intentions-eval`, or pass `--reasoning-effort high` to the compiled intentions CLI. Accepted values are `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`; the selected model must support the value. The setting applies to every tool continuation and repair. Make ignores it for Anthropic; the CLI rejects an explicit effort flag with Anthropic. `intentions-eval` applies it only to fresh generation, leaving the independent judge unchanged. See [OpenAI reasoning controls](https://developers.openai.com/api/docs/guides/reasoning).
 
 Optional `GITHUB_TOKEN` authenticates PR metadata requests only; the Git adapter supports public repositories. Running this command makes paid model calls. Normal repository checks do not.
 
@@ -41,7 +44,7 @@ Use `PROVIDER=anthropic` to switch the investigating writer. Defaults live in `p
 
 The run artifact preserves:
 
-- `provider`, `model`, `metadata`, `identity`, `changes`, collected `hunks` and acquisition `limitations`, including PR title/body and pinned commits.
+- `provider`, `model`, `reasoningEffort` (null for Anthropic), `metadata`, `identity`, `changes`, collected `hunks` and acquisition `limitations`, including PR title/body and pinned commits.
 - `investigation`: captured comparison, resolved run budget, request/memory capacities, retained evidence, hunk mappings, conversation-specific delivery receipts, tool records, completed writer turns with their actual instructions, candidate attempts and diagnostics. `acceptedCandidate: { candidateNumber, writerTurnNumber }` selects the exact accepted writer draft; top-level `response` is that writer response. It is null when acquisition never reached the investigation.
 - Top-level `proposal` and `response`: accepted output only when the whole run completes. A nested draft remains diagnostic if cleanup or publication subsequently fails.
 - `modelCalls`: count/generation kind, sequence number within that conversation and call kind, writer role, candidate number, conversation ID, model, status, native `usage`, token-count endpoint `inputTokens`, and per-call timestamps/duration. Missing usage is null, not zero; it is not a cost estimate.

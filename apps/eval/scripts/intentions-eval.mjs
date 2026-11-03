@@ -3,7 +3,11 @@ import { closeSync, openSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
-import { defaultModels, parseModelProvider } from '@daphne/llm';
+import {
+  defaultModels,
+  parseModelProvider,
+  parseOpenAIReasoningEffort,
+} from '@daphne/llm';
 import { isGoldenDatasetPath } from '@daphne/cli/output-path';
 import { loadIntentionGoldCase } from '../dist/src/intentions/gold-case.js';
 
@@ -52,9 +56,14 @@ try {
     OUTPUT,
     PROVIDER,
     MAX_INPUT_TOKENS,
+    REASONING_EFFORT,
     GENERATION_PROMPT,
   } = process.env;
   const provider = parseModelProvider(PROVIDER);
+  const reasoningEffort =
+    !ARTIFACT && provider === 'openai'
+      ? parseOpenAIReasoningEffort(REASONING_EFFORT)
+      : undefined;
   const stamp = new Date().toISOString().replaceAll(':', '-');
   const output = resolve(
     OUTPUT || `outputs/intentions-eval-${stamp}-${process.pid}`,
@@ -95,6 +104,9 @@ try {
         provider,
         '--max-input-tokens',
         MAX_INPUT_TOKENS,
+        ...(reasoningEffort === undefined
+          ? []
+          : ['--reasoning-effort', reasoningEffort]),
       ],
       join(output, 'generation.log'),
     );

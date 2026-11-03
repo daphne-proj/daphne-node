@@ -1,4 +1,4 @@
-import type { ModelProvider } from './contracts.js';
+import type { ModelProvider, OpenAIReasoningEffort } from './contracts.js';
 import { ModelError } from './response.js';
 
 /* Manually maintained latest defaults; selecting a provider performs no model discovery. */
@@ -14,4 +14,24 @@ export function parseModelProvider(value = 'openai'): ModelProvider {
   }
 
   return value;
+}
+
+/* Validate CLI/environment effort before I/O; model-specific support remains with OpenAI. */
+export function parseOpenAIReasoningEffort(
+  value = 'medium',
+): OpenAIReasoningEffort {
+  switch (value) {
+    case 'none':
+    case 'minimal':
+    case 'low':
+    case 'medium':
+    case 'high':
+    case 'xhigh':
+    case 'max':
+      return value;
+    default:
+      throw new ModelError(
+        'OpenAI reasoning effort must be none, minimal, low, medium, high, xhigh or max.',
+      );
+  }
 }

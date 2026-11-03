@@ -90,6 +90,10 @@ function messages(input: ModelRequest['input']): Record<string, unknown>[] {
  * one-shot inputs do not opt in. Native replay blocks remain unchanged.
  */
 function requestBody(request: ModelRequest): Record<string, unknown> {
+  if (request.reasoning !== undefined) {
+    throw new ModelError('Reasoning effort is only supported for OpenAI.');
+  }
+
   return {
     ...(typeof request.input === 'string'
       ? {}

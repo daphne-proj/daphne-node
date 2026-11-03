@@ -4,7 +4,8 @@
 
 PROVIDER ?= openai
 MAX_INPUT_TOKENS ?= 16384
-export PR OUTPUT PROVIDER MAX_INPUT_TOKENS CASE ARTIFACT RUN_DIR GENERATION_PROMPT
+REASONING_EFFORT ?= medium
+export PR OUTPUT PROVIDER MAX_INPUT_TOKENS REASONING_EFFORT CASE ARTIFACT RUN_DIR GENERATION_PROMPT
 
 help:
 	@printf '%s\n' \
@@ -29,10 +30,12 @@ help:
 		'make intentions PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Show intention tables, time and cost; save a new outputs/intentions-* run' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=256000' \
+		'                   OpenAI: REASONING_EFFORT=medium (none|minimal|low|medium|high|xhigh|max)' \
 		'make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json' \
 		'                   Generate fresh intentions and judge them against gold' \
 		'                   Optional: ARTIFACT=PATH regrades a saved run; omit CASE for ordinary judging' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY PROVIDER=openai|anthropic MAX_INPUT_TOKENS=256000 GENERATION_PROMPT=PATH' \
+		'                   OpenAI generation: REASONING_EFFORT=medium; judge settings are unchanged' \
 		'make split-pr-eval CASE=apps/eval/datasets/split-pr/cases/pr_1.json ARTIFACT=outputs/split_pr_1/run.json' \
 		'                   Compare saved groups with labels offline; drafts are provisional' \
 		'                   Print results; optional OUTPUT=NEW_FILE outside the gold dataset' \
@@ -89,7 +92,7 @@ split-pr:
 intentions: MAX_INPUT_TOKENS = 256000
 intentions:
 	@test -n "$$PR" || { \
-		printf '%s\n' 'Usage: make intentions PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=NEW_DIRECTORY] [PROVIDER=openai|anthropic] [MAX_INPUT_TOKENS=256000]' >&2; \
+		printf '%s\n' 'Usage: make intentions PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=NEW_DIRECTORY] [PROVIDER=openai|anthropic] [REASONING_EFFORT=medium] [MAX_INPUT_TOKENS=256000]' >&2; \
 		exit 1; \
 	}
 	@bun run --silent build
@@ -97,12 +100,16 @@ intentions:
 		mkdir -p outputs || exit 1; \
 		OUTPUT="outputs/intentions-$$(date +%Y%m%d-%H%M%S)-$$$$"; \
 	fi; \
-	bun run --silent cli -- intentions --pr "$$PR" --output "$$OUTPUT" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS"
+	set --; \
+	if test "$$PROVIDER" = openai; then \
+		set -- --reasoning-effort "$$REASONING_EFFORT"; \
+	fi; \
+	bun run --silent cli -- intentions --pr "$$PR" --output "$$OUTPUT" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS" "$$@"
 
 intentions-eval: MAX_INPUT_TOKENS = 256000
 intentions-eval:
 	@test -n "$$CASE" || test -n "$$ARTIFACT" || { \
-		printf '%s\n' 'Usage: make intentions-eval CASE=GOLD_CASE [ARTIFACT=PATH] [OUTPUT=NEW_DIRECTORY] [PROVIDER=openai|anthropic] [MAX_INPUT_TOKENS=256000] [GENERATION_PROMPT=PATH]' >&2; \
+		printf '%s\n' 'Usage: make intentions-eval CASE=GOLD_CASE [ARTIFACT=PATH] [OUTPUT=NEW_DIRECTORY] [PROVIDER=openai|anthropic] [REASONING_EFFORT=medium] [MAX_INPUT_TOKENS=256000] [GENERATION_PROMPT=PATH]' >&2; \
 		exit 1; \
 	}
 	@bun run --silent build

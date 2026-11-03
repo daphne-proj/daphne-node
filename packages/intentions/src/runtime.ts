@@ -1,4 +1,4 @@
-import { createModel } from '@daphne/llm';
+import { createModel, ModelError } from '@daphne/llm';
 import type { ContextEngine } from '@daphne/context-engine';
 import type { IntentionsOptions } from './contracts.js';
 import type {
@@ -10,7 +10,8 @@ import { executeIntentionTool } from './tools.js';
 /*
  * Bind one writer to its model, retained evidence and the host's original budget.
  * runIntentions reuses this runtime across repairs, so observed calls retain the
- * current candidate number. runModelConversation already executes tools in order;
+ * current candidate number and OpenAI reasoning effort stays fixed (medium by default).
+ * runModelConversation already executes tools in order;
  * each tool checks cancellation before host I/O and retains its outcome on failure.
  */
 export function createIntentionRunRuntime(
@@ -20,8 +21,14 @@ export function createIntentionRunRuntime(
   conversation: IntentionConversation,
 ): IntentionConversationRuntime {
   const { signal } = options.budget;
+  const provider = options.provider ?? 'openai';
+
+  if (provider !== 'openai' && options.reasoningEffort !== undefined) {
+    throw new ModelError('Reasoning effort is only supported for OpenAI.');
+  }
+
   const model = createModel(
-    options.provider ?? 'openai',
+    provider,
     options.apiKey,
     options.model,
     signal,
@@ -38,6 +45,10 @@ export function createIntentionRunRuntime(
 
   return {
     model,
+    reasoning:
+      provider === 'openai'
+        ? { effort: options.reasoningEffort ?? 'medium' }
+        : undefined,
     progress,
     budget: options.budget,
     maxInputTokens: options.maxInputTokens,

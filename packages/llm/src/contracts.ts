@@ -1,6 +1,10 @@
 /* The provider selects transport and replay rules; workflows keep the same request. */
 export type ModelProvider = 'openai' | 'anthropic';
 
+/* OpenAI request values; the selected model determines which levels it supports. */
+export type OpenAIReasoningEffort =
+  'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface ModelFunctionTool {
   type: 'function';
   name: string;
@@ -18,6 +22,8 @@ export interface ModelFunctionCall {
 
 /* Adapters translate these existing field names without changing workflow schemas. */
 export interface ModelRequest {
+  /* OpenAI only, for example { effort: 'medium' }; omit for other providers. */
+  reasoning?: { effort: OpenAIReasoningEffort };
   tools?: readonly ModelFunctionTool[];
   parallel_tool_calls?: boolean;
   max_output_tokens?: number;
