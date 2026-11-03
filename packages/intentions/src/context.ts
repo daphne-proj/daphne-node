@@ -57,19 +57,22 @@ function changeDescription(change: Change): string {
   ]);
 }
 
-/* Capture caller-owned data before the first await so the investigation keeps one comparison. */
-export function captureInput(input: IntentionsInput): IntentionsInput {
-  const captured = structuredClone(input);
-  checkText(captured.pr.url);
-  checkText(captured.pr.title, true);
+/*
+ * Check PR text and change consistency before runIntentions retains evidence.
+ * For example, added files must have no BASE path. Invalid input throws
+ * ContextInputError; validation does not copy or modify the supplied comparison.
+ */
+export function assertValidInput(input: IntentionsInput): void {
+  checkText(input.pr.url);
+  checkText(input.pr.title, true);
 
-  if (captured.pr.body !== null) {
-    checkText(captured.pr.body, true);
+  if (input.pr.body !== null) {
+    checkText(input.pr.body, true);
   }
 
   const ids = new Set<string>();
 
-  for (const change of captured.changes) {
+  for (const change of input.changes) {
     checkText(change.id);
 
     if (
@@ -115,8 +118,6 @@ export function captureInput(input: IntentionsInput): IntentionsInput {
       checkCoordinates(hunk.afterStartLine, hunk.afterLineCount);
     }
   }
-
-  return captured;
 }
 
 function hunkKey(changeId: string, hunkIndex: number | null): string {

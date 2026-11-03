@@ -115,8 +115,8 @@ export interface IntentionsProposal {
 /*
  * Supplies one pinned comparison to runIntentions, including PR text and diff
  * evidence. For example, a change with one text hunk needs a matching entry in
- * hunks. captureInput copies and checks the input before asynchronous work so
- * later caller edits cannot change the comparison being explained.
+ * hunks. runIntentions validates the input without copying it. Callers must
+ * leave it unchanged because the workflow and returned comparison share it.
  */
 export interface IntentionsInput {
   identity: ReviewIdentity;

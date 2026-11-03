@@ -11,10 +11,10 @@ import type {
 } from './contracts.js';
 import {
   assembleEvidence,
-  captureInput,
   initialLimitations,
   retainDiff,
   retrievalLimitations,
+  assertValidInput,
 } from './context.js';
 import {
   checkIntentionCancellation,
@@ -106,23 +106,24 @@ export async function runIntentions(
       );
     }
 
-    const captured = captureInput(input);
+    assertValidInput(input);
     progress.comparison = {
-      identity: captured.identity,
-      changes: captured.changes,
-      pr: captured.pr,
+      identity: input.identity,
+      changes: input.changes,
+      pr: input.pr,
     };
 
-    engine = createContextEngine(captured.identity, {
+    engine = createContextEngine(input.identity, {
       maxContextBytes: intentionsLimits.maxContextBytes,
       maxRetainedBytes: intentionsLimits.maxRetainedBytes,
     });
 
-    progress.limitations = initialLimitations(captured.changes);
-    retainDiff(captured, engine, progress.hunks);
+    progress.limitations = initialLimitations(input.changes);
+    retainDiff(input, engine, progress.hunks);
+
     checkIntentionCancellation(signal);
 
-    if (captured.changes.length === 0) {
+    if (input.changes.length === 0) {
       return {
         ...collected(),
         status: 'complete',
@@ -136,6 +137,7 @@ export async function runIntentions(
       engine,
       progress.hunks.flatMap((hunk) => hunk.evidenceIds),
     );
+
     const writer = createIntentionConversation(
       {
         role: 'writer',
@@ -147,9 +149,9 @@ export async function runIntentions(
           {
             role: 'user',
             content: JSON.stringify({
-              pr: captured.pr,
+              pr: input.pr,
               identity: engine.identity,
-              changes: captured.changes,
+              changes: input.changes,
               hunks: progress.hunks,
               limitations: progress.limitations,
               context: initial.renderedContext,
@@ -217,9 +219,9 @@ export async function runIntentions(
         }
 
         const validation = validateIntentions(turn.reply.text, {
-          identity: captured.identity,
-          changes: captured.changes,
-          pr: captured.pr,
+          identity: input.identity,
+          changes: input.changes,
+          pr: input.pr,
           sources: runtime.engine.getEvidenceSnapshot().sources,
           deliveredEvidenceIds: candidate.deliveredEvidenceIds,
         });
@@ -244,7 +246,7 @@ export async function runIntentions(
 
         const review = await reviewIntentionCandidate(candidate, {
           runtime,
-          input: captured,
+          input,
           hunks: progress.hunks,
           limitations: [
             ...progress.limitations,
