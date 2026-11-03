@@ -8,15 +8,15 @@ import type {
 import { executeIntentionTool } from './tools.js';
 
 /*
- * Create this factory once per investigation, then call the returned function
- * for each writer or reviewer conversation. Each gets its own model client, but
- * all share the evidence store, progress records and one tool queue. The queue
- * runs tools one at a time so reviewers cannot interleave evidence updates.
- * Reuse the writer's runtime when revising its proposal. Cancellation is checked
- * before a queued tool calls the host executor. Callers must wait for every
- * reviewer to finish, even after one fails, before returning.
+ * Create one run runtime for runIntentions and pass it to semantic review so
+ * evidence, progress, budget and the tool queue belong to the same investigation.
+ * For example, runtime.createConversationRuntime(writer) creates the writer's
+ * client; reuse that conversation runtime for revisions. Reviewers each get a
+ * separate client and their batch's cancellation signal, while tools share one
+ * queue. Cancellation is checked before a queued tool calls the host executor.
+ * Callers must wait for every reviewer to settle before returning.
  */
-export function createIntentionRuntimeFactory(
+export function createIntentionRunRuntime(
   options: IntentionsOptions,
   engine: ContextEngine,
   progress: IntentionConversationRuntime['progress'],
@@ -25,7 +25,7 @@ export function createIntentionRuntimeFactory(
   let toolQueueTail = Promise.resolve();
   let toolNumber = 0;
 
-  return function createConversationRuntime(
+  function createConversationRuntime(
     conversation: IntentionConversation,
     signal = options.budget.signal,
   ): IntentionConversationRuntime {
@@ -84,9 +84,15 @@ export function createIntentionRuntimeFactory(
         return tool;
       },
     };
-  };
+  }
+
+  return {
+    engine,
+    progress,
+    budget: options.budget,
+    createConversationRuntime,
+  } as const;
 }
 
-export type IntentionRuntimeFactory = ReturnType<
-  typeof createIntentionRuntimeFactory
->;
+/* Shared investigation resources; create a separate conversation runtime for each reviewer. */
+export type IntentionRunRuntime = ReturnType<typeof createIntentionRunRuntime>;

@@ -119,7 +119,7 @@ export function checkIntentionCancellation(signal: AbortSignal): void {
  *
  * Mutate the supplied conversation and shared progress in place. Reuse the writer
  * across revisions, but create a separate conversation/client for each review.
- * The runtime factory shares one tool queue while model calls can run concurrently.
+ * The run runtime shares one tool queue while model calls can run concurrently.
  *
  * Return the terminal turn's number and evidence snapshot; its full reply remains
  * in progress.turns. Errors propagate while completed work stays recorded, and

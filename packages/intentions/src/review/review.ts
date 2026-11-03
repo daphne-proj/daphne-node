@@ -1,6 +1,5 @@
 import * as z from 'zod';
 import { ContextLimitError } from '@daphne/context-engine';
-import type { ContextEngine } from '@daphne/context-engine';
 import { ModelError } from '@daphne/llm';
 import type { ContextNotice } from '@daphne/review-evidence/contracts';
 import type { IntentionHunkEvidence, IntentionsInput } from '../contracts.js';
@@ -11,13 +10,10 @@ import {
   runIntentionConversation,
 } from '../conversation.js';
 import { intentionsLimits } from '../limits.js';
-import type {
-  IntentionCandidate,
-  IntentionConversationRuntime,
-} from '../conversation.js';
+import type { IntentionCandidate } from '../conversation.js';
 import { intentionReviewerInstructions } from './prompts.js';
 import { combineIntentionReviews } from './combine.js';
-import type { IntentionRuntimeFactory } from '../runtime.js';
+import type { IntentionRunRuntime } from '../runtime.js';
 import type {
   IntentionReviewer,
   IntentionReviewTurnNumbers,
@@ -30,15 +26,11 @@ import {
 } from './validation.js';
 
 /*
- * Supply the writer's shared evidence, progress and runtime factory so reviewer
- * tools join the same queue and records. The signal cancels the review batch;
- * reviewIntentionCandidate also cancels sibling reviewers when one fails.
+ * Supply the original comparison, retained hunk mappings and current limitations
+ * for a fixed candidate. Shared execution resources come from the run runtime
+ * passed separately to reviewIntentionCandidate.
  */
 export interface IntentionReviewInput {
-  engine: ContextEngine;
-  progress: IntentionConversationRuntime['progress'];
-  signal: AbortSignal;
-  createConversationRuntime: IntentionRuntimeFactory;
   input: IntentionsInput;
   hunks: IntentionHunkEvidence[];
   limitations: ContextNotice[];
@@ -49,13 +41,16 @@ export interface IntentionReviewInput {
  * Initial packets contain exactly the writer-delivered sources; tool results remain
  * local until confirmed in that conversation. On failure abort model siblings and
  * drain all queued tools before returning, preserving completed diagnostics.
+ * Pass the writer's run runtime so reviewers use its evidence, progress and queue;
+ * each reviewer gets its own conversation runtime with the review batch's signal.
  * Only three valid reports can reach the unchanged acceptance policy.
  */
 export async function reviewIntentionCandidate(
   candidate: IntentionCandidate,
+  runtime: IntentionRunRuntime,
   input: IntentionReviewInput,
 ) {
-  const { engine, progress, createConversationRuntime } = input;
+  const { engine, progress } = runtime;
   const writer = progress.turns[candidate.writerTurnNumber - 1];
 
   if (
@@ -131,7 +126,7 @@ export async function reviewIntentionCandidate(
     },
   ];
   const controller = new AbortController();
-  const signal = AbortSignal.any([input.signal, controller.signal]);
+  const signal = AbortSignal.any([runtime.budget.signal, controller.signal]);
   const failures: unknown[] = [];
   const proposal = writer.validation.proposal;
 
@@ -157,7 +152,7 @@ export async function reviewIntentionCandidate(
 
         const reply = await runIntentionConversation(
           conversation,
-          createConversationRuntime(conversation, signal),
+          runtime.createConversationRuntime(conversation, signal),
         );
 
         checkIntentionCancellation(signal);

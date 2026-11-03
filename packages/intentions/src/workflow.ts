@@ -31,7 +31,7 @@ import type {
   IntentionReview,
   IntentionReviewTurnNumbers,
 } from './review/contracts.js';
-import { createIntentionRuntimeFactory } from './runtime.js';
+import { createIntentionRunRuntime } from './runtime.js';
 
 type IntentionFeedback =
   | { kind: 'structural'; diagnostics: string[] }
@@ -163,12 +163,8 @@ export async function runIntentions(
       initial.includedEvidenceIds,
     );
 
-    const createConversationRuntime = createIntentionRuntimeFactory(
-      options,
-      engine,
-      progress,
-    );
-    const writerRuntime = createConversationRuntime(writer);
+    const runtime = createIntentionRunRuntime(options, engine, progress);
+    const writerRuntime = runtime.createConversationRuntime(writer);
     const evaluations = new Map<number, IntentionEvaluation>();
 
     const result = await runEvaluatorOptimizer<
@@ -246,11 +242,7 @@ export async function runIntentions(
           };
         }
 
-        const review = await reviewIntentionCandidate(candidate, {
-          engine,
-          progress,
-          signal,
-          createConversationRuntime,
+        const review = await reviewIntentionCandidate(candidate, runtime, {
           input,
           hunks: progress.hunks,
           limitations: [
