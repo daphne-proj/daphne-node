@@ -61,7 +61,7 @@ function options(args: string[]) {
 /*
  * Grade a saved accepted run; eval additionally loads and matches a frozen gold case.
  * For example, intentions eval --case cases/pr_1.json adds semantic behavior coverage.
- * Gold annotations are never sent to the writer or runtime reviewer.
+ * Gold annotations are never sent to the investigating writer.
  * For example, use `intentions judge --artifact run.json --output new-dir --model MODEL`.
  * Inputs are published before invoking Codex, and a final report preserves model failures.
  * Low scores still mean a completed evaluation; missing or invalid judgments exit nonzero.

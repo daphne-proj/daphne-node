@@ -11,11 +11,6 @@ import type {
 } from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
 import type {
-  IntentionReview,
-  IntentionReviewerReport,
-  IntentionReviewTurnNumbers,
-} from './review/contracts.js';
-import type {
   ByteRange,
   Change,
   ContextNotice,
@@ -72,8 +67,8 @@ export type IntentionReason =
  * Records a potential problem relevant to the transition, not a defect in
  * Daphne's explanation. For example, a newly reachable failure cites its caller
  * and failure path, with relevance 'made_relevant'. validateIntentions resolves
- * nonempty citations from either revision; the reviewer checks the condition,
- * consequence, threatened outcome or constraint, and connection to the PR.
+ * nonempty citations from either revision. Independent evaluation must check the
+ * condition, consequence and connection to the PR; validation cannot prove them.
  * Non-null uncertainty names an unverified premise; null is not proof of safety.
  */
 export interface IntentionIssue {
@@ -145,7 +140,7 @@ export interface IntentionsOptions {
 
 /* Attribute requests to a conversation and its local client counter, including failures. */
 export type IntentionModelCallObservation = ModelCallObservation & {
-  role: 'writer' | 'reviewer';
+  role: 'writer';
   candidateNumber: number;
   conversationId: string;
 };
@@ -194,7 +189,7 @@ export interface IntentionHunkEvidence {
  */
 export type IntentionToolRecord = {
   number: number;
-  role: 'writer' | 'reviewer';
+  role: 'writer';
   candidateNumber: number;
   conversationId: string;
   turnNumber: number;
@@ -214,17 +209,12 @@ export type IntentionToolRecord = {
 /*
  * Records evidence confirmed by a completed request. Initial source IDs name
  * source bytes in that conversation's initial message; tool receipts refer to
- * earlier completed tools in the same conversation. Review feedback names source
- * bytes sent from the previous reviewer to the writer. Counting alone adds none.
+ * earlier completed tools in the same conversation. Counting alone confirms no
+ * delivery; a completed model reply must acknowledge the containing request.
  */
 export type IntentionEvidenceDelivery =
   | { kind: 'initial'; evidenceIds: readonly string[] }
-  | { kind: 'tool'; toolNumber: number }
-  | {
-      kind: 'review_feedback';
-      reviewTurnNumbers: IntentionReviewTurnNumbers;
-      evidenceIds: readonly string[];
-    };
+  | { kind: 'tool'; toolNumber: number };
 
 /*
  * Preserve one provider reply with its conversation and source-delivery snapshot.
@@ -232,9 +222,10 @@ export type IntentionEvidenceDelivery =
  * also remain null if cancellation skips evaluation. Tool references use number,
  * while generationNumber identifies the conversation client's generation call.
  */
-export type IntentionTurn = {
-  /* New turns retain the sent prompt; older saved OpenAI turns may omit it. */
-  instructions?: string;
+export interface IntentionTurn {
+  instructions: string;
+  role: 'writer';
+  validation: IntentionsValidation | null;
   number: number;
   candidateNumber: number;
   conversationId: string;
@@ -243,22 +234,14 @@ export type IntentionTurn = {
   deliveredEvidenceIds: readonly string[];
   inputTokens: number;
   reply: ModelReply;
-} & (
-  | { role: 'writer'; validation: IntentionsValidation | null }
-  | { role: 'reviewer'; review: IntentionReviewerReport | null }
-);
+}
 
-/* Completed checks reference their retained report; an interrupted evaluation is null on its attempt. */
+/* Structural acceptance validates the saved draft and citations, not semantic correctness. */
 export type IntentionEvaluation =
   | { kind: 'structural'; status: 'revise'; diagnostics: string[] }
-  | {
-      kind: 'semantic';
-      status: 'accept' | 'revise' | 'stop';
-      report: IntentionReview;
-      reviewTurnNumbers: IntentionReviewTurnNumbers;
-    };
+  | { kind: 'structural'; status: 'accept' };
 
-/* One-based candidates count terminal writer drafts, not reviewer replies or tool continuations. */
+/* One-based candidates count terminal writer drafts, not tool continuations. */
 export interface IntentionAttempt {
   number: number;
   writerTurnNumber: number;
@@ -266,11 +249,10 @@ export interface IntentionAttempt {
   evaluation: IntentionEvaluation | null;
 }
 
-/* Select the accepted writer and all three approving reviews, independent of completion order. */
+/* Select the structurally valid writer draft; no semantic review is implied. */
 export interface AcceptedIntentionCandidate {
   candidateNumber: number;
   writerTurnNumber: number;
-  reviewTurnNumbers: IntentionReviewTurnNumbers;
 }
 
 /*

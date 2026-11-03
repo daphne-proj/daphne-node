@@ -26,26 +26,13 @@ import { intentionsLimits } from './limits.js';
 import { correctionInstructions, intentionsInstructions } from './prompts.js';
 import { validateIntentions } from './proposal.js';
 import { intentionsSchema } from './schema.js';
-import { reviewIntentionCandidate } from './review/review.js';
-import type {
-  IntentionReview,
-  IntentionReviewTurnNumbers,
-} from './review/contracts.js';
 import { createIntentionRunRuntime } from './runtime.js';
 
-type IntentionFeedback =
-  | { kind: 'structural'; diagnostics: string[] }
-  | {
-      kind: 'semantic';
-      reviewTurnNumbers: IntentionReviewTurnNumbers;
-      report: IntentionReview;
-      evidenceIds: string[];
-    };
+type IntentionFeedback = { kind: 'structural'; diagnostics: string[] };
 
 interface IntentionAcceptance {
   proposal: IntentionsProposal;
   writerTurnNumber: number;
-  reviewTurnNumbers: IntentionReviewTurnNumbers;
 }
 
 type IntentionsProgress = Omit<
@@ -56,9 +43,10 @@ type IntentionsProgress = Omit<
 /*
  * Investigate one supplied comparison using the host's budget and borrowed tools.
  * The shared runner counts terminal writer proposals; tool continuations retain
- * their own turns without consuming candidate slots. Every structurally valid
- * draft receives a fresh semantic review. Failure and cancellation retain completed work
- * while returning null accepted output; the host owns cleanup and publication.
+ * their own turns without consuming candidate slots. validateIntentions accepts
+ * valid drafts and returns diagnostics for repairs in the same conversation.
+ * Failure and cancellation retain completed work with null accepted output;
+ * the host owns cleanup and publication.
  */
 export async function runIntentions(
   input: IntentionsInput,
@@ -141,8 +129,6 @@ export async function runIntentions(
 
     const writer = createIntentionConversation(
       {
-        role: 'writer',
-        conversationId: 'writer',
         candidateNumber: 1,
         instructions: intentionsInstructions,
         schema: { name: 'intentions_proposal', schema: intentionsSchema },
@@ -163,8 +149,12 @@ export async function runIntentions(
       initial.includedEvidenceIds,
     );
 
-    const runtime = createIntentionRunRuntime(options, engine, progress);
-    const writerRuntime = runtime.createConversationRuntime(writer);
+    const writerRuntime = createIntentionRunRuntime(
+      options,
+      engine,
+      progress,
+      writer,
+    );
     const evaluations = new Map<number, IntentionEvaluation>();
 
     const result = await runEvaluatorOptimizer<
@@ -178,24 +168,11 @@ export async function runIntentions(
 
         if (production.kind === 'revision') {
           const feedback = production.feedback;
-          let context: string | undefined;
-
-          if (feedback.kind === 'semantic') {
-            const packet = assembleEvidence(engine, feedback.evidenceIds);
-            context = packet.renderedContext;
-            writer.pendingDeliveries.push({
-              kind: 'review_feedback',
-              reviewTurnNumbers: feedback.reviewTurnNumbers,
-              evidenceIds: packet.includedEvidenceIds,
-            });
-          }
-
           writer.history.push({
             role: 'user',
             content: JSON.stringify({
               instruction: correctionInstructions,
               feedback,
-              context,
             }),
           });
         }
@@ -207,10 +184,10 @@ export async function runIntentions(
           deliveredEvidenceIds: reply.deliveredEvidenceIds,
         };
       },
-      async evaluate(candidate, { number }) {
+      evaluate(candidate, { number }) {
         const turn = progress.turns[candidate.writerTurnNumber - 1];
 
-        if (!turn || turn.role !== 'writer') {
+        if (!turn) {
           throw new ModelError(
             'The intentions candidate has no recorded writer turn.',
           );
@@ -242,48 +219,15 @@ export async function runIntentions(
           };
         }
 
-        const review = await reviewIntentionCandidate(candidate, runtime, {
-          input,
-          hunks: progress.hunks,
-          limitations: [
-            ...progress.limitations,
-            ...retrievalLimitations(engine.getEvidenceSnapshot()),
-          ],
-        });
-        const reviewTurnNumbers = review.reviewTurnNumbers;
-        evaluations.set(number, {
-          kind: 'semantic',
-          status: review.decision.status,
-          report: review.report,
-          reviewTurnNumbers,
-        });
+        evaluations.set(number, { kind: 'structural', status: 'accept' });
 
-        switch (review.decision.status) {
-          case 'accept':
-            return {
-              status: 'accept',
-              value: {
-                proposal: validation.proposal,
-                writerTurnNumber: turn.number,
-                reviewTurnNumbers,
-              },
-            };
-          case 'stop':
-            return review.decision;
-          case 'revise':
-            return {
-              status: 'revise',
-              feedback: {
-                kind: 'semantic',
-                reviewTurnNumbers,
-                report: review.report,
-                /* Send source bytes the reviewer discovered, including evidence for proposal-wide omissions. */
-                evidenceIds: review.deliveredEvidenceIds.filter(
-                  (id) => !candidate.deliveredEvidenceIds.includes(id),
-                ),
-              },
-            };
-        }
+        return {
+          status: 'accept',
+          value: {
+            proposal: validation.proposal,
+            writerTurnNumber: turn.number,
+          },
+        };
       },
     });
 
@@ -299,10 +243,10 @@ export async function runIntentions(
     switch (result.status) {
       case 'accepted': {
         checkIntentionCancellation(signal);
-        const { proposal, writerTurnNumber, reviewTurnNumbers } = result.value;
+        const { proposal, writerTurnNumber } = result.value;
         const turn = progress.turns[writerTurnNumber - 1];
 
-        if (!turn || turn.role !== 'writer') {
+        if (!turn) {
           throw new ModelError(
             'The accepted proposal has no recorded writer turn.',
           );
@@ -316,7 +260,6 @@ export async function runIntentions(
           acceptedCandidate: {
             candidateNumber: turn.candidateNumber,
             writerTurnNumber,
-            reviewTurnNumbers,
           },
         };
       }

@@ -3,26 +3,19 @@ import { validateIntentions } from '@daphne/intentions';
 import type {
   IntentionsProposal,
   IntentionsValidationContext,
-  IntentionHunkEvidence,
-  IntentionReviewTurnNumbers,
 } from '@daphne/intentions';
 import { parseDeliveredTurns } from './artifact-delivery.js';
 import type { IntentionDeliveryContext } from './artifact-delivery.js';
 import type { IntentionSearchReceipt } from './artifact-tools.js';
-import {
-  parseCandidateReviews,
-  parseReviewTurnNumbers,
-} from './artifact-reviews.js';
 import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
 export interface IntentionArtifactContext extends IntentionDeliveryContext {
   changes: IntentionsValidationContext['changes'];
   pr: IntentionsValidationContext['pr'];
-  hunks: readonly IntentionHunkEvidence[];
 }
 
-/* Accepted output keeps writer-delivered source IDs separate from directly confirmed search receipts across conversations. */
+/* Accepted output keeps writer-delivered source IDs separate from directly confirmed search receipts. */
 export interface ParsedIntentionTrace {
   generationInstructions: string | null;
   proposal: IntentionsProposal;
@@ -32,10 +25,10 @@ export interface ParsedIntentionTrace {
 }
 
 /*
- * Resolve the accepted writer and re-run both acceptance gates from raw replies.
- * Delivery is reconstructed before validating citations; every replacement has
- * its own checks and review. Saved reports, proposals and references are claims
- * to verify, not authority. Only the current review contract is supported.
+ * Resolve the accepted writer and repeat structural validation from raw replies.
+ * For example, each repair must follow an invalid draft and the final draft must
+ * validate against its own delivered sources. Saved proposals and acceptance
+ * references are claims to verify, not authority or semantic certification.
  * Invalid complete traces throw; callers reject failed host runs before this parser.
  */
 export function parseIntentionTrace(
@@ -87,10 +80,6 @@ export function parseIntentionTrace(
 
   let cursor = 0;
   let accepted: ParsedIntentionTrace | null = null;
-  let previousReview: {
-    numbers: IntentionReviewTurnNumbers;
-    evidenceIds: string[];
-  } | null = null;
 
   for (const [index, value] of attempts.entries()) {
     const attempt = parse.object(value, 'attempt');
@@ -105,13 +94,10 @@ export function parseIntentionTrace(
     if (
       attempt.number !== number ||
       !writer ||
-      writer.role !== 'writer' ||
       writer.candidateNumber !== number ||
       writer.reply.functionCalls.length > 0 ||
       writerTurns.length === 0 ||
-      writerTurns.some(
-        (turn) => turn.role !== 'writer' || turn.candidateNumber !== number,
-      ) ||
+      writerTurns.some((turn) => turn.candidateNumber !== number) ||
       writerTurns
         .slice(0, -1)
         .some(
@@ -128,36 +114,6 @@ export function parseIntentionTrace(
       );
     }
 
-    const feedback = writerTurns
-      .flatMap((turn) =>
-        turn.deliveries.map((value) => parse.object(value, 'delivery')),
-      )
-      .filter((receipt) => receipt.kind === 'review_feedback');
-    const expectedFeedback =
-      previousReview === null
-        ? []
-        : [
-            {
-              kind: 'review_feedback',
-              reviewTurnNumbers: previousReview.numbers,
-              evidenceIds: previousReview.evidenceIds,
-            },
-          ];
-
-    const lateFeedback = writerTurns
-      .slice(1)
-      .some((turn) =>
-        turn.deliveries.some(
-          (value) => parse.object(value, 'delivery').kind === 'review_feedback',
-        ),
-      );
-
-    if (lateFeedback || !isDeepStrictEqual(feedback, expectedFeedback)) {
-      throw new parse.EvaluationError(
-        'Writer feedback receipts disagree with the previous semantic review.',
-      );
-    }
-
     const validation = validateIntentions(writer.reply.text, {
       ...context,
       deliveredEvidenceIds: writer.deliveredEvidenceIds,
@@ -169,79 +125,43 @@ export function parseIntentionTrace(
       );
     }
 
-    const evaluation = parse.object(attempt.evaluation, 'attempt.evaluation');
-    const kind = parse.choice(
-      evaluation.kind,
-      ['structural', 'semantic'],
-      'evaluation.kind',
-    );
-    const status = parse.choice(
-      evaluation.status,
-      ['accept', 'revise', 'stop'],
-      'evaluation.status',
-    );
-    cursor = writerNumber;
-    previousReview = null;
+    const expectedEvaluation =
+      validation.status === 'valid'
+        ? { kind: 'structural', status: 'accept' }
+        : {
+            kind: 'structural',
+            status: 'revise',
+            diagnostics: validation.diagnostics,
+          };
 
-    if (kind === 'structural') {
-      if (
-        status !== 'revise' ||
-        validation.status !== 'invalid' ||
-        !isDeepStrictEqual(evaluation.diagnostics, validation.diagnostics)
-      ) {
-        throw new parse.EvaluationError(
-          'Structural feedback disagrees with the writer validation.',
-        );
-      }
-    } else {
-      if (validation.status !== 'valid') {
-        throw new parse.EvaluationError(
-          'Semantic review requires a structurally valid writer draft.',
-        );
-      }
-
-      const numbers = parseReviewTurnNumbers(evaluation.reviewTurnNumbers);
-      const review = parseCandidateReviews(
-        turns,
-        writer,
-        validation.proposal,
-        numbers,
-        context,
+    if (!isDeepStrictEqual(attempt.evaluation, expectedEvaluation)) {
+      throw new parse.EvaluationError(
+        'Structural acceptance or feedback disagrees with the writer validation.',
       );
+    }
 
+    const status = expectedEvaluation.status;
+    cursor = writerNumber;
+
+    if (validation.status === 'valid') {
       if (
-        !isDeepStrictEqual(evaluation.report, review.report) ||
-        review.decision.status !== status
+        !isDeepStrictEqual(investigation.acceptedCandidate, {
+          candidateNumber: number,
+          writerTurnNumber: writerNumber,
+        })
       ) {
         throw new parse.EvaluationError(
-          'Saved aggregate or decision differs from the three raw reviews.',
+          'Accepted candidate references differ from the structurally valid attempt.',
         );
       }
 
-      cursor = review.last;
-      previousReview = { numbers, evidenceIds: review.evidenceIds };
-
-      if (status === 'accept') {
-        if (
-          !isDeepStrictEqual(investigation.acceptedCandidate, {
-            candidateNumber: number,
-            writerTurnNumber: writerNumber,
-            reviewTurnNumbers: numbers,
-          })
-        ) {
-          throw new parse.EvaluationError(
-            'Accepted candidate references differ from the accepting attempt.',
-          );
-        }
-
-        accepted = {
-          generationInstructions: writer.instructions,
-          proposal: validation.proposal,
-          response: writer.reply.response,
-          deliveredEvidenceIds: writer.deliveredEvidenceIds,
-          searches,
-        };
-      }
+      accepted = {
+        generationInstructions: writer.instructions,
+        proposal: validation.proposal,
+        response: writer.reply.response,
+        deliveredEvidenceIds: writer.deliveredEvidenceIds,
+        searches,
+      };
     }
 
     if (status !== (index === attempts.length - 1 ? 'accept' : 'revise')) {

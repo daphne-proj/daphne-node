@@ -37,8 +37,10 @@ Retain the host's original budget and signal. Validate the last permitted candid
 
 The selected approach changes workflow policy while reusing established mechanics. A new direct loop would duplicate those mechanics; a patterns package or rename would expand this task without changing the required behavior.
 
-## Explicitly deferred
+## Execution update: remove unused code
 
-Do not purge inactive reviewer helpers or general conversation role support in this change. `toIntentionProposalInput` remains required by the offline judge, and existing conversation tests exercise delivery isolation. These helpers must not run as part of intentions acceptance; keeping them does not authorize old artifact formats.
+The user's execution request adds: “be sure to trim all un-used code.” This supersedes the original decision to retain inactive reviewer helpers and general conversation role support. Delete unused reviewer orchestration, contracts, parsers, prompts, exports, artifact-review parsing and CLI reviewer grouping. Keep `toIntentionProposalInput` for the independent judge, moving it out of the deleted review directory. Simplify the runtime to one writer client and the delivery reader to its continuing history. Update existing conversation tests only where this removal breaks their setup or reviewer-specific scenario, preserving their delivery and cancellation assertions.
+
+## Explicitly deferred
 
 No benchmark campaign, reasoning-effort tuning, gold calibration or quality claim is part of this ownership update. A fresh paid generation or judge run requires a separate execution request. Existing tests do not directly cover the intentions workflow or artifact acceptance; report that limitation rather than claiming full regression coverage.

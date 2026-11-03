@@ -1,6 +1,6 @@
 # Evaluator–optimizer
 
-`@daphne/evaluator-optimizer` runs a produce–evaluate–revise loop with one shared run budget. It owns callback ordering, cancellation and completed-attempt retention. Workflows own candidates, acceptance criteria, feedback, model/tool calls and longer conversation history. Semantic split uses deterministic coverage evaluation; intentions adds LLM semantic review after structural validation. The [intentions review guide](../intentions/src/review/README.md) maps the implementation to the Claude cookbook and explains conversation boundaries and Daphne-specific additions.
+`@daphne/evaluator-optimizer` runs a produce–evaluate–revise loop with one shared run budget. It owns callback ordering, cancellation and completed-attempt retention. Workflows own candidates, acceptance criteria, feedback, model/tool calls and longer conversation history. Semantic split uses deterministic coverage evaluation; intentions uses deterministic proposal and citation validation. Neither callback requires an evaluator model. See the [intentions guide](../intentions/README.md) for its validation-and-repair policy.
 
 The package has no runtime dependencies. It uses Node's `AbortSignal.timeout` and `AbortSignal.any` for cancellation and a standard timer yield between revisions so synchronous callbacks cannot starve cancellation events. It does not load environment variables, fetch evidence, interpret schemas, record telemetry or publish artifacts.
 

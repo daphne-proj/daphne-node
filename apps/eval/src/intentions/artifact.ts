@@ -178,7 +178,7 @@ function decodeArtifact(
     !isDeepStrictEqual(investigation.response, accepted.response)
   ) {
     throw new parse.EvaluationError(
-      'Accepted output disagrees with its validated writer reply and accepting review.',
+      'Accepted output disagrees with its structurally valid writer reply.',
     );
   }
 
@@ -210,8 +210,8 @@ function decodeArtifact(
 /*
  * Reads one local run without repository or model calls. For example,
  * loadIntentionArtifact('outputs/intentions/run.json') returns a judge packet
- * only after revalidating source delivery, the selected writer and its review. Malformed
- * report data returns invalid_output with no judge packet; failed runs remain
+ * only after revalidating source delivery and the selected writer draft. Malformed
+ * artifact data returns invalid_output with no judge packet; failed runs remain
  * explicit outcomes. Unreadable/oversized files and unexpected internal failures
  * throw. The file and retained evidence have fixed host-side caps.
  */

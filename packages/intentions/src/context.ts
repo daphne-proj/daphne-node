@@ -147,8 +147,8 @@ function sourceLineCount(text: string): number {
  *
  * Store each snippet in the context engine and append its evidence IDs, change
  * ID, and hunk index to the supplied mappings array. The workflow uses these
- * mappings to assemble the initial model context and reviewers use them to
- * check coverage.
+ * mappings to assemble the initial model context and the offline judge uses
+ * them to assess coverage.
  *
  * Throw when evidence is missing or inconsistent. Validation and storage happen
  * incrementally: a failure can leave previously stored sources and appended
@@ -239,7 +239,7 @@ export function retainDiff(
 
 /*
  * Require every selected source and navigation entry to reach the model. Tool
- * replies can select their own page; reviewers and feedback keep full navigation
+ * replies select their own page; the initial context uses all retained navigation
  * by default. An empty page selection renders sources alone. Oversize packets
  * fail explicitly instead of silently reducing the evidence available to cite.
  */

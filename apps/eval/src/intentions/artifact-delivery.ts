@@ -1,6 +1,4 @@
 import { isDeepStrictEqual } from 'node:util';
-import { intentionReviewers } from '@daphne/intentions';
-import { parseReviewTurnNumbers } from './artifact-reviews.js';
 import { decodeModelReply } from '@daphne/llm';
 import type { ModelProvider } from '@daphne/llm';
 import type { EvidenceSnapshot } from '@daphne/context-engine';
@@ -34,8 +32,7 @@ function parseTurn(value: unknown, index: number, provider: ModelProvider) {
   const text = parse.text(reply.text, 'reply.text', true);
   const decoded = decodeModelReply(provider, response);
   const functionCalls = decoded.functionCalls ?? [];
-  const instructions =
-    turn.instructions === undefined ? response.instructions : turn.instructions;
+  const instructions = parse.text(turn.instructions, 'turn.instructions');
 
   if (
     response.instructions !== undefined &&
@@ -64,28 +61,28 @@ function parseTurn(value: unknown, index: number, provider: ModelProvider) {
 
   return {
     number,
-    instructions:
-      instructions === undefined || instructions === null
-        ? null
-        : parse.text(instructions, 'turn.instructions'),
+    instructions,
     candidateNumber,
     generationNumber: parse.integer(
       turn.generationNumber,
       'turn.generationNumber',
     ),
-    role: parse.choice(turn.role, ['writer', 'reviewer'], 'turn.role'),
-    conversationId: parse.text(turn.conversationId, 'turn.conversationId'),
+    role: parse.choice(turn.role, ['writer'], 'turn.role'),
+    conversationId: parse.choice(
+      turn.conversationId,
+      ['writer'],
+      'turn.conversationId',
+    ),
     deliveries: parse.array(turn.deliveries, 'turn.deliveries'),
     deliveredEvidenceIds: parse
       .array(turn.deliveredEvidenceIds, 'turn.deliveredEvidenceIds')
       .map((id) => parse.text(id, 'evidence ID')),
     validation: turn.validation,
-    review: turn.review,
     reply: { text, response, functionCalls },
   };
 }
 
-export type DeliveredIntentionTurn = ReturnType<typeof parseTurn>;
+type DeliveredIntentionTurn = ReturnType<typeof parseTurn>;
 
 function evidenceIds(value: unknown, known: ReadonlySet<string>): string[] {
   const ids = parse
@@ -102,12 +99,11 @@ function evidenceIds(value: unknown, known: ReadonlySet<string>): string[] {
 }
 
 /*
- * Reconstruct delivery from completed requests, separately for each conversation.
- * Initial reviewer context comes from its writer, tools stay in their origin,
- * and feedback transfers only a previous reviewer's delivered source content.
- * Search receipts retain direct tool delivery separately; they do not infer that
- * feedback transferred navigation. Throw on inconsistent receipts before any
- * saved citation or investigation claim can reach the judge.
+ * Reconstruct the continuing writer's delivery before validating saved citations.
+ * For example, a tool receipt must follow its requesting turn and refer to a
+ * completed, delivered tool. Search receipts retain navigation separately from
+ * citable source bytes. Inconsistent roles, receipts or snapshots throw before
+ * the saved explanation can reach the independent judge.
  */
 export function parseDeliveredTurns(
   investigation: Record<string, unknown>,
@@ -124,15 +120,8 @@ export function parseDeliveredTurns(
   const toolEvidence = parseIntentionToolEvidence(tools, context);
   const searches: IntentionSearchReceipt[] = [];
   const known = new Set(context.sources.map((source) => source.evidenceId));
-  const conversations = new Map<
-    string,
-    {
-      role: DeliveredIntentionTurn['role'];
-      delivered: Set<string>;
-      callIds: Set<string>;
-      generationNumber: number;
-    }
-  >();
+  const delivered = new Set<string>();
+  const callIds = new Set<string>();
   const deliveredTools = new Set<number>();
   const requestedTools: {
     turn: DeliveredIntentionTurn;
@@ -140,48 +129,21 @@ export function parseDeliveredTurns(
   }[] = [];
 
   for (const turn of turns) {
-    let conversation = conversations.get(turn.conversationId);
-    const first = conversation === undefined;
+    const first = turn.number === 1;
 
-    if (!conversation) {
-      conversation = {
-        role: turn.role,
-        delivered: new Set(),
-        callIds: new Set(),
-        generationNumber: 0,
-      };
-      conversations.set(turn.conversationId, conversation);
-    }
-
-    const validOrigin =
-      turn.role === 'writer'
-        ? turn.conversationId === 'writer'
-        : intentionReviewers.some(
-            (reviewer) =>
-              turn.conversationId ===
-              `reviewer-${reviewer}-${String(turn.candidateNumber)}`,
-          );
-
-    if (
-      conversation.role !== turn.role ||
-      !validOrigin ||
-      turn.generationNumber !== conversation.generationNumber + 1
-    ) {
+    if (turn.generationNumber !== turn.number) {
       throw new parse.EvaluationError(
-        'Turn has an inconsistent conversation origin or local generation number.',
+        'Writer generation numbers must follow the recorded turn order.',
       );
     }
 
-    conversation.generationNumber = turn.generationNumber;
-
     let initials = 0;
-    let feedbacks = 0;
 
     for (const value of turn.deliveries) {
       const receipt = parse.object(value, 'delivery');
       const kind = parse.choice(
         receipt.kind,
-        ['initial', 'tool', 'review_feedback'],
+        ['initial', 'tool'],
         'delivery.kind',
       );
       let ids: readonly string[];
@@ -189,70 +151,16 @@ export function parseDeliveredTurns(
       if (kind === 'initial') {
         initials += 1;
         ids = evidenceIds(receipt.evidenceIds, known);
-        const writer = turns.find(
-          (candidate) =>
-            candidate.role === 'writer' &&
-            candidate.candidateNumber === turn.candidateNumber &&
-            candidate.reply.functionCalls.length === 0,
-        );
-        const expected =
-          turn.role === 'writer'
-            ? context.initialEvidenceIds
-            : writer?.deliveredEvidenceIds;
 
-        if (
-          !first ||
-          !isDeepStrictEqual(ids, expected) ||
-          (turn.role === 'reviewer' &&
-            (!writer || writer.number >= turn.number))
-        ) {
+        if (!first || !isDeepStrictEqual(ids, context.initialEvidenceIds)) {
           throw new parse.EvaluationError(
-            'Initial evidence differs from the original diff or the reviewed writer snapshot.',
-          );
-        }
-      } else if (kind === 'review_feedback') {
-        feedbacks += 1;
-        ids = evidenceIds(receipt.evidenceIds, known);
-        const numbers = parseReviewTurnNumbers(receipt.reviewTurnNumbers);
-        const reviews = intentionReviewers.map((reviewer) => {
-          const review = turns[numbers[reviewer] - 1];
-
-          if (
-            turn.role !== 'writer' ||
-            !review ||
-            review.role !== 'reviewer' ||
-            review.number >= turn.number ||
-            review.candidateNumber !== turn.candidateNumber - 1 ||
-            review.conversationId !==
-              `reviewer-${reviewer}-${String(review.candidateNumber)}` ||
-            review.reply.functionCalls.length > 0
-          ) {
-            throw new parse.EvaluationError(
-              'Review feedback must name all previous candidate reviewer terminals.',
-            );
-          }
-
-          return review;
-        });
-        const delivered = new Set(
-          reviews.flatMap((review) => review.deliveredEvidenceIds),
-        );
-
-        if (ids.some((id) => !delivered.has(id))) {
-          throw new parse.EvaluationError(
-            'Feedback evidence was not delivered to any referenced reviewer.',
+            'Initial evidence differs from the original diff.',
           );
         }
       } else {
         const number = parse.integer(receipt.toolNumber, 'delivery.toolNumber');
         const tool = tools[number - 1];
-        const previous = turns
-          .filter(
-            (candidate) =>
-              candidate.number < turn.number &&
-              candidate.conversationId === turn.conversationId,
-          )
-          .at(-1);
+        const previous = turns[turn.number - 2];
 
         if (
           !previous ||
@@ -296,14 +204,13 @@ export function parseDeliveredTurns(
       }
 
       for (const id of ids) {
-        conversation.delivered.add(id);
+        delivered.add(id);
       }
     }
 
     if (
       initials !== (first ? 1 : 0) ||
-      feedbacks > 1 ||
-      !isDeepStrictEqual(turn.deliveredEvidenceIds, [...conversation.delivered])
+      !isDeepStrictEqual(turn.deliveredEvidenceIds, [...delivered])
     ) {
       throw new parse.EvaluationError(
         'Turn evidence snapshot disagrees with cumulative delivery receipts.',
@@ -311,13 +218,13 @@ export function parseDeliveredTurns(
     }
 
     for (const call of turn.reply.functionCalls) {
-      if (conversation.callIds.has(call.call_id)) {
+      if (callIds.has(call.call_id)) {
         throw new parse.EvaluationError(
           'A conversation repeats a tool call ID.',
         );
       }
 
-      conversation.callIds.add(call.call_id);
+      callIds.add(call.call_id);
       requestedTools.push({ turn, call });
     }
   }

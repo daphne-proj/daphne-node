@@ -41,7 +41,6 @@ const summarySchema = z.object({
     z.object({
       conversationId: text,
       name: text,
-      candidateNumber: count.nullable(),
       complete: z.boolean(),
       tools: count,
       usage: usageSchema,
@@ -119,8 +118,8 @@ function summarizeCalls(
 
 /*
  * Build once from this run's observations, for example after investigation ends.
- * Per-agent time sums count/generation HTTP durations; elapsedMs is the whole
- * workflow's wall time, so parallel agent times must not be added to it.
+ * API time sums count/generation HTTP durations; elapsedMs also includes
+ * repository acquisition, tool execution and cleanup.
  * Failed generations with returned usage are included in the cost estimate.
  */
 export function summarizeIntentionRun(
@@ -130,57 +129,21 @@ export function summarizeIntentionRun(
   model: string,
   elapsedMs: number,
 ): IntentionRunSummary {
-  const conversations = new Map<string, IntentionModelCallObservation[]>();
+  const total = summarizeCalls(calls, provider, model);
+  const agents: IntentionRunSummary['agents'] = [];
 
-  for (const call of calls) {
-    const group = conversations.get(call.conversationId) ?? [];
-    group.push(call);
-    conversations.set(call.conversationId, group);
+  if (calls.length > 0) {
+    agents.push({
+      conversationId: 'writer',
+      name: 'Producer',
+      complete:
+        investigation?.turns.some(
+          (turn) => turn.validation?.status === 'valid',
+        ) ?? false,
+      tools: investigation?.tools.length ?? 0,
+      usage: total,
+    });
   }
-
-  const agents = [...conversations].map(([conversationId, group]) => {
-    const first = group[0];
-    const writer = first?.role === 'writer';
-    const reviewer = conversationId.split('-')[1];
-    const names: Record<string, string> = {
-      accuracy: 'Accuracy + evidence',
-      issues: 'Issues',
-      completeness: 'Completeness + coherence',
-    };
-    const turns =
-      investigation?.turns.filter(
-        (turn) => turn.conversationId === conversationId,
-      ) ?? [];
-    const complete = turns.some((turn) =>
-      turn.role === 'writer'
-        ? turn.validation?.status === 'valid'
-        : turn.review !== null,
-    );
-
-    return {
-      conversationId,
-      name: writer ? 'Producer' : (names[reviewer ?? ''] ?? conversationId),
-      candidateNumber: writer ? null : (first?.candidateNumber ?? null),
-      complete,
-      tools:
-        investigation?.tools.filter(
-          (tool) => tool.conversationId === conversationId,
-        ).length ?? 0,
-      usage: summarizeCalls(group, provider, model),
-    };
-  });
-  agents.sort((left, right) => {
-    const order = [
-      'Producer',
-      'Accuracy + evidence',
-      'Issues',
-      'Completeness + coherence',
-    ];
-    return (
-      (left.candidateNumber ?? 0) - (right.candidateNumber ?? 0) ||
-      order.indexOf(left.name) - order.indexOf(right.name)
-    );
-  });
 
   return {
     provider,
@@ -188,7 +151,7 @@ export function summarizeIntentionRun(
     elapsedMs,
     pricingAsOf: modelPricing.asOf,
     pricingSource: modelPricing[provider],
-    total: summarizeCalls(calls, provider, model),
+    total,
     agents,
   };
 }
@@ -234,10 +197,9 @@ export function formatIntentionRunSummary(
   if (summary.agents.length > 0) {
     sections.push(
       formatCommandTable(
-        'Producer and parallel reviewers',
+        'Investigation',
         [
           'Agent',
-          'Round',
           'Result',
           'LLM / count',
           'Tools',
@@ -260,9 +222,6 @@ export function formatIntentionRunSummary(
           return {
             values: [
               agent.name,
-              agent.candidateNumber === null
-                ? 'All'
-                : String(agent.candidateNumber),
               result,
               `${String(agent.usage.generations)} / ${String(agent.usage.counts)}`,
               String(agent.tools),
@@ -277,9 +236,7 @@ export function formatIntentionRunSummary(
     );
   }
 
-  sections.push(
-    'API time includes token-count and generation calls; parallel times overlap.',
-  );
+  sections.push('API time includes token-count and generation calls.');
 
   if (total.unpricedCalls > 0) {
     sections.push(

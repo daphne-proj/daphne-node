@@ -107,7 +107,22 @@ export function intentionConversationHarness() {
     calls: { count: 0, generate: 0, tools: 0 },
   };
 
-  const runRuntime = createIntentionRunRuntime(
+  const conversation = createIntentionConversation(
+    {
+      candidateNumber: 1,
+      instructions: 'Investigate.',
+      schema: { name: 'proposal', schema: { type: 'object' } },
+      history: [
+        {
+          role: 'user',
+          content: assembleEvidence(engine, [initialId]).renderedContext,
+        },
+      ],
+    },
+    [initialId],
+  );
+
+  const runtime = createIntentionRunRuntime(
     {
       apiKey: 'unused-key',
       model: 'test-model',
@@ -117,9 +132,9 @@ export function intentionConversationHarness() {
     },
     engine,
     progress,
+    conversation,
   );
 
-  const runtime = runRuntime.createConversationRuntime(conversation('writer'));
   const model = runtime.model;
   const count = vi.spyOn(model, 'count').mockResolvedValue(42);
   const generate = vi.fn(() => Promise.resolve(intentionReply()));
@@ -128,25 +143,6 @@ export function intentionConversationHarness() {
     model.calls.generate += 1;
     return generate();
   });
-
-  function conversation(role: 'writer' | 'reviewer') {
-    return createIntentionConversation(
-      {
-        role,
-        conversationId: role,
-        candidateNumber: 1,
-        instructions: 'Investigate.',
-        schema: { name: 'proposal', schema: { type: 'object' } },
-        history: [
-          {
-            role: 'user',
-            content: assembleEvidence(engine, [initialId]).renderedContext,
-          },
-        ],
-      },
-      [initialId],
-    );
-  }
 
   return {
     engine,

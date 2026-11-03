@@ -5,10 +5,9 @@ import {
   intentionReply,
 } from './conversation.helpers.js';
 
-test('shared retention and reviewer replies cannot confirm delivery to a pending writer', async () => {
+test('retained tool evidence stays undelivered until a writer continuation succeeds', async () => {
   const harness = intentionConversationHarness();
-  const writer = harness.conversation('writer');
-  const reviewer = harness.conversation('reviewer');
+  const writer = harness.conversation;
   const failure = new Error('writer continuation failed');
 
   harness.generate
@@ -32,31 +31,16 @@ test('shared retention and reviewer replies cannot confirm delivery to a pending
     harness.engine.getEvidenceSnapshot().sources.map((source) => source.source),
   ).toContainEqual(harness.discovered);
 
-  /* The same call ID is valid in a different conversation, using the same engine/client/budget. */
-  harness.generate.mockResolvedValueOnce(intentionReply(true));
-  const reviewed = await runIntentionConversation(reviewer, harness.runtime);
+  const written = await runIntentionConversation(writer, harness.runtime);
 
-  expect(reviewed.deliveredEvidenceIds).toEqual([
+  expect(written.turnNumber).toBe(2);
+  expect(written.deliveredEvidenceIds).toEqual([
     harness.initialId,
     ...writerTool.includedEvidenceIds,
   ]);
-  expect(writerTool.delivered).toBe(false);
-  expect([...writer.deliveredEvidenceIds]).toEqual([harness.initialId]);
-  expect(harness.runtime.progress.tools[1]).toMatchObject({
-    status: 'complete',
-    role: 'reviewer',
-    conversationId: 'reviewer',
-    delivered: true,
-    turnNumber: 2,
-  });
-  expect(harness.runtime.progress.turns[2]?.deliveries).toEqual([
-    { kind: 'tool', toolNumber: 2 },
+  expect(harness.runtime.progress.turns[1]?.deliveries).toEqual([
+    { kind: 'tool', toolNumber: 1 },
   ]);
-
-  const written = await runIntentionConversation(writer, harness.runtime);
-
-  expect(written.turnNumber).toBe(4);
-  expect(written.deliveredEvidenceIds).toEqual(reviewed.deliveredEvidenceIds);
   expect(writerTool.delivered).toBe(true);
   expect(harness.runtime.progress.turns[0]?.deliveredEvidenceIds).toEqual([
     harness.initialId,
@@ -65,7 +49,7 @@ test('shared retention and reviewer replies cannot confirm delivery to a pending
 
 test('counting and a failed first generation leave initial delivery unconfirmed', async () => {
   const harness = intentionConversationHarness();
-  const writer = harness.conversation('writer');
+  const writer = harness.conversation;
   const failure = new Error('generation failed');
   harness.generate.mockRejectedValueOnce(failure);
 
@@ -88,7 +72,7 @@ test('a failed executor leaves its diagnostic record and original error intact',
   harness.executeTool.mockRejectedValueOnce(failure);
 
   await expect(
-    runIntentionConversation(harness.conversation('writer'), harness.runtime),
+    runIntentionConversation(harness.conversation, harness.runtime),
   ).rejects.toBe(failure);
 
   expect(harness.runtime.progress.turns).toHaveLength(1);
@@ -112,7 +96,7 @@ test('terminal generation confirms delivery and remains retained when cancellati
   });
 
   const reply = await runIntentionConversation(
-    harness.conversation('writer'),
+    harness.conversation,
     harness.runtime,
   );
 

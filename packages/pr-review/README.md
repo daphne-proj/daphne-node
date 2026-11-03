@@ -29,7 +29,7 @@ The root export loads only metadata acquisition. The separate `/split` and `/int
 2. Use `git-source` to acquire a snapshot and list changes, then `review-evidence` to read each original hunk. Changes without text hunks receive metadata-only entries.
 3. Close Git before `runSemanticSplit`, or keep it open through `runIntentions` for on-demand searches and reads. Both workflows retain completed work and close resources on success, failure or cancellation.
 
-The workflow depends on `git-source` for repository I/O, `review-evidence` for exact excerpts, `semantic-split` for grouping and validation, and `intentions` for investigation, citation validation and semantic review. Intentions retains Git through writer and reviewer tool conversations and any repairs, then closes it through the existing cleanup path. It imports context-engine's `DiffContextHunk` type to describe supplied evidence; packing itself remains in context-engine. These lower layers do not depend on PR orchestration.
+The workflow depends on `git-source` for repository I/O, `review-evidence` for exact excerpts, `semantic-split` for grouping and validation, and `intentions` for investigation, citation validation and repair. Intentions retains Git through the writer tool conversation and any repairs, then closes it through the existing cleanup path. It imports context-engine's `DiffContextHunk` type to describe supplied evidence; packing itself remains in context-engine. These lower layers do not depend on PR orchestration.
 
 Metadata errors distinguish invalid input (`PullRequestInputError`) from HTTP, response and repository failures (`PullRequestError`). A successful split establishes validated unit coverage; the proposed groups still need human review.
 

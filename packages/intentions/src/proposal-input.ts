@@ -3,13 +3,13 @@ import type {
   IntentionClaim,
   IntentionReason,
   IntentionsProposal,
-} from '../contracts.js';
+} from './contracts.js';
 import type {
   RawIntentionCitation,
   RawIntentionClaim,
   RawIntentionReason,
   RawIntentionsProposal,
-} from '../schema.js';
+} from './schema.js';
 
 function citation(value: IntentionCitation): RawIntentionCitation {
   if (value.kind === 'change') {
@@ -36,7 +36,7 @@ function reason(value: IntentionReason): RawIntentionReason {
 }
 
 /*
- * Runtime reviewers and independent judges use this projection after validation
+ * Independent judges (evaluators) use this projection after validation
  * so citations refer to the source packet instead of copying source text per card.
  * For example, a code citation keeps its evidence ID and absolute byte range.
  * The caller must still send every writer-delivered source, including uncited

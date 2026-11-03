@@ -8,91 +8,59 @@ import type {
 import { executeIntentionTool } from './tools.js';
 
 /*
- * Create one run runtime for runIntentions and pass it to semantic review so
- * evidence, progress, budget and the tool queue belong to the same investigation.
- * For example, runtime.createConversationRuntime(writer) creates the writer's
- * client; reuse that conversation runtime for revisions. Reviewers each get a
- * separate client and their batch's cancellation signal, while tools share one
- * queue. Cancellation is checked before a queued tool calls the host executor.
- * Callers must wait for every reviewer to settle before returning.
+ * Bind one writer to its model, retained evidence and the host's original budget.
+ * runIntentions reuses this runtime across repairs, so observed calls retain the
+ * current candidate number. runModelConversation already executes tools in order;
+ * each tool checks cancellation before host I/O and retains its outcome on failure.
  */
 export function createIntentionRunRuntime(
   options: IntentionsOptions,
   engine: ContextEngine,
   progress: IntentionConversationRuntime['progress'],
-) {
-  /** Shared queue ensuring tools run sequentially across conversations. */
-  let toolQueueTail = Promise.resolve();
-  let toolNumber = 0;
-
-  function createConversationRuntime(
-    conversation: IntentionConversation,
-    signal = options.budget.signal,
-  ): IntentionConversationRuntime {
-    const model = createModel(
-      options.provider ?? 'openai',
-      options.apiKey,
-      options.model,
-      signal,
-      (event) => {
-        progress.calls[event.kind] += 1;
-        options.onModelCall?.({
-          ...event,
-          role: conversation.role,
-          candidateNumber: conversation.candidateNumber,
-          conversationId: conversation.conversationId,
-        });
-      },
-    );
-
-    return {
-      model,
-      progress,
-      budget: { ...options.budget, signal },
-      maxInputTokens: options.maxInputTokens,
-      async runTool(call, turn) {
-        const number = ++toolNumber;
-        progress.calls.tools += 1;
-
-        /** Wait for the previous tool before executing this one */
-        const pending = toolQueueTail.then(() =>
-          executeIntentionTool(
-            call,
-            engine,
-            async (request) => {
-              signal.throwIfAborted();
-              return options.executeTool(request);
-            },
-            {
-              number,
-              role: turn.role,
-              candidateNumber: turn.candidateNumber,
-              conversationId: turn.conversationId,
-              turnNumber: turn.number,
-            },
-          ),
-        );
-
-        /** Advance the queue, allowing future tools to run even if this one fails */
-        toolQueueTail = pending.then(
-          () => undefined,
-          () => undefined,
-        );
-        const tool = await pending;
-        progress.tools[number - 1] = tool;
-
-        return tool;
-      },
-    };
-  }
+  conversation: IntentionConversation,
+): IntentionConversationRuntime {
+  const { signal } = options.budget;
+  const model = createModel(
+    options.provider ?? 'openai',
+    options.apiKey,
+    options.model,
+    signal,
+    (event) => {
+      progress.calls[event.kind] += 1;
+      options.onModelCall?.({
+        ...event,
+        role: 'writer',
+        candidateNumber: conversation.candidateNumber,
+        conversationId: 'writer',
+      });
+    },
+  );
 
   return {
-    engine,
+    model,
     progress,
     budget: options.budget,
-    createConversationRuntime,
-  } as const;
-}
+    maxInputTokens: options.maxInputTokens,
+    async runTool(call, turn) {
+      const number = ++progress.calls.tools;
+      const tool = await executeIntentionTool(
+        call,
+        engine,
+        async (request) => {
+          signal.throwIfAborted();
+          return options.executeTool(request);
+        },
+        {
+          number,
+          role: turn.role,
+          candidateNumber: turn.candidateNumber,
+          conversationId: turn.conversationId,
+          turnNumber: turn.number,
+        },
+      );
+      progress.tools[number - 1] = tool;
 
-/* Shared investigation resources; create a separate conversation runtime for each reviewer. */
-export type IntentionRunRuntime = ReturnType<typeof createIntentionRunRuntime>;
+      return tool;
+    },
+  };
+}

@@ -8,14 +8,14 @@ import * as parse from '../parse.js';
 /*
  * The judge can verify a scoped search occurred without treating its previews
  * as code citations. Each receipt names its requesting conversation and the
- * later turn that confirmed delivery, for example reviewer-issues-1 at turn 6.
+ * later turn that confirmed delivery, for example the writer at turn 6.
  * A complete empty page proves only no literal matches in that request's scope;
  * continuation cursors and limitations remain explicit.
  */
 export interface IntentionSearchReceipt {
   toolNumber: number;
   conversationId: string;
-  role: 'writer' | 'reviewer';
+  role: 'writer';
   candidateNumber: number;
   requestingTurnNumber: number;
   deliveredTurnNumber: number;
