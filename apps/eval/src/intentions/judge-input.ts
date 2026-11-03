@@ -1,5 +1,33 @@
-import { toIntentionProposalInput } from '@daphne/intentions';
+import type {
+  IntentionCitation,
+  IntentionClaim,
+  IntentionReason,
+} from '@daphne/intentions';
 import type { IntentionJudgePacket } from './artifact.js';
+
+function citation(value: IntentionCitation) {
+  if (value.kind === 'change') {
+    return value;
+  }
+
+  return { kind: value.kind, evidenceId: value.evidenceId, range: value.range };
+}
+
+function claim(value: IntentionClaim) {
+  return { text: value.text, citations: value.citations.map(citation) };
+}
+
+function reason(value: IntentionReason) {
+  if (value.basis !== 'inferred') {
+    return value;
+  }
+
+  return {
+    basis: 'inferred',
+    text: value.text,
+    citations: value.citations.map(citation),
+  };
+}
 
 /*
  * Give the judge one copy of repeated source text without changing the validated
@@ -7,6 +35,8 @@ import type { IntentionJudgePacket } from './artifact.js';
  * earlier entry's text while retaining this entry's own ID and revision reference.
  * References always target the first full-text entry, never another reference;
  * tiny blocks stay inline when a reference would increase the serialized size.
+ * Citations keep IDs and byte ranges instead of repeating source snippets. Keep
+ * all delivered sources in the packet, including uncited evidence for omissions.
  */
 export function toIntentionJudgeInput(packet: IntentionJudgePacket) {
   const firstByText = new Map<string, string>();
@@ -31,6 +61,20 @@ export function toIntentionJudgeInput(packet: IntentionJudgePacket) {
   return {
     ...packet,
     sources,
-    proposal: toIntentionProposalInput(packet.proposal),
+    proposal: {
+      intentions: packet.proposal.intentions.map((card) => ({
+        title: card.title,
+        changeIds: card.changeIds,
+        before: claim(card.before),
+        after: claim(card.after),
+        intendedOutcome: reason(card.intendedOutcome),
+        why: reason(card.why),
+        issues: card.issues.map((issue) => ({
+          ...issue,
+          citations: issue.citations.map(citation),
+        })),
+      })),
+      warnings: packet.proposal.warnings,
+    },
   };
 }

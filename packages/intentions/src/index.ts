@@ -1,6 +1,5 @@
 export { runIntentions } from './workflow.js';
 export { validateIntentions } from './proposal.js';
-export { toIntentionProposalInput } from './proposal-input.js';
 export type {
   Intention,
   IntentionCitation,
