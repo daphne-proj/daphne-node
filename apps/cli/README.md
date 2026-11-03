@@ -8,9 +8,9 @@
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `context inspect --pr URL --output NEW_DIRECTORY` | Retrieve bounded PR evidence and build a context packet without model calls.                                                  |
 | `split-pr --pr URL --output DIRECTORY`            | Collect exact PR evidence and request an intention-based split proposal; requires credentials for the selected provider.      |
-| `intentions --pr URL [--output NEW_DIRECTORY]`    | Show cited intention tables, time, cost and agent details; redirected output is JSON.                                         |
+| `intentions --pr URL [--output NEW_DIRECTORY]`    | Show cited intention tables, time, cost and token totals; redirected output is JSON.                                          |
 | `@daphne/cli/command-output`                      | Export `formatCommandOutput` and `formatCommandTable` for wrapping, colored terminal tables.                                  |
-| `@daphne/cli/intentions-summary`                  | Build and format generation usage, cost and per-conversation summaries for CLI and eval.                                      |
+| `@daphne/cli/intentions-summary`                  | Build and format generation usage and cost summaries for CLI and eval.                                                        |
 | `@daphne/cli/output-path`                         | Export `isGoldenDatasetPath(path)` so CLI and eval writers protect manually maintained gold cases, including symlink aliases. |
 
 From the repository root, compile with `bun run build`, then use `bun run cli -- <command>`. `split-pr` and `intentions` also accept `--model` and `--max-input-tokens`; it loads root `.env` when present. There is no library root export.

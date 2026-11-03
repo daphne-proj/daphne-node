@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import { normalizeModelUsage } from '@daphne/llm';
 import type { ModelProvider } from '@daphne/llm';
-import type {
-  IntentionModelCallObservation,
-  IntentionsResult,
-} from '@daphne/intentions';
-import { formatCommandOutput, formatCommandTable } from './command-output.js';
-import type { CommandOutputRow } from './command-output.js';
+import type { IntentionModelCallObservation } from '@daphne/intentions';
+import { formatCommandOutput } from './command-output.js';
 import { estimateModelCost, modelPricing } from './model-cost.js';
 
 const count = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -37,15 +33,6 @@ const summarySchema = z.object({
   pricingAsOf: text,
   pricingSource: text,
   total: usageSchema,
-  agents: z.array(
-    z.object({
-      conversationId: text,
-      name: text,
-      complete: z.boolean(),
-      tools: count,
-      usage: usageSchema,
-    }),
-  ),
 });
 
 type UsageSummary = z.infer<typeof usageSchema>;
@@ -124,35 +111,17 @@ function summarizeCalls(
  */
 export function summarizeIntentionRun(
   calls: IntentionModelCallObservation[],
-  investigation: IntentionsResult | null,
   provider: ModelProvider,
   model: string,
   elapsedMs: number,
 ): IntentionRunSummary {
-  const total = summarizeCalls(calls, provider, model);
-  const agents: IntentionRunSummary['agents'] = [];
-
-  if (calls.length > 0) {
-    agents.push({
-      conversationId: 'writer',
-      name: 'Producer',
-      complete:
-        investigation?.turns.some(
-          (turn) => turn.validation?.status === 'valid',
-        ) ?? false,
-      tools: investigation?.tools.length ?? 0,
-      usage: total,
-    });
-  }
-
   return {
     provider,
     model,
     elapsedMs,
     pricingAsOf: modelPricing.asOf,
     pricingSource: modelPricing[provider],
-    total,
-    agents,
+    total: summarizeCalls(calls, provider, model),
   };
 }
 
@@ -194,50 +163,6 @@ export function formatIntentionRunSummary(
     ]),
   ];
 
-  if (summary.agents.length > 0) {
-    sections.push(
-      formatCommandTable(
-        'Investigation',
-        [
-          'Agent',
-          'Result',
-          'LLM / count',
-          'Tools',
-          'In / out',
-          'API time',
-          'Est. USD',
-        ],
-        summary.agents.map((agent) => {
-          let result = 'Incomplete';
-          let tone: CommandOutputRow['tone'] = 'warning';
-
-          if (agent.usage.failed > 0) {
-            result = 'Failed';
-            tone = 'error';
-          } else if (agent.complete) {
-            result = 'Complete';
-            tone = 'success';
-          }
-
-          return {
-            values: [
-              agent.name,
-              result,
-              `${String(agent.usage.generations)} / ${String(agent.usage.counts)}`,
-              String(agent.tools),
-              `${number(agent.usage.inputTokens)} / ${number(agent.usage.outputTokens)}${agent.usage.missingUsage > 0 ? '*' : ''}`,
-              formatElapsedTime(agent.usage.apiElapsedMs),
-              costLabel(agent.usage),
-            ],
-            tone,
-          };
-        }),
-      ),
-    );
-  }
-
-  sections.push('API time includes token-count and generation calls.');
-
   if (total.unpricedCalls > 0) {
     sections.push(
       `${String(total.unpricedCalls)} generation call(s) lack complete usage or verified pricing; the full cost is unavailable.`,
@@ -246,7 +171,7 @@ export function formatIntentionRunSummary(
 
   if (total.missingUsage > 0) {
     sections.push(
-      '* Token totals exclude calls with missing or malformed usage.',
+      'Token totals exclude calls with missing or malformed usage.',
     );
   }
 

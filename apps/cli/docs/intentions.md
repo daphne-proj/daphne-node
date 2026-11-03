@@ -10,7 +10,7 @@ Set the selected provider's `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the ignor
 make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/2
 ```
 
-This builds the CLI and investigates the public PR using the selected provider's default model. Interactive stdout shows colored tables for accepted intentions, elapsed time, estimated generation cost and the investigating writer. Redirected stdout is indented JSON containing `status`, `proposal`, `output`, `errors` and `summary`. Colors respect `NO_COLOR`. The proposal contains ordered `intentions` and `warnings`; the raw provider response is saved in the artifact.
+This builds the CLI and investigates the public PR using the selected provider's default model. Interactive stdout shows colored tables for accepted intentions, elapsed time, estimated generation cost and token totals. Redirected stdout is indented JSON containing `status`, `proposal`, `output`, `errors` and `summary`. Colors respect `NO_COLOR`. The proposal contains ordered `intentions` and `warnings`; the raw provider response is saved in the artifact.
 
 Each run saves `run.json` under a fresh ignored `outputs/intentions-<timestamp>-<pid>` directory. Optional Make arguments are `OUTPUT=NEW_DIRECTORY`, `PROVIDER=openai|anthropic` and `MAX_INPUT_TOKENS=256000`. An explicit output must be a new directory in an existing writable parent; existing runs and gold datasets are protected. The equivalent command is:
 
@@ -25,11 +25,11 @@ bun run cli -- intentions \
 
 Optional `GITHUB_TOKEN` authenticates PR metadata requests only; the Git adapter supports public repositories. Running this command makes paid model calls. Normal repository checks do not.
 
-## Time, agents and cost
+## Time, tokens and cost
 
-The `summary` saved in `run.json` also appears in `make intentions-eval`, alongside colored score tables and evaluation elapsed time. Its producer row reports the continuing writer across tool calls and structural repairs. Completion means a structurally valid proposal was retained; a later host failure still clears accepted output. API time sums generation and token-count request durations and excludes tool execution. Whole-run elapsed time includes acquisition, investigation and cleanup.
+The `summary` saved in `run.json` also appears in `make intentions-eval`, alongside colored score tables and evaluation elapsed time. Whole-run elapsed time includes acquisition, investigation and cleanup.
 
-Cost uses returned generation usage, including reasoning output, cache reads/writes and failed responses that still report usage. Rates were verified on 2026-11-01 for [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and [Claude Opus 5.5](https://platform.claude.com/docs/en/about-claude/pricing). Other models, missing usage or unknown billing details leave calls unpriced; a partial subtotal is labeled explicitly. Count requests are listed separately and their input-token estimates are not added to generation usage. This is a USD list-price estimate, excluding independent Codex judge billing, taxes and account discounts. No extra model calls calculate it.
+Cost uses returned generation usage, including reasoning output, cache reads/writes and failed responses that still report usage. Rates were verified on 2026-11-01 for [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and [Claude Opus 5.5](https://platform.claude.com/docs/en/about-claude/pricing). Other models, missing usage or unknown billing details leave calls unpriced; a partial subtotal is labeled explicitly. Count requests are recorded separately in the artifact and their input-token estimates are not added to generation usage. This is a USD list-price estimate, excluding independent Codex judge billing, taxes and account discounts. No extra model calls calculate it.
 
 ## Read the result
 
@@ -45,7 +45,7 @@ The run artifact preserves:
 - `investigation`: captured comparison, resolved run budget, request/memory capacities, retained evidence, hunk mappings, conversation-specific delivery receipts, tool records, completed writer turns with their actual instructions, candidate attempts and diagnostics. `acceptedCandidate: { candidateNumber, writerTurnNumber }` selects the exact accepted writer draft; top-level `response` is that writer response. It is null when acquisition never reached the investigation.
 - Top-level `proposal` and `response`: accepted output only when the whole run completes. A nested draft remains diagnostic if cleanup or publication subsequently fails.
 - `modelCalls`: count/generation kind, sequence number within that conversation and call kind, writer role, candidate number, conversation ID, model, status, native `usage`, token-count endpoint `inputTokens`, and per-call timestamps/duration. Missing usage is null, not zero; it is not a cost estimate.
-- `summary`: generation token totals, estimated USD cost, pricing date/source and per-conversation calls, tool counts, completion, tokens and API time.
+- `summary`: generation token totals, estimated USD cost, pricing date/source and aggregate model-call counts and API time.
 - `timing`: workflow start/end and elapsed milliseconds, including acquisition and cleanup but excluding artifact serialization/publication. `errors` contain safe stage/code/message descriptions without raw exception causes or configuration credentials.
 
 Artifacts retain structural accept/revise evaluations, with diagnostics on invalid drafts. A valid draft completes immediately without an evaluator model. Acceptance establishes shape and citation provenance, not factual correctness, completeness or issue discovery. Independent assessment remains in `apps/eval`.

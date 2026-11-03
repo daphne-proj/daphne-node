@@ -54,4 +54,4 @@ The initial draft labels use one PR: a conditional tenant/key collision and two 
 
 Fresh model runs accept `--provider openai|anthropic`; Make uses `PROVIDER`. `intentions-eval` selects the generation provider, while its independent Codex judge always uses the OpenAI default. Model defaults are maintained in `packages/llm/src/providers.ts`.
 
-Intentions output uses wrapping score tables with status colors and includes the saved generation summary: elapsed time, estimated USD cost, tokens and the investigating writer. Evaluation time is shown separately. Unknown usage or rates remain explicit; generation estimates exclude Codex judge billing. See [generation accounting](../cli/docs/intentions.md#time-agents-and-cost).
+Intentions output uses wrapping score tables with status colors and includes the saved generation summary: elapsed time, estimated USD cost, and token totals. Evaluation time is shown separately. Unknown usage or rates remain explicit; generation estimates exclude Codex judge billing. See [generation accounting](../cli/docs/intentions.md#time-tokens-and-cost).

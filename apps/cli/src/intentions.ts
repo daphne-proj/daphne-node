@@ -155,7 +155,6 @@ export async function runIntentionsPr(
   const elapsedMs = performance.now() - startedMs;
   const summary = summarizeIntentionRun(
     modelCalls,
-    result.investigation,
     provider,
     options.model,
     elapsedMs,
