@@ -19,6 +19,10 @@ Evaluate three separate questions:
    observation's text. An issue quote counts only when it actually explains behavior
    on the assessed revision; related words or a hypothetical outcome are insufficient.
    Intended outcomes and motivation never establish implemented behavior coverage.
+   Stated purpose contains only attributed PR quotations. The PR description can
+   be wrong; its assertions are not gold truth or evidence of implemented behavior.
+   A faithful quotation does not become false attribution merely because the code
+   contradicts its contents. Assess the account of actual behavior from source.
    Missing assessments have no matches. A correct paraphrase counts; a reference
    to the same file or topic alone does not. No fixed card count is required.
 3. Check citation support using only the actual citations attached to each field.

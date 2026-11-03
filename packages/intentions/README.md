@@ -24,7 +24,7 @@ For the same proposal text and validation context, `validateIntentions` applies 
 - Require at least one intention for a nonempty change inventory, with nonempty, distinct, known change IDs on each card.
 - Check that code citations reference retained evidence actually delivered to the writer, from the pinned session and commit. Before claims use BASE; after claims use HEAD. Purpose and issues may cite either revision.
 - Require nonempty, half-open UTF-8 byte ranges inside the retained source, without splitting encoded characters. Resolve cited snippets from those trusted bytes; the model cannot supply its own source text.
-- Require change citations to name known changes and stated-purpose quotations to appear exactly in the captured PR title or body.
+- Require change citations to name known changes and stated-purpose quotations to appear exactly in the captured PR title or body. Stated purpose accepts no model-written text.
 
 The result is either a validated proposal with resolved source snippets or diagnostic messages for repair. Validation establishes **structure and citation provenance**. It cannot establish that a claim follows from its citation, a quotation supports the stated motivation, or every behavior and issue was found. It does not enforce exactly-once hunk coverage or prove that the PR is correct. Those questions require independent semantic assessment.
 
@@ -85,7 +85,7 @@ Only source bytes included in a request that receives a completed model reply be
 A proposal contains `intentions` and `warnings`. Each card requires `title`, `changeIds`, `before`, `after`, `intendedOutcome`, `why` and `issues`:
 
 - `before` and `after` describe actual behavior with citations.
-- `intendedOutcome` describes the desired result; `why` describes its motivation. Each uses `basis: 'stated'` with exact PR quotations, `'inferred'` with code/change citations, or `'unknown'` without an invented explanation.
+- `intendedOutcome` describes the desired result; `why` describes its motivation. Each uses `basis: 'stated'` with only exact PR quotations in `citations` and no `text`, `'inferred'` with text and code/change citations, or `'unknown'` without an invented explanation. Stated quotations report the author's claims; the PR description may be wrong and does not establish implementation correctness or actual motivation. Actual behavior and discrepancies belong in code-supported fields.
 - Each issue has narrative `text`, `relevance` (`introduced`, `worsened` or `made_relevant`), required nullable `uncertainty` and nonempty `citations`. Its narrative should explain the condition, consequence and connection to the PR. Non-null uncertainty names an unverified premise; null does not prove certainty.
 
 Code citations contain `kind: 'code'`, `evidenceId` and an absolute byte `range`; validation adds the exact `source`. Change citations contain `kind: 'change'` and `changeId`, for metadata such as file absence, modes or renames. Empty issue lists are valid. Warnings describe investigation limitations.

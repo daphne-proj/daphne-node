@@ -118,7 +118,6 @@ function reason(
 
   return {
     basis: 'stated',
-    text: value.text,
     citations: value.citations.map(({ field, quote }) => {
       if (!context.pr[field]?.includes(quote)) {
         throw new Error(

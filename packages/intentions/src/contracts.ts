@@ -48,17 +48,18 @@ export interface IntentionClaim {
 }
 
 /*
- * Separates stated purpose from purpose inferred from evidence, so
- * consumers do not present a guess as a PR quote. An Intention can use
- * { basis: 'unknown' } when neither is supported. validateIntentions requires
- * stated quotes to occur in the captured PR title or body, while inferred
- * purpose needs IntentionCitation evidence from either revision. Intention uses
+ * Separates the author's stated purpose from purpose inferred from code.
+ * For example, { basis: 'stated', citations: [{ field: 'body', quote: 'Add retries.' }] }
+ * contains only PR quotations, never a model-written explanation. validateIntentions
+ * checks exact quotation membership; this proves attribution, not that the PR
+ * description is correct or the implementation fulfills it. Consumers display
+ * stated quotations as author claims. Inferred purpose keeps text with code/change
+ * evidence; use { basis: 'unknown' } when neither is supported. Intention uses
  * this for both intendedOutcome (the desired result) and why (its motivation).
  */
 export type IntentionReason =
   | {
       basis: 'stated';
-      text: string;
       citations: { field: 'title' | 'body'; quote: string }[];
     }
   | { basis: 'inferred'; text: string; citations: IntentionCitation[] }

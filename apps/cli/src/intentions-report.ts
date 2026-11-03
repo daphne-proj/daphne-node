@@ -37,10 +37,19 @@ export function serializeInvestigation(
   };
 }
 
+/* Attribute exact PR quotations to their author; they do not establish actual code behavior. */
 function reasonText(reason: IntentionReason): string {
-  return reason.basis === 'unknown'
-    ? 'Unknown'
-    : `${reason.text} (${reason.basis})`;
+  if (reason.basis === 'unknown') {
+    return 'Unknown';
+  }
+
+  if (reason.basis === 'stated') {
+    return reason.citations
+      .map(({ field, quote }) => `Author states in PR ${field}: “${quote}”`)
+      .join('\n\n');
+  }
+
+  return `${reason.text} (inferred)`;
 }
 
 /* Render accepted cards and accounting for an interactive terminal; raw citations remain in run.json. */

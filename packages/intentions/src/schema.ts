@@ -31,10 +31,10 @@ const citation = z.union([
 ]);
 const citations = z.array(citation).min(1);
 const claim = z.strictObject({ text, citations });
+/* Stated purpose has no free text: only exact, attributed PR quotations may be emitted. */
 const reason = z.union([
   z.strictObject({
     basis: z.literal('stated'),
-    text,
     citations: z
       .array(
         z.strictObject({
