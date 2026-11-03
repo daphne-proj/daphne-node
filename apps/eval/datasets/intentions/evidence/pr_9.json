@@ -1,0 +1,1232 @@
+{
+  "format": "daphne-intentions-gold-evidence-v1",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/9",
+  "identity": {
+    "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6"
+  },
+  "metadata": {
+    "title": "Add background bulk order cancellation",
+    "body": "Add authenticated submission and progress queries for batches of up to 20 selected orders, with a worker entry point that processes a submitted batch separately from the API request. Commerce composition exposes the shared batch service and a dedicated in-memory queue; the existing single-order cancellation remains available.\n\nThe documented contract captures the submitted selection, preserves cancellation semantics, skips already-cancelled orders without another refund, and reports partial progress and item failures. API requests derive tenant and operator identity from the authenticated principal, and status responses return detached data. The fixture remains synchronous within each worker invocation and makes no durability, distributed coordination or exactly-once guarantee.\n\nValidation: clean TypeScript build, formatting and diff checks, and 15 external control scenarios covering authentication, tenant boundaries, selection limits, deferred side effects, repeated execution, status ownership and existing single-order cancellation. Scenario verification and reference material remain outside the analyzed repository. No Daphne model evaluation has been run for this change.\n"
+  },
+  "changes": [
+    {
+      "id": "change-1",
+      "beforePath": "README.md",
+      "afterPath": "README.md",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 19,
+          "beforeLineCount": 0,
+          "afterStartLine": 20,
+          "afterLineCount": 27
+        }
+      ]
+    },
+    {
+      "id": "change-2",
+      "beforePath": null,
+      "afterPath": "apps/api/src/cancellation-batch-handler.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 23
+        }
+      ]
+    },
+    {
+      "id": "change-3",
+      "beforePath": "apps/api/src/index.ts",
+      "afterPath": "apps/api/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 2,
+          "beforeLineCount": 0,
+          "afterStartLine": 3,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-4",
+      "beforePath": null,
+      "afterPath": "apps/worker/src/cancellation-batch-runner.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 13
+        }
+      ]
+    },
+    {
+      "id": "change-5",
+      "beforePath": "apps/worker/src/index.ts",
+      "afterPath": "apps/worker/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-6",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/cancellation-batch-payload.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 24
+        }
+      ]
+    },
+    {
+      "id": "change-7",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/cancellation-batch-service.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 115
+        }
+      ]
+    },
+    {
+      "id": "change-8",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/cancellation-batch.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 35
+        }
+      ]
+    },
+    {
+      "id": "change-9",
+      "beforePath": "packages/checkout/src/index.ts",
+      "afterPath": "packages/checkout/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 2
+        }
+      ]
+    },
+    {
+      "id": "change-10",
+      "beforePath": "packages/checkout/src/system.ts",
+      "afterPath": "packages/checkout/src/system.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 3,
+          "beforeLineCount": 1,
+          "afterStartLine": 3,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 14,
+          "beforeLineCount": 0,
+          "afterStartLine": 16,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 21,
+          "beforeLineCount": 0,
+          "afterStartLine": 25,
+          "afterLineCount": 7
+        }
+      ]
+    }
+  ],
+  "hunks": [
+    {
+      "changeId": "change-1",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-1", "evidence-2"]
+    },
+    {
+      "changeId": "change-2",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-3"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-4", "evidence-5"]
+    },
+    {
+      "changeId": "change-4",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-6"]
+    },
+    {
+      "changeId": "change-5",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-7", "evidence-8"]
+    },
+    {
+      "changeId": "change-6",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-9"]
+    },
+    {
+      "changeId": "change-7",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-10"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-11"]
+    },
+    {
+      "changeId": "change-9",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-12", "evidence-13"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-14", "evidence-15"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-16", "evidence-17"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 2,
+      "evidenceIds": ["evidence-18", "evidence-19"]
+    }
+  ],
+  "sources": [
+    {
+      "evidenceId": "evidence-1",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 767,
+            "endByte": 767
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-2",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "README.md",
+          "blobId": "50f485640d2c7caabefbc51dd5b274014e38f65e",
+          "range": {
+            "startByte": 767,
+            "endByte": 2371
+          }
+        },
+        "text": "\n## Background order cancellation\n\nOperators can submit between 1 and 20 distinct orders for background cancellation.\nThe API derives the tenant and requesting user from the authenticated principal,\nchecks every selected order belongs to that tenant, and returns a batch ID without\nperforming refunds. Submission captures the selected order IDs so callers can\nreuse their request objects after it returns.\n\n`createCommerceSystem` exposes `cancellationBatches`. Pass it to\n`CancellationBatchHandler` for submission and tenant-scoped progress queries, and\nto `CancellationBatchRunner` with a stable worker owner for execution. The host\nscheduler invokes `run(batchId)` separately from the request; this workspace does\nnot start a server or background timer.\n\nStatus includes the submission time, operator, selected orders, queue state,\ncancelled and skipped orders, and the most recent item failure. Responses are\ndetached snapshots. Already-cancelled orders are skipped without another refund.\nCompletion means all selected orders were processed; a failed item should leave\nunfinished work eligible for another execution after its lease expires. Bulk\ncancellation is intended to preserve the refund and stock-restoration behavior of\nthe existing single-order operation, which remains available.\n\nBatch processing is sequential and can make partial progress. It is not an\nall-or-nothing transaction. The queue and progress are in memory, and the fixture\ndoes not promise restart durability, distributed coordination, or exactly-once\nexternal effects. Use the same commerce instance for the API and worker.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-3",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/api/src/cancellation-batch-handler.ts",
+          "blobId": "9e7ad7031b8eb90d34578a1fef6d3206bed6ced0",
+          "range": {
+            "startByte": 0,
+            "endByte": 765
+          }
+        },
+        "text": "import { CancellationBatchService } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\n\n/** Binds submission and progress queries to the authenticated operator's tenant. */\nexport class CancellationBatchHandler {\n  constructor(private readonly batches: CancellationBatchService) {}\n\n  submit(principal: Principal | undefined, input: { orderIds: string[] }) {\n    const actor = requirePrincipal(principal);\n\n    return this.batches.submit({\n      tenantId: actor.tenantId,\n      requestedBy: actor.userId,\n      orderIds: input.orderIds,\n    });\n  }\n\n  status(principal: Principal | undefined, batchId: string) {\n    const actor = requirePrincipal(principal);\n\n    return this.batches.status(actor.tenantId, batchId);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-4",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/index.ts",
+          "blobId": "2832b3a50b8805ef8d67705408ecec981e4c27a4",
+          "range": {
+            "startByte": 58,
+            "endByte": 58
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-5",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/api/src/index.ts",
+          "blobId": "1d6db3caf988ff6979ef84d102e64e0e500e6920",
+          "range": {
+            "startByte": 58,
+            "endByte": 104
+          }
+        },
+        "text": "export * from './cancellation-batch-handler';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-6",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/worker/src/cancellation-batch-runner.ts",
+          "blobId": "1affe7bebe56d03de7f7c3aba84007d4fe314e41",
+          "range": {
+            "startByte": 0,
+            "endByte": 455
+          }
+        },
+        "text": "import { CancellationBatchService, CancellationBatchStatus } from '../../../packages/checkout/src';\n\n/** Runs one submitted batch per scheduler invocation using the shared commerce state. */\nexport class CancellationBatchRunner {\n  constructor(\n    private readonly batches: CancellationBatchService,\n    private readonly owner: string,\n  ) {}\n\n  run(batchId: string): CancellationBatchStatus {\n    return this.batches.process(batchId, this.owner);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-7",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/worker/src/index.ts",
+          "blobId": "9c04e3b6306db6200f063a879a232e64c22e3ed2",
+          "range": {
+            "startByte": 0,
+            "endByte": 0
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-8",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/worker/src/index.ts",
+          "blobId": "5ff87ac0383b7ee2a12785f1f5ade40803ef3c2e",
+          "range": {
+            "startByte": 0,
+            "endByte": 45
+          }
+        },
+        "text": "export * from './cancellation-batch-runner';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-9",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/cancellation-batch-payload.ts",
+          "blobId": "96d494ff885e154cc45aeeef990ded550f74da60",
+          "range": {
+            "startByte": 0,
+            "endByte": 889
+          }
+        },
+        "text": "import { maximumCancellationBatchSize } from './cancellation-batch';\n\n/** Validates both API selections and the untyped payload returned by JobQueue. */\nexport function readCancellationOrderIds(value: unknown): string[] {\n  if (\n    !Array.isArray(value) ||\n    value.length === 0 ||\n    value.length > maximumCancellationBatchSize ||\n    !value.every((id): id is string => typeof id === 'string' && id.trim().length > 0) ||\n    new Set(value).size !== value.length\n  ) {\n    throw new Error(`select between 1 and ${maximumCancellationBatchSize} distinct order IDs`);\n  }\n\n  return value;\n}\n\nexport function readCancellationBatchPayload(value: unknown): { orderIds: string[] } {\n  if (typeof value !== 'object' || value === null || !('orderIds' in value)) {\n    throw new Error('invalid cancellation batch payload');\n  }\n\n  return { orderIds: readCancellationOrderIds(value.orderIds) };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-10",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/cancellation-batch-service.ts",
+          "blobId": "e24857940312115d8fef45a9e2f8a077535f5c76",
+          "range": {
+            "startByte": 0,
+            "endByte": 3754
+          }
+        },
+        "text": "import { Clock, IdSource, orderNotFound } from '../../core/src';\nimport { JobQueue } from '../../fulfillment/src';\nimport {\n  CancellationBatchInput,\n  CancellationBatchRecord,\n  CancellationBatchStatus,\n} from './cancellation-batch';\nimport {\n  readCancellationBatchPayload,\n  readCancellationOrderIds,\n} from './cancellation-batch-payload';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\n/**\n * Separates batch submission from execution so the API can return a tracking ID\n * before payment work starts. The worker and status handler share this instance.\n */\nexport class CancellationBatchService {\n  private readonly batches = new Map<string, CancellationBatchRecord>();\n\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly queue: JobQueue,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  submit(input: CancellationBatchInput): CancellationBatchStatus {\n    if (!input.tenantId.trim() || !input.requestedBy.trim()) {\n      throw new Error('tenant and requesting user are required');\n    }\n\n    const orderIds = readCancellationOrderIds(input.orderIds);\n\n    for (const orderId of orderIds) {\n      if (!this.orders.findForTenant(input.tenantId, orderId)) throw orderNotFound();\n    }\n\n    const id = this.ids.next('cancellation-batch');\n    const record: CancellationBatchRecord = {\n      id,\n      tenantId: input.tenantId,\n      requestedBy: input.requestedBy,\n      submittedAt: this.clock.now(),\n      cancelledOrderIds: [],\n      skippedOrderIds: [],\n      failure: null,\n    };\n\n    this.queue.enqueue({ id, eventId: id, payload: { orderIds } });\n    this.batches.set(id, record);\n\n    return this.status(input.tenantId, id);\n  }\n\n  status(tenantId: string, batchId: string): CancellationBatchStatus {\n    const record = this.batches.get(batchId);\n\n    if (!record || record.tenantId !== tenantId) throw new Error('batch not found');\n\n    const job = this.queue.get(batchId);\n    const payload = readCancellationBatchPayload(job.payload);\n\n    return {\n      id: record.id,\n      requestedBy: record.requestedBy,\n      submittedAt: record.submittedAt,\n      status: job.status,\n      orderIds: [...payload.orderIds],\n      cancelledOrderIds: [...record.cancelledOrderIds],\n      skippedOrderIds: [...record.skippedOrderIds],\n      failure: record.failure ? { ...record.failure } : null,\n    };\n  }\n\n  /** Called by a trusted worker; a payment failure records progress and propagates. */\n  process(batchId: string, owner: string): CancellationBatchStatus {\n    const record = this.batches.get(batchId);\n\n    if (!record) throw new Error('batch not found');\n    if (!owner.trim()) throw new Error('worker owner is required');\n\n    const job = this.queue.claim(batchId, owner, this.clock.now(), 60_000);\n    const payload = readCancellationBatchPayload(job.payload);\n    record.failure = null;\n    this.queue.complete(batchId, owner);\n\n    for (const orderId of payload.orderIds) {\n      try {\n        const order = this.orders.findForTenant(record.tenantId, orderId);\n\n        if (!order) throw orderNotFound();\n\n        if (order.state === 'cancelled') {\n          if (!record.skippedOrderIds.includes(orderId)) record.skippedOrderIds.push(orderId);\n          continue;\n        }\n\n        this.payments.refund(order.paymentId, order.totalCents);\n        order.state = 'cancelled';\n        record.cancelledOrderIds.push(orderId);\n      } catch (error) {\n        record.failure = {\n          orderId,\n          reason: error instanceof Error ? error.message : 'cancellation failed',\n        };\n        throw error;\n      }\n    }\n\n    return this.status(record.tenantId, batchId);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-11",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/cancellation-batch.ts",
+          "blobId": "aaabf4087156d9b8bcea0b40b879dc96864ee60d",
+          "range": {
+            "startByte": 0,
+            "endByte": 922
+          }
+        },
+        "text": "export const maximumCancellationBatchSize = 20;\n\nexport interface CancellationBatchInput {\n  tenantId: string;\n  requestedBy: string;\n  orderIds: string[];\n}\n\nexport interface CancellationBatchFailure {\n  orderId: string;\n  reason: string;\n}\n\n/** Reports a queued selection and the progress of its background cancellation. */\nexport interface CancellationBatchStatus {\n  id: string;\n  requestedBy: string;\n  submittedAt: number;\n  status: 'pending' | 'leased' | 'complete';\n  orderIds: string[];\n  cancelledOrderIds: string[];\n  skippedOrderIds: string[];\n  failure: CancellationBatchFailure | null;\n}\n\n/** Internal progress belongs to one tenant; status responses copy its mutable fields. */\nexport interface CancellationBatchRecord {\n  id: string;\n  tenantId: string;\n  requestedBy: string;\n  submittedAt: number;\n  cancelledOrderIds: string[];\n  skippedOrderIds: string[];\n  failure: CancellationBatchFailure | null;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-12",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 0,
+            "endByte": 0
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-13",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "8802e8b8287c672f2511415f099049f4c6bc5456",
+          "range": {
+            "startByte": 0,
+            "endByte": 84
+          }
+        },
+        "text": "export * from './cancellation-batch';\nexport * from './cancellation-batch-service';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-14",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 97,
+            "endByte": 145
+          }
+        },
+        "text": "import { Outbox } from '../../fulfillment/src';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-15",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "e5d5fd11c0055b263e183ab8b45f6dd8a8553250",
+          "range": {
+            "startByte": 97,
+            "endByte": 228
+          }
+        },
+        "text": "import { JobQueue, Outbox } from '../../fulfillment/src';\nimport { CancellationBatchService } from './cancellation-batch-service';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-16",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 663,
+            "endByte": 663
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-17",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "e5d5fd11c0055b263e183ab8b45f6dd8a8553250",
+          "range": {
+            "startByte": 746,
+            "endByte": 791
+          }
+        },
+        "text": "  const cancellationQueue = new JobQueue();\n\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-18",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 896,
+            "endByte": 896
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-19",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "e5d5fd11c0055b263e183ab8b45f6dd8a8553250",
+          "range": {
+            "startByte": 1024,
+            "endByte": 1178
+          }
+        },
+        "text": "    cancellationBatches: new CancellationBatchService(\n      orders,\n      payments,\n      cancellationQueue,\n      clock,\n      dependencies.ids,\n    ),\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-20",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 0,
+            "endByte": 767
+          }
+        },
+        "text": "# Commerce operations PR review repository\n\nThis deterministic TypeScript workspace models checkout, inventory reservations,\npayments, cancellation, outbox delivery, job leases, and reservation expiry. It\nuses in-memory state and injected clocks and IDs so pull-request analysis is\nstable.\n\n```sh\nnpm ci\nnpm run build\n```\n\nThe repository is intentionally outside Daphne's tracked source. Its local Git\nhistory supplies exact BASE and HEAD commits and can later be published for a\nreal pull-request run. Scenario tooling and answer keys live in the sibling\n`commerce-fixture/` directory so Daphne cannot see them in analyzed source.\n\nThe model exercises explicit interleavings only. It does not claim database\ntransaction isolation or distributed delivery guarantees.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-21",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/auth.ts",
+          "blobId": "3528f6038f9091451410fdad144d452470e991f9",
+          "range": {
+            "startByte": 0,
+            "endByte": 211
+          }
+        },
+        "text": "export interface Principal {\n  tenantId: string;\n  userId: string;\n}\n\nexport function requirePrincipal(value: Principal | undefined): Principal {\n  if (!value) throw new Error('unauthorized');\n  return value;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-22",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/cancel-handler.ts",
+          "blobId": "3476da01142dc2cfc98f33555f675217ac41100c",
+          "range": {
+            "startByte": 0,
+            "endByte": 415
+          }
+        },
+        "text": "import { CancellationService } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\n\nexport class CancelHandler {\n  constructor(private readonly cancellation: CancellationService) {}\n\n  handle(principal: Principal | undefined, orderId: string) {\n    const actor = requirePrincipal(principal);\n    return this.cancellation.cancel({ tenantId: actor.tenantId, orderId });\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-23",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/index.ts",
+          "blobId": "2832b3a50b8805ef8d67705408ecec981e4c27a4",
+          "range": {
+            "startByte": 0,
+            "endByte": 120
+          }
+        },
+        "text": "export * from './auth';\nexport * from './cancel-handler';\nexport * from './checkout-handler';\nexport * from './health';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-24",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/worker/src/index.ts",
+          "blobId": "9c04e3b6306db6200f063a879a232e64c22e3ed2",
+          "range": {
+            "startByte": 0,
+            "endByte": 68
+          }
+        },
+        "text": "export * from './delivery-runner';\nexport * from './expiry-worker';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-25",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 0,
+            "endByte": 2572
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\nimport { Reservation, ReserveInput } from './reservation';\nimport { StockLedger } from './stock-ledger';\n\nexport class Inventory {\n  private readonly counts = new Map<Sku, number>();\n  private readonly held = new Map<string, Reservation>();\n  readonly ledger = new StockLedger();\n\n  stock(sku: Sku, quantity: number): void {\n    if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('invalid stock quantity');\n    this.counts.set(sku, this.available(sku) + quantity);\n    this.ledger.record({ sku, delta: quantity, reason: 'stocked' });\n  }\n\n  available(sku: Sku): number {\n    return this.counts.get(sku) ?? 0;\n  }\n\n  reserve(input: ReserveInput): Reservation | undefined {\n    if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0) throw new Error('invalid reservation quantity');\n    if (this.available(input.sku) < input.quantity) return undefined;\n    const reservation: Reservation = { ...input, state: 'active' };\n    this.counts.set(input.sku, this.available(input.sku) - input.quantity);\n    this.held.set(input.id, reservation);\n    this.ledger.record({ sku: input.sku, delta: -input.quantity, reason: 'reserved' });\n    return reservation;\n  }\n\n  commit(id: string): void {\n    const reservation = this.held.get(id);\n    if (reservation?.state === 'active') reservation.state = 'committed';\n  }\n\n  release(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'active') return false;\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n    return true;\n  }\n\n  releaseCommitted(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'committed') return false;\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n    return true;\n  }\n\n  expire(now: number): Reservation[] {\n    const expired: Reservation[] = [];\n    for (const reservation of this.held.values()) {\n      if (reservation.state === 'active' && reservation.expiresAt <= now) {\n        this.release(reservation.id);\n        expired.push(reservation);\n      }\n    }\n    return expired;\n  }\n\n  reservations(): Reservation[] {\n    return [...this.held.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-26",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/cancellation-service.ts",
+          "blobId": "5b0ed85f710420cff78192509dc3285c0d84e0ea",
+          "range": {
+            "startByte": 0,
+            "endByte": 838
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { orderNotFound } from '../../core/src';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\nexport class CancellationService {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly inventory: Inventory,\n  ) {}\n\n  cancel(input: { tenantId: string; orderId: string }): { cancelled: boolean } {\n    const order = this.orders.findForTenant(input.tenantId, input.orderId);\n    if (!order) throw orderNotFound();\n    if (order.state === 'cancelled') return { cancelled: false };\n    this.payments.refund(order.paymentId, order.totalCents);\n    this.inventory.releaseCommitted(order.reservationId);\n    order.state = 'cancelled';\n    return { cancelled: true };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-27",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-28",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/fake-payment.ts",
+          "blobId": "7355a33f8750f55ea7cbee30a2a07eb9a17f411e",
+          "range": {
+            "startByte": 0,
+            "endByte": 1546
+          }
+        },
+        "text": "import { Cents, PaymentId } from '../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from './payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-29",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 0,
+            "endByte": 327
+          }
+        },
+        "text": "export * from './cancellation-service';\nexport * from './checkout-service';\nexport * from './fake-payment';\nexport * from './order';\nexport * from './order-repository';\nexport * from './payment';\nexport * from './pricing';\nexport * from './sales-report';\nexport * from './system';\nexport { sequenceIds } from '../../core/src';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-30",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "68af85d1019803a76ea9f6c525a723f526a4c293",
+          "range": {
+            "startByte": 0,
+            "endByte": 437
+          }
+        },
+        "text": "import { Order } from './order';\n\nexport class OrderRepository {\n  private readonly orders = new Map<string, Order>();\n\n  save(order: Order): void {\n    this.orders.set(order.id, order);\n  }\n\n  findForTenant(tenantId: string, orderId: string): Order | undefined {\n    const order = this.orders.get(orderId);\n    return order?.tenantId === tenantId ? order : undefined;\n  }\n\n  all(): Order[] {\n    return [...this.orders.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-31",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order.ts",
+          "blobId": "4dd1e30a50b0cb223b9690df305fb3b80afdb101",
+          "range": {
+            "startByte": 0,
+            "endByte": 352
+          }
+        },
+        "text": "import { Cents, CustomerId, OrderId, PaymentId, ReservationId, Sku, TenantId } from '../../core/src';\n\nexport interface Order {\n  id: OrderId;\n  tenantId: TenantId;\n  customerId: CustomerId;\n  sku: Sku;\n  quantity: number;\n  totalCents: Cents;\n  paymentId: PaymentId;\n  reservationId: ReservationId;\n  eventId: string;\n  state: 'paid' | 'cancelled';\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-32",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/payment.ts",
+          "blobId": "69d54605f8fa9c62f1aa57800f21af391346e0b3",
+          "range": {
+            "startByte": 0,
+            "endByte": 574
+          }
+        },
+        "text": "import { Cents, PaymentId, TenantId } from '../../core/src';\n\nexport interface ChargeInput {\n  paymentId: PaymentId;\n  tenantId: TenantId;\n  amountCents: Cents;\n}\n\nexport interface PaymentAttempt extends ChargeInput {\n  state: 'captured' | 'rejected' | 'refunded';\n  reason?: string;\n}\n\nexport interface Refund {\n  paymentId: PaymentId;\n  amountCents: Cents;\n}\n\nexport type ChargeResult = { ok: true } | { ok: false; reason: string };\n\nexport interface PaymentGateway {\n  charge(input: ChargeInput): ChargeResult;\n  refund(paymentId: PaymentId, amountCents: Cents): void;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-33",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 0,
+            "endByte": 903
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src';\nimport { CancellationService } from './cancellation-service';\nimport { CheckoutService } from './checkout-service';\nimport { FakePaymentGateway } from './fake-payment';\nimport { OrderRepository } from './order-repository';\n\nexport function createCommerceSystem(dependencies: { now: () => number; ids: IdSource }) {\n  const inventory = new Inventory();\n  const payments = new FakePaymentGateway();\n  const orders = new OrderRepository();\n  const outbox = new Outbox();\n  const clock: Clock = { now: dependencies.now };\n  return {\n    inventory,\n    payments,\n    orders,\n    outbox,\n    checkout: new CheckoutService(inventory, payments, orders, outbox, clock, dependencies.ids),\n    cancellation: new CancellationService(orders, payments, inventory),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-34",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/src/ids.ts",
+          "blobId": "46927cce1257913dd8c4b264e95cf7d976efd635",
+          "range": {
+            "startByte": 0,
+            "endByte": 345
+          }
+        },
+        "text": "export interface IdSource {\n  next(kind: string): string;\n}\n\nexport function sequenceIds(prefix: string): IdSource {\n  const counters = new Map<string, number>();\n  return {\n    next(kind: string): string {\n      const next = (counters.get(kind) ?? 0) + 1;\n      counters.set(kind, next);\n      return `${prefix}-${kind}-${next}`;\n    },\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-35",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/src/types.ts",
+          "blobId": "3e4fb0675bef777a77aa0d2f2f0d434b893c750d",
+          "range": {
+            "startByte": 0,
+            "endByte": 233
+          }
+        },
+        "text": "export type TenantId = string;\nexport type CustomerId = string;\nexport type OrderId = string;\nexport type PaymentId = string;\nexport type ReservationId = string;\nexport type Sku = string;\n\nexport interface Clock {\n  now(): number;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-36",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/fulfillment/src/fulfillment-service.ts",
+          "blobId": "3e8de84991c9edc34e59370f8f21175dd3008c11",
+          "range": {
+            "startByte": 0,
+            "endByte": 444
+          }
+        },
+        "text": "import { Order } from '../../checkout/src/order';\nimport { IdSource } from '../../core/src';\nimport { JobQueue } from './job-queue';\n\nexport class FulfillmentService {\n  constructor(\n    private readonly jobs: JobQueue,\n    private readonly ids: IdSource,\n  ) {}\n\n  schedule(order: Order): string {\n    const id = this.ids.next('job');\n    this.jobs.enqueue({ id, eventId: order.eventId, payload: { orderId: order.id } });\n    return id;\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-37",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/fulfillment/src/job-queue.ts",
+          "blobId": "9091b2b9e330f7d96c382acccd7a862d14c157ef",
+          "range": {
+            "startByte": 0,
+            "endByte": 1095
+          }
+        },
+        "text": "import { requireEntry } from '../../core/src';\nimport { DeliveryJob, NewDeliveryJob } from './job';\n\nexport class JobQueue {\n  private readonly jobs = new Map<string, DeliveryJob>();\n\n  enqueue(job: NewDeliveryJob): void {\n    if (!this.jobs.has(job.id)) this.jobs.set(job.id, { ...job, status: 'pending' });\n  }\n\n  claim(id: string, owner: string, now: number, duration: number): DeliveryJob {\n    const job = requireEntry(this.jobs, id, 'job not found');\n    if (job.status === 'complete') throw new Error('job complete');\n    if (job.status === 'leased' && (job.leaseUntil ?? 0) > now) throw new Error('job already leased');\n    job.status = 'leased';\n    job.leaseOwner = owner;\n    job.leaseUntil = now + duration;\n    return { ...job };\n  }\n\n  complete(id: string, owner: string): void {\n    const job = requireEntry(this.jobs, id, 'job not found');\n    if (job.status !== 'leased' || job.leaseOwner !== owner) throw new Error('lease owner mismatch');\n    job.status = 'complete';\n  }\n\n  get(id: string): DeliveryJob {\n    return { ...requireEntry(this.jobs, id, 'job not found') };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-38",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/fulfillment/src/job.ts",
+          "blobId": "9586ecac2ad37f4bc65d13ab857b1fe5f8433129",
+          "range": {
+            "startByte": 0,
+            "endByte": 256
+          }
+        },
+        "text": "export interface DeliveryJob {\n  id: string;\n  eventId: string;\n  payload: unknown;\n  status: 'pending' | 'leased' | 'complete';\n  leaseOwner?: string;\n  leaseUntil?: number;\n}\n\nexport type NewDeliveryJob = Pick<DeliveryJob, 'id' | 'eventId' | 'payload'>;\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-39",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "README.md",
+          "blobId": "50f485640d2c7caabefbc51dd5b274014e38f65e",
+          "range": {
+            "startByte": 0,
+            "endByte": 2371
+          }
+        },
+        "text": "# Commerce operations PR review repository\n\nThis deterministic TypeScript workspace models checkout, inventory reservations,\npayments, cancellation, outbox delivery, job leases, and reservation expiry. It\nuses in-memory state and injected clocks and IDs so pull-request analysis is\nstable.\n\n```sh\nnpm ci\nnpm run build\n```\n\nThe repository is intentionally outside Daphne's tracked source. Its local Git\nhistory supplies exact BASE and HEAD commits and can later be published for a\nreal pull-request run. Scenario tooling and answer keys live in the sibling\n`commerce-fixture/` directory so Daphne cannot see them in analyzed source.\n\nThe model exercises explicit interleavings only. It does not claim database\ntransaction isolation or distributed delivery guarantees.\n\n## Background order cancellation\n\nOperators can submit between 1 and 20 distinct orders for background cancellation.\nThe API derives the tenant and requesting user from the authenticated principal,\nchecks every selected order belongs to that tenant, and returns a batch ID without\nperforming refunds. Submission captures the selected order IDs so callers can\nreuse their request objects after it returns.\n\n`createCommerceSystem` exposes `cancellationBatches`. Pass it to\n`CancellationBatchHandler` for submission and tenant-scoped progress queries, and\nto `CancellationBatchRunner` with a stable worker owner for execution. The host\nscheduler invokes `run(batchId)` separately from the request; this workspace does\nnot start a server or background timer.\n\nStatus includes the submission time, operator, selected orders, queue state,\ncancelled and skipped orders, and the most recent item failure. Responses are\ndetached snapshots. Already-cancelled orders are skipped without another refund.\nCompletion means all selected orders were processed; a failed item should leave\nunfinished work eligible for another execution after its lease expires. Bulk\ncancellation is intended to preserve the refund and stock-restoration behavior of\nthe existing single-order operation, which remains available.\n\nBatch processing is sequential and can make partial progress. It is not an\nall-or-nothing transaction. The queue and progress are in memory, and the fixture\ndoes not promise restart durability, distributed coordination, or exactly-once\nexternal effects. Use the same commerce instance for the API and worker.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-40",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/api/src/auth.ts",
+          "blobId": "3528f6038f9091451410fdad144d452470e991f9",
+          "range": {
+            "startByte": 0,
+            "endByte": 211
+          }
+        },
+        "text": "export interface Principal {\n  tenantId: string;\n  userId: string;\n}\n\nexport function requirePrincipal(value: Principal | undefined): Principal {\n  if (!value) throw new Error('unauthorized');\n  return value;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-41",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/api/src/cancel-handler.ts",
+          "blobId": "3476da01142dc2cfc98f33555f675217ac41100c",
+          "range": {
+            "startByte": 0,
+            "endByte": 415
+          }
+        },
+        "text": "import { CancellationService } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\n\nexport class CancelHandler {\n  constructor(private readonly cancellation: CancellationService) {}\n\n  handle(principal: Principal | undefined, orderId: string) {\n    const actor = requirePrincipal(principal);\n    return this.cancellation.cancel({ tenantId: actor.tenantId, orderId });\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-42",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/api/src/index.ts",
+          "blobId": "1d6db3caf988ff6979ef84d102e64e0e500e6920",
+          "range": {
+            "startByte": 0,
+            "endByte": 166
+          }
+        },
+        "text": "export * from './auth';\nexport * from './cancel-handler';\nexport * from './cancellation-batch-handler';\nexport * from './checkout-handler';\nexport * from './health';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-43",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "apps/worker/src/index.ts",
+          "blobId": "5ff87ac0383b7ee2a12785f1f5ade40803ef3c2e",
+          "range": {
+            "startByte": 0,
+            "endByte": 113
+          }
+        },
+        "text": "export * from './cancellation-batch-runner';\nexport * from './delivery-runner';\nexport * from './expiry-worker';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-44",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 0,
+            "endByte": 2572
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\nimport { Reservation, ReserveInput } from './reservation';\nimport { StockLedger } from './stock-ledger';\n\nexport class Inventory {\n  private readonly counts = new Map<Sku, number>();\n  private readonly held = new Map<string, Reservation>();\n  readonly ledger = new StockLedger();\n\n  stock(sku: Sku, quantity: number): void {\n    if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('invalid stock quantity');\n    this.counts.set(sku, this.available(sku) + quantity);\n    this.ledger.record({ sku, delta: quantity, reason: 'stocked' });\n  }\n\n  available(sku: Sku): number {\n    return this.counts.get(sku) ?? 0;\n  }\n\n  reserve(input: ReserveInput): Reservation | undefined {\n    if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0) throw new Error('invalid reservation quantity');\n    if (this.available(input.sku) < input.quantity) return undefined;\n    const reservation: Reservation = { ...input, state: 'active' };\n    this.counts.set(input.sku, this.available(input.sku) - input.quantity);\n    this.held.set(input.id, reservation);\n    this.ledger.record({ sku: input.sku, delta: -input.quantity, reason: 'reserved' });\n    return reservation;\n  }\n\n  commit(id: string): void {\n    const reservation = this.held.get(id);\n    if (reservation?.state === 'active') reservation.state = 'committed';\n  }\n\n  release(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'active') return false;\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n    return true;\n  }\n\n  releaseCommitted(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'committed') return false;\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n    return true;\n  }\n\n  expire(now: number): Reservation[] {\n    const expired: Reservation[] = [];\n    for (const reservation of this.held.values()) {\n      if (reservation.state === 'active' && reservation.expiresAt <= now) {\n        this.release(reservation.id);\n        expired.push(reservation);\n      }\n    }\n    return expired;\n  }\n\n  reservations(): Reservation[] {\n    return [...this.held.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-45",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/cancellation-service.ts",
+          "blobId": "5b0ed85f710420cff78192509dc3285c0d84e0ea",
+          "range": {
+            "startByte": 0,
+            "endByte": 838
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { orderNotFound } from '../../core/src';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\nexport class CancellationService {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly inventory: Inventory,\n  ) {}\n\n  cancel(input: { tenantId: string; orderId: string }): { cancelled: boolean } {\n    const order = this.orders.findForTenant(input.tenantId, input.orderId);\n    if (!order) throw orderNotFound();\n    if (order.state === 'cancelled') return { cancelled: false };\n    this.payments.refund(order.paymentId, order.totalCents);\n    this.inventory.releaseCommitted(order.reservationId);\n    order.state = 'cancelled';\n    return { cancelled: true };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-46",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-47",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/fake-payment.ts",
+          "blobId": "7355a33f8750f55ea7cbee30a2a07eb9a17f411e",
+          "range": {
+            "startByte": 0,
+            "endByte": 1546
+          }
+        },
+        "text": "import { Cents, PaymentId } from '../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from './payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-48",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "8802e8b8287c672f2511415f099049f4c6bc5456",
+          "range": {
+            "startByte": 0,
+            "endByte": 411
+          }
+        },
+        "text": "export * from './cancellation-batch';\nexport * from './cancellation-batch-service';\nexport * from './cancellation-service';\nexport * from './checkout-service';\nexport * from './fake-payment';\nexport * from './order';\nexport * from './order-repository';\nexport * from './payment';\nexport * from './pricing';\nexport * from './sales-report';\nexport * from './system';\nexport { sequenceIds } from '../../core/src';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-49",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "68af85d1019803a76ea9f6c525a723f526a4c293",
+          "range": {
+            "startByte": 0,
+            "endByte": 437
+          }
+        },
+        "text": "import { Order } from './order';\n\nexport class OrderRepository {\n  private readonly orders = new Map<string, Order>();\n\n  save(order: Order): void {\n    this.orders.set(order.id, order);\n  }\n\n  findForTenant(tenantId: string, orderId: string): Order | undefined {\n    const order = this.orders.get(orderId);\n    return order?.tenantId === tenantId ? order : undefined;\n  }\n\n  all(): Order[] {\n    return [...this.orders.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-50",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/order.ts",
+          "blobId": "4dd1e30a50b0cb223b9690df305fb3b80afdb101",
+          "range": {
+            "startByte": 0,
+            "endByte": 352
+          }
+        },
+        "text": "import { Cents, CustomerId, OrderId, PaymentId, ReservationId, Sku, TenantId } from '../../core/src';\n\nexport interface Order {\n  id: OrderId;\n  tenantId: TenantId;\n  customerId: CustomerId;\n  sku: Sku;\n  quantity: number;\n  totalCents: Cents;\n  paymentId: PaymentId;\n  reservationId: ReservationId;\n  eventId: string;\n  state: 'paid' | 'cancelled';\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-51",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/payment.ts",
+          "blobId": "69d54605f8fa9c62f1aa57800f21af391346e0b3",
+          "range": {
+            "startByte": 0,
+            "endByte": 574
+          }
+        },
+        "text": "import { Cents, PaymentId, TenantId } from '../../core/src';\n\nexport interface ChargeInput {\n  paymentId: PaymentId;\n  tenantId: TenantId;\n  amountCents: Cents;\n}\n\nexport interface PaymentAttempt extends ChargeInput {\n  state: 'captured' | 'rejected' | 'refunded';\n  reason?: string;\n}\n\nexport interface Refund {\n  paymentId: PaymentId;\n  amountCents: Cents;\n}\n\nexport type ChargeResult = { ok: true } | { ok: false; reason: string };\n\nexport interface PaymentGateway {\n  charge(input: ChargeInput): ChargeResult;\n  refund(paymentId: PaymentId, amountCents: Cents): void;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-52",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "e5d5fd11c0055b263e183ab8b45f6dd8a8553250",
+          "range": {
+            "startByte": 0,
+            "endByte": 1185
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource } from '../../core/src';\nimport { JobQueue, Outbox } from '../../fulfillment/src';\nimport { CancellationBatchService } from './cancellation-batch-service';\nimport { CancellationService } from './cancellation-service';\nimport { CheckoutService } from './checkout-service';\nimport { FakePaymentGateway } from './fake-payment';\nimport { OrderRepository } from './order-repository';\n\nexport function createCommerceSystem(dependencies: { now: () => number; ids: IdSource }) {\n  const inventory = new Inventory();\n  const payments = new FakePaymentGateway();\n  const orders = new OrderRepository();\n  const outbox = new Outbox();\n  const clock: Clock = { now: dependencies.now };\n  const cancellationQueue = new JobQueue();\n\n  return {\n    inventory,\n    payments,\n    orders,\n    outbox,\n    checkout: new CheckoutService(inventory, payments, orders, outbox, clock, dependencies.ids),\n    cancellation: new CancellationService(orders, payments, inventory),\n    cancellationBatches: new CancellationBatchService(\n      orders,\n      payments,\n      cancellationQueue,\n      clock,\n      dependencies.ids,\n    ),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-53",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/core/src/ids.ts",
+          "blobId": "46927cce1257913dd8c4b264e95cf7d976efd635",
+          "range": {
+            "startByte": 0,
+            "endByte": 345
+          }
+        },
+        "text": "export interface IdSource {\n  next(kind: string): string;\n}\n\nexport function sequenceIds(prefix: string): IdSource {\n  const counters = new Map<string, number>();\n  return {\n    next(kind: string): string {\n      const next = (counters.get(kind) ?? 0) + 1;\n      counters.set(kind, next);\n      return `${prefix}-${kind}-${next}`;\n    },\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-54",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/core/src/types.ts",
+          "blobId": "3e4fb0675bef777a77aa0d2f2f0d434b893c750d",
+          "range": {
+            "startByte": 0,
+            "endByte": 233
+          }
+        },
+        "text": "export type TenantId = string;\nexport type CustomerId = string;\nexport type OrderId = string;\nexport type PaymentId = string;\nexport type ReservationId = string;\nexport type Sku = string;\n\nexport interface Clock {\n  now(): number;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-55",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/fulfillment/src/fulfillment-service.ts",
+          "blobId": "3e8de84991c9edc34e59370f8f21175dd3008c11",
+          "range": {
+            "startByte": 0,
+            "endByte": 444
+          }
+        },
+        "text": "import { Order } from '../../checkout/src/order';\nimport { IdSource } from '../../core/src';\nimport { JobQueue } from './job-queue';\n\nexport class FulfillmentService {\n  constructor(\n    private readonly jobs: JobQueue,\n    private readonly ids: IdSource,\n  ) {}\n\n  schedule(order: Order): string {\n    const id = this.ids.next('job');\n    this.jobs.enqueue({ id, eventId: order.eventId, payload: { orderId: order.id } });\n    return id;\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-56",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/fulfillment/src/job-queue.ts",
+          "blobId": "9091b2b9e330f7d96c382acccd7a862d14c157ef",
+          "range": {
+            "startByte": 0,
+            "endByte": 1095
+          }
+        },
+        "text": "import { requireEntry } from '../../core/src';\nimport { DeliveryJob, NewDeliveryJob } from './job';\n\nexport class JobQueue {\n  private readonly jobs = new Map<string, DeliveryJob>();\n\n  enqueue(job: NewDeliveryJob): void {\n    if (!this.jobs.has(job.id)) this.jobs.set(job.id, { ...job, status: 'pending' });\n  }\n\n  claim(id: string, owner: string, now: number, duration: number): DeliveryJob {\n    const job = requireEntry(this.jobs, id, 'job not found');\n    if (job.status === 'complete') throw new Error('job complete');\n    if (job.status === 'leased' && (job.leaseUntil ?? 0) > now) throw new Error('job already leased');\n    job.status = 'leased';\n    job.leaseOwner = owner;\n    job.leaseUntil = now + duration;\n    return { ...job };\n  }\n\n  complete(id: string, owner: string): void {\n    const job = requireEntry(this.jobs, id, 'job not found');\n    if (job.status !== 'leased' || job.leaseOwner !== owner) throw new Error('lease owner mismatch');\n    job.status = 'complete';\n  }\n\n  get(id: string): DeliveryJob {\n    return { ...requireEntry(this.jobs, id, 'job not found') };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-57",
+      "source": {
+        "ref": {
+          "sessionId": "bae7d11a-45c1-44a9-ab1e-b385f63dbe6f",
+          "side": "head",
+          "commit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6",
+          "path": "packages/fulfillment/src/job.ts",
+          "blobId": "9586ecac2ad37f4bc65d13ab857b1fe5f8433129",
+          "range": {
+            "startByte": 0,
+            "endByte": 256
+          }
+        },
+        "text": "export interface DeliveryJob {\n  id: string;\n  eventId: string;\n  payload: unknown;\n  status: 'pending' | 'leased' | 'complete';\n  leaseOwner?: string;\n  leaseUntil?: number;\n}\n\nexport type NewDeliveryJob = Pick<DeliveryJob, 'id' | 'eventId' | 'payload'>;\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,573 @@
+{
+  "format": "daphne-intentions-gold-evidence-v1",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/2",
+  "identity": {
+    "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998"
+  },
+  "metadata": {
+    "title": "Refactor payment pricing and preserve existing imports",
+    "body": "Reorganizes checkout pricing and the in-memory payment gateway while preserving existing import paths and commerce behavior.\n\n- Renames the pricing implementation to `calculatePrice` and retains the `price` export for existing callers.\n- Moves `FakePaymentGateway` into `payments/fake-payment-gateway.ts`, keeping a forwarding export at its original path.\n- Gives checkout a local copy of `discountCents`; the original core helper remains intact.\n\nCheckout callers, public barrels, core source, package manifests, and configuration are unchanged. The pricing function's reflected name changes to `calculatePrice`.\n\nValidation: `npm run build`; 6 baseline smoke checks and 9 checks after the refactor covering pricing boundaries, validation errors, payment/refund behavior, checkout/cancellation, and import compatibility. Local checks are kept outside this fixture repository.\n\nDaphne analysis, `ask-pr`, and evaluations are deferred.\n"
+  },
+  "changes": [
+    {
+      "id": "change-1",
+      "beforePath": "packages/checkout/src/fake-payment.ts",
+      "afterPath": "packages/checkout/src/fake-payment.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 42,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-2",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/payments/fake-payment-gateway.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 42
+        }
+      ]
+    },
+    {
+      "id": "change-3",
+      "beforePath": "packages/checkout/src/pricing.ts",
+      "afterPath": "packages/checkout/src/pricing.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 1,
+          "afterStartLine": 1,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 19,
+          "beforeLineCount": 1,
+          "afterStartLine": 20,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 30,
+          "beforeLineCount": 0,
+          "afterStartLine": 32,
+          "afterLineCount": 2
+        }
+      ]
+    },
+    {
+      "id": "change-4",
+      "beforePath": null,
+      "afterPath": "packages/checkout/src/promotion.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 8
+        }
+      ]
+    }
+  ],
+  "hunks": [
+    {
+      "changeId": "change-1",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-1", "evidence-2"]
+    },
+    {
+      "changeId": "change-2",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-3"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-4", "evidence-5"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-6", "evidence-7"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 2,
+      "evidenceIds": ["evidence-8", "evidence-9"]
+    },
+    {
+      "changeId": "change-4",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-10"]
+    }
+  ],
+  "sources": [
+    {
+      "evidenceId": "evidence-1",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/fake-payment.ts",
+          "blobId": "7355a33f8750f55ea7cbee30a2a07eb9a17f411e",
+          "range": {
+            "startByte": 0,
+            "endByte": 1546
+          }
+        },
+        "text": "import { Cents, PaymentId } from '../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from './payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-2",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/fake-payment.ts",
+          "blobId": "c04287b2220866114286a3e0d983dd21b0106381",
+          "range": {
+            "startByte": 0,
+            "endByte": 70
+          }
+        },
+        "text": "export { FakePaymentGateway } from './payments/fake-payment-gateway';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-3",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/payments/fake-payment-gateway.ts",
+          "blobId": "f1cef2a0b05a7bbbdc58cb850ebd08852229ba85",
+          "range": {
+            "startByte": 0,
+            "endByte": 1550
+          }
+        },
+        "text": "import { Cents, PaymentId } from '../../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from '../payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-4",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+          "range": {
+            "startByte": 0,
+            "endByte": 83
+          }
+        },
+        "text": "import { Cents, assertCents, discountCents, multiplyCents } from '../../core/src';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-5",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+          "range": {
+            "startByte": 0,
+            "endByte": 113
+          }
+        },
+        "text": "import { Cents, assertCents, multiplyCents } from '../../core/src';\nimport { discountCents } from './promotion';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-6",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+          "range": {
+            "startByte": 382,
+            "endByte": 441
+          }
+        },
+        "text": "export function price(input: PriceInput): PriceBreakdown {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-7",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+          "range": {
+            "startByte": 412,
+            "endByte": 480
+          }
+        },
+        "text": "export function calculatePrice(input: PriceInput): PriceBreakdown {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-8",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+          "range": {
+            "startByte": 883,
+            "endByte": 883
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-9",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+          "range": {
+            "startByte": 922,
+            "endByte": 959
+          }
+        },
+        "text": "\nexport { calculatePrice as price };\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-10",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/promotion.ts",
+          "blobId": "9cc23734a0a9aba9f9db099491af4b6cdbb628bc",
+          "range": {
+            "startByte": 0,
+            "endByte": 310
+          }
+        },
+        "text": "import type { Cents } from '../../core/src';\n\nexport function discountCents(subtotal: Cents, basisPoints: number): Cents {\n  if (!Number.isInteger(basisPoints) || basisPoints < 0 || basisPoints > 10_000) {\n    throw new Error('invalid promotion');\n  }\n  return Math.floor((subtotal * basisPoints) / 10_000);\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-11",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/cancellation-service.ts",
+          "blobId": "5b0ed85f710420cff78192509dc3285c0d84e0ea",
+          "range": {
+            "startByte": 0,
+            "endByte": 838
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { orderNotFound } from '../../core/src';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\nexport class CancellationService {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly inventory: Inventory,\n  ) {}\n\n  cancel(input: { tenantId: string; orderId: string }): { cancelled: boolean } {\n    const order = this.orders.findForTenant(input.tenantId, input.orderId);\n    if (!order) throw orderNotFound();\n    if (order.state === 'cancelled') return { cancelled: false };\n    this.payments.refund(order.paymentId, order.totalCents);\n    this.inventory.releaseCommitted(order.reservationId);\n    order.state = 'cancelled';\n    return { cancelled: true };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-12",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-13",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 0,
+            "endByte": 327
+          }
+        },
+        "text": "export * from './cancellation-service';\nexport * from './checkout-service';\nexport * from './fake-payment';\nexport * from './order';\nexport * from './order-repository';\nexport * from './payment';\nexport * from './pricing';\nexport * from './sales-report';\nexport * from './system';\nexport { sequenceIds } from '../../core/src';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-14",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/payment.ts",
+          "blobId": "69d54605f8fa9c62f1aa57800f21af391346e0b3",
+          "range": {
+            "startByte": 0,
+            "endByte": 574
+          }
+        },
+        "text": "import { Cents, PaymentId, TenantId } from '../../core/src';\n\nexport interface ChargeInput {\n  paymentId: PaymentId;\n  tenantId: TenantId;\n  amountCents: Cents;\n}\n\nexport interface PaymentAttempt extends ChargeInput {\n  state: 'captured' | 'rejected' | 'refunded';\n  reason?: string;\n}\n\nexport interface Refund {\n  paymentId: PaymentId;\n  amountCents: Cents;\n}\n\nexport type ChargeResult = { ok: true } | { ok: false; reason: string };\n\nexport interface PaymentGateway {\n  charge(input: ChargeInput): ChargeResult;\n  refund(paymentId: PaymentId, amountCents: Cents): void;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-15",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "e1a18ed6eec1f35ae9cc271bd5bf7380e5930e12",
+          "range": {
+            "startByte": 0,
+            "endByte": 883
+          }
+        },
+        "text": "import { Cents, assertCents, discountCents, multiplyCents } from '../../core/src';\n\nexport interface PriceInput {\n  unitPriceCents: Cents;\n  quantity: number;\n  promotionBps: number;\n}\n\nexport interface PriceBreakdown {\n  subtotalCents: Cents;\n  discountCents: Cents;\n  shippingCents: Cents;\n  totalCents: Cents;\n}\n\nconst FREE_SHIPPING_CENTS = 5_000;\nconst SHIPPING_CENTS = 1_000;\n\nexport function price(input: PriceInput): PriceBreakdown {\n  const subtotalCents = multiplyCents(input.unitPriceCents, input.quantity);\n  const promotionDiscount = discountCents(subtotalCents, input.promotionBps);\n  const discounted = subtotalCents - promotionDiscount;\n  const shippingCents = discounted >= FREE_SHIPPING_CENTS ? 0 : SHIPPING_CENTS;\n  return {\n    subtotalCents,\n    discountCents: promotionDiscount,\n    shippingCents,\n    totalCents: assertCents(discounted + shippingCents),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-16",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 0,
+            "endByte": 903
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src';\nimport { CancellationService } from './cancellation-service';\nimport { CheckoutService } from './checkout-service';\nimport { FakePaymentGateway } from './fake-payment';\nimport { OrderRepository } from './order-repository';\n\nexport function createCommerceSystem(dependencies: { now: () => number; ids: IdSource }) {\n  const inventory = new Inventory();\n  const payments = new FakePaymentGateway();\n  const orders = new OrderRepository();\n  const outbox = new Outbox();\n  const clock: Clock = { now: dependencies.now };\n  return {\n    inventory,\n    payments,\n    orders,\n    outbox,\n    checkout: new CheckoutService(inventory, payments, orders, outbox, clock, dependencies.ids),\n    cancellation: new CancellationService(orders, payments, inventory),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-17",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/src/index.ts",
+          "blobId": "98c1296a8a2ad8ac9641a3cfa98341c14cb73f93",
+          "range": {
+            "startByte": 0,
+            "endByte": 182
+          }
+        },
+        "text": "export * from './collections';\nexport * from './errors';\nexport * from './events';\nexport * from './ids';\nexport * from './money';\nexport * from './result';\nexport * from './types';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-18",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/src/money.ts",
+          "blobId": "62c86c325a0165d70d2d7d17d696fb6d536c5029",
+          "range": {
+            "startByte": 0,
+            "endByte": 662
+          }
+        },
+        "text": "export type Cents = number;\n\nexport function assertCents(value: number): Cents {\n  if (!Number.isSafeInteger(value) || value < 0) throw new Error('invalid cents');\n  return value;\n}\n\nexport function multiplyCents(unitPrice: Cents, quantity: number): Cents {\n  if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('invalid quantity');\n  return assertCents(unitPrice * quantity);\n}\n\nexport function discountCents(subtotal: Cents, basisPoints: number): Cents {\n  if (!Number.isInteger(basisPoints) || basisPoints < 0 || basisPoints > 10_000) {\n    throw new Error('invalid promotion');\n  }\n  return Math.floor((subtotal * basisPoints) / 10_000);\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-19",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/cancellation-service.ts",
+          "blobId": "5b0ed85f710420cff78192509dc3285c0d84e0ea",
+          "range": {
+            "startByte": 0,
+            "endByte": 838
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { orderNotFound } from '../../core/src';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\nexport class CancellationService {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly inventory: Inventory,\n  ) {}\n\n  cancel(input: { tenantId: string; orderId: string }): { cancelled: boolean } {\n    const order = this.orders.findForTenant(input.tenantId, input.orderId);\n    if (!order) throw orderNotFound();\n    if (order.state === 'cancelled') return { cancelled: false };\n    this.payments.refund(order.paymentId, order.totalCents);\n    this.inventory.releaseCommitted(order.reservationId);\n    order.state = 'cancelled';\n    return { cancelled: true };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-20",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-21",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/index.ts",
+          "blobId": "e6c23134545bc6f8473a46f947cf42a6923ccccf",
+          "range": {
+            "startByte": 0,
+            "endByte": 327
+          }
+        },
+        "text": "export * from './cancellation-service';\nexport * from './checkout-service';\nexport * from './fake-payment';\nexport * from './order';\nexport * from './order-repository';\nexport * from './payment';\nexport * from './pricing';\nexport * from './sales-report';\nexport * from './system';\nexport { sequenceIds } from '../../core/src';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-22",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/payment.ts",
+          "blobId": "69d54605f8fa9c62f1aa57800f21af391346e0b3",
+          "range": {
+            "startByte": 0,
+            "endByte": 574
+          }
+        },
+        "text": "import { Cents, PaymentId, TenantId } from '../../core/src';\n\nexport interface ChargeInput {\n  paymentId: PaymentId;\n  tenantId: TenantId;\n  amountCents: Cents;\n}\n\nexport interface PaymentAttempt extends ChargeInput {\n  state: 'captured' | 'rejected' | 'refunded';\n  reason?: string;\n}\n\nexport interface Refund {\n  paymentId: PaymentId;\n  amountCents: Cents;\n}\n\nexport type ChargeResult = { ok: true } | { ok: false; reason: string };\n\nexport interface PaymentGateway {\n  charge(input: ChargeInput): ChargeResult;\n  refund(paymentId: PaymentId, amountCents: Cents): void;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-23",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/pricing.ts",
+          "blobId": "c899e542565cd167d20c797f5168a9d917c2f8cc",
+          "range": {
+            "startByte": 0,
+            "endByte": 959
+          }
+        },
+        "text": "import { Cents, assertCents, multiplyCents } from '../../core/src';\nimport { discountCents } from './promotion';\n\nexport interface PriceInput {\n  unitPriceCents: Cents;\n  quantity: number;\n  promotionBps: number;\n}\n\nexport interface PriceBreakdown {\n  subtotalCents: Cents;\n  discountCents: Cents;\n  shippingCents: Cents;\n  totalCents: Cents;\n}\n\nconst FREE_SHIPPING_CENTS = 5_000;\nconst SHIPPING_CENTS = 1_000;\n\nexport function calculatePrice(input: PriceInput): PriceBreakdown {\n  const subtotalCents = multiplyCents(input.unitPriceCents, input.quantity);\n  const promotionDiscount = discountCents(subtotalCents, input.promotionBps);\n  const discounted = subtotalCents - promotionDiscount;\n  const shippingCents = discounted >= FREE_SHIPPING_CENTS ? 0 : SHIPPING_CENTS;\n  return {\n    subtotalCents,\n    discountCents: promotionDiscount,\n    shippingCents,\n    totalCents: assertCents(discounted + shippingCents),\n  };\n}\n\nexport { calculatePrice as price };\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-24",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/checkout/src/system.ts",
+          "blobId": "045c59f0a885dc1cd5275e98b1e286cacc2a1843",
+          "range": {
+            "startByte": 0,
+            "endByte": 903
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src';\nimport { CancellationService } from './cancellation-service';\nimport { CheckoutService } from './checkout-service';\nimport { FakePaymentGateway } from './fake-payment';\nimport { OrderRepository } from './order-repository';\n\nexport function createCommerceSystem(dependencies: { now: () => number; ids: IdSource }) {\n  const inventory = new Inventory();\n  const payments = new FakePaymentGateway();\n  const orders = new OrderRepository();\n  const outbox = new Outbox();\n  const clock: Clock = { now: dependencies.now };\n  return {\n    inventory,\n    payments,\n    orders,\n    outbox,\n    checkout: new CheckoutService(inventory, payments, orders, outbox, clock, dependencies.ids),\n    cancellation: new CancellationService(orders, payments, inventory),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-25",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/core/src/index.ts",
+          "blobId": "98c1296a8a2ad8ac9641a3cfa98341c14cb73f93",
+          "range": {
+            "startByte": 0,
+            "endByte": 182
+          }
+        },
+        "text": "export * from './collections';\nexport * from './errors';\nexport * from './events';\nexport * from './ids';\nexport * from './money';\nexport * from './result';\nexport * from './types';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-26",
+      "source": {
+        "ref": {
+          "sessionId": "e7109650-cf6e-4e7b-8c13-6abad02b3cdc",
+          "side": "head",
+          "commit": "1530d7b5e99e4ad67a12164e3c605503c1ec0998",
+          "path": "packages/core/src/money.ts",
+          "blobId": "62c86c325a0165d70d2d7d17d696fb6d536c5029",
+          "range": {
+            "startByte": 0,
+            "endByte": 662
+          }
+        },
+        "text": "export type Cents = number;\n\nexport function assertCents(value: number): Cents {\n  if (!Number.isSafeInteger(value) || value < 0) throw new Error('invalid cents');\n  return value;\n}\n\nexport function multiplyCents(unitPrice: Cents, quantity: number): Cents {\n  if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('invalid quantity');\n  return assertCents(unitPrice * quantity);\n}\n\nexport function discountCents(subtotal: Cents, basisPoints: number): Cents {\n  if (!Number.isInteger(basisPoints) || basisPoints < 0 || basisPoints > 10_000) {\n    throw new Error('invalid promotion');\n  }\n  return Math.floor((subtotal * basisPoints) / 10_000);\n}\n"
+      }
+    }
+  ]
+}

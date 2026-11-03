@@ -1,0 +1,120 @@
+{
+  "format": "daphne-intentions-gold-v2",
+  "id": "pr_2",
+  "partition": "development",
+  "review": {
+    "status": "draft",
+    "reviewer": null,
+    "reviewedAt": null
+  },
+  "evidenceFile": "../evidence/pr_2.json",
+  "evidenceHash": "d0c4c178cde0d82f759bc6f32c7ac752d7121f68140813c48130dba310d25e58",
+  "behaviors": [
+    {
+      "id": "pricing-entrypoints",
+      "required": true,
+      "before": {
+        "meaning": "pricing.ts defines and exports price, which the checkout barrel re-exports and CheckoutService.place calls before reserving stock or charging payment. It returns the subtotal, discount, shipping and total breakdown using the existing money helpers.",
+        "changeIds": ["change-3"],
+        "sourceIds": [
+          "evidence-15",
+          "evidence-13",
+          "evidence-12",
+          "evidence-18"
+        ]
+      },
+      "after": {
+        "meaning": "pricing.ts defines and exports calculatePrice and retains price as an alias of that same function. The unchanged checkout barrel exposes both names, and CheckoutService continues calling price without a caller edit. Pricing inputs, output fields, calculation order and results remain the same. Scope note (not required narration): the calculation multiplies unit price by quantity, subtracts the floored promotion discount, adds 1,000 cents shipping below a discounted subtotal of 5,000 cents and validates the total. This preservation concerns calls and results; the separately labeled reflected function name does change.",
+        "changeIds": ["change-3", "change-4"],
+        "sourceIds": [
+          "evidence-23",
+          "evidence-21",
+          "evidence-20",
+          "evidence-10",
+          "evidence-26"
+        ]
+      }
+    },
+    {
+      "id": "reflected-pricing-name",
+      "required": true,
+      "before": {
+        "meaning": "The exported pricing function is declared as price, so its reflected name is price.",
+        "changeIds": ["change-3"],
+        "sourceIds": ["evidence-15"]
+      },
+      "after": {
+        "meaning": "The function is declared as calculatePrice, so both the calculatePrice export and its price alias have the reflected name calculatePrice. Keeping the price export does not preserve price.name. Scope note: the frozen callers do not inspect this property, so the name change alone does not establish a broken caller or a material issue.",
+        "changeIds": ["change-3"],
+        "sourceIds": ["evidence-23", "evidence-20"]
+      }
+    },
+    {
+      "id": "checkout-local-promotion",
+      "required": true,
+      "before": {
+        "meaning": "Checkout pricing imports discountCents from core, where the helper is already implemented and publicly exported. It rejects noninteger basis points or values outside 0 through 10,000 with invalid promotion, then floors subtotal times basis points divided by 10,000. The checkout promotion.ts path is absent; the promotion capability already exists in core.",
+        "changeIds": ["change-3", "change-4"],
+        "sourceIds": ["evidence-15", "evidence-18", "evidence-17"]
+      },
+      "after": {
+        "meaning": "Checkout pricing imports discountCents from the new local promotion.ts module. This is a copy of the core implementation with the same accepted basis-point range, validation error and floor rounding. The original core helper and its public export remain intact. Checkout therefore owns a separate implementation while preserving current promotion results and failures; this does not remove its other core imports.",
+        "changeIds": ["change-3", "change-4"],
+        "sourceIds": [
+          "evidence-23",
+          "evidence-10",
+          "evidence-26",
+          "evidence-25"
+        ]
+      }
+    },
+    {
+      "id": "payment-gateway-relocation",
+      "required": true,
+      "before": {
+        "meaning": "fake-payment.ts contains the in-memory FakePaymentGateway implementation, exported through the checkout barrel and instantiated by createCommerceSystem for checkout and cancellation. It records captures or a configured next rejection and records permitted refunds. The nested payments/fake-payment-gateway.ts path is absent; the gateway capability already exists at the original path.",
+        "changeIds": ["change-1", "change-2"],
+        "sourceIds": ["evidence-1", "evidence-13", "evidence-16", "evidence-14"]
+      },
+      "after": {
+        "meaning": "The same FakePaymentGateway implementation moves to payments/fake-payment-gateway.ts with adjusted relative imports. fake-payment.ts forwards that class export, so the unchanged checkout barrel and createCommerceSystem retain their existing import paths and use the moved class. Charge/rejection recording, refund checks and state changes, and the attempts/refunds accessors retain their existing behavior. Scope note (not required narration): a truthy configured rejection is consumed by the next charge; a successful refund marks the attempt refunded, so this move does not introduce support for repeated partial refunds or deep-copy the objects returned by accessors.",
+        "changeIds": ["change-1", "change-2"],
+        "sourceIds": [
+          "evidence-2",
+          "evidence-3",
+          "evidence-21",
+          "evidence-24",
+          "evidence-22"
+        ]
+      }
+    }
+  ],
+  "incidentalChanges": [],
+  "expectedIssues": [],
+  "falseAlarmControls": [
+    {
+      "id": "rename-removes-price-export",
+      "meaning": "Reject a reported issue claiming that renaming the implementation removes the price export or breaks the shown CheckoutService import/call. pricing.ts explicitly exports calculatePrice as price, CheckoutService still imports and calls price, and the checkout barrel re-exports pricing. This control concerns import and call compatibility only: price.name really changes to calculatePrice, and a concern about a specific name-sensitive consumer would need its own supported premise.",
+      "changeIds": ["change-3"],
+      "sourceIds": ["evidence-23", "evidence-20", "evidence-21"]
+    },
+    {
+      "id": "move-removes-gateway-import",
+      "meaning": "Reject a reported issue claiming that the move removes FakePaymentGateway from the original fake-payment module or checkout barrel, or that those paths now define a different class from the nested module. The original module directly re-exports the moved class; the barrel still exports the original module and createCommerceSystem keeps using it. This control addresses the shown module graph, not hypothetical deployment packaging or persisted objects from another running revision.",
+      "changeIds": ["change-1", "change-2"],
+      "sourceIds": ["evidence-2", "evidence-3", "evidence-21", "evidence-24"]
+    },
+    {
+      "id": "local-promotion-loses-validation",
+      "meaning": "Reject a reported issue claiming that switching pricing to the local discountCents bypasses promotion validation or changes its rounding for the same inputs. The local helper retains the core helper's integer check, inclusive 0 through 10,000 bounds, invalid promotion error and Math.floor formula, and pricing still calls that helper after calculating the subtotal. This establishes equivalence of the captured implementations; it does not refute a separately supported concern about future divergence between the two copies.",
+      "changeIds": ["change-3", "change-4"],
+      "sourceIds": [
+        "evidence-15",
+        "evidence-18",
+        "evidence-23",
+        "evidence-10",
+        "evidence-26"
+      ]
+    }
+  ]
+}

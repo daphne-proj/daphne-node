@@ -1,0 +1,211 @@
+{
+  "format": "daphne-intentions-gold-v2",
+  "id": "pr_6",
+  "partition": "development",
+  "review": {
+    "status": "draft",
+    "reviewer": null,
+    "reviewedAt": null
+  },
+  "evidenceFile": "../evidence/pr_6.json",
+  "evidenceHash": "0c7f67394e6a572cdc3a2060b6ac3c6b5f6731ce61e462a8066297ffe722eb0f",
+  "behaviors": [
+    {
+      "id": "validated-stock-adjustments",
+      "required": true,
+      "before": {
+        "meaning": "Inventory supports positive stock additions and reservation movements, but no signed stock-adjustment batch API, reason-constrained correction/return/damage records or adjustment receipts. Existing stock validates the supplied positive quantity but does not validate the resulting total.",
+        "changeIds": ["change-8", "change-11", "change-12"],
+        "sourceIds": ["evidence-54", "evidence-56"]
+      },
+      "after": {
+        "meaning": "StockAdjustmentService.apply delegates to Inventory.applyAdjustments. A batch must be nonempty; every adjustment has nonblank ID and SKU, nonzero safe-integer delta and reason correction, damage or return. Damage must remove stock, return must add it, and correction may do either. Each resulting available-stock total must be a nonnegative safe integer. Rows are processed in input order using staged counts, including earlier adjustments to the same SKU, and return receipts with the original fields plus before/after counts. IDs/SKUs are compared as supplied rather than trimmed or normalized; catalog membership is not required by this inventory model.",
+        "changeIds": ["change-8", "change-11", "change-12"],
+        "sourceIds": ["evidence-71", "evidence-35", "evidence-34"]
+      }
+    },
+    {
+      "id": "atomic-batch-and-unique-ids",
+      "required": true,
+      "before": {
+        "meaning": "Inventory exposes individual stock/reservation mutations, and StockLedger.record directly appends one supplied entry. There is no batch staging, adjustment-ID registry or duplicate-adjustment rejection.",
+        "changeIds": ["change-8", "change-13"],
+        "sourceIds": ["evidence-54", "evidence-56"]
+      },
+      "after": {
+        "meaning": "All adjustment rows and intermediate counts are validated before committing stock. The ledger preflights the entire copied batch for an adjustment ID already recorded or repeated within the batch, then appends all entries and remembers those IDs; Inventory commits staged counts after ledger acceptance. A later invalid row, unsafe/negative intermediate count or duplicate ID leaves both stock and audit entries unchanged for the whole batch. Reusing an ID rejects rather than acting as a successful idempotent replay, even across different SKUs. Atomicity is the shown synchronous in-process validation/commit sequence, not database or distributed transaction isolation.",
+        "changeIds": ["change-8", "change-13"],
+        "sourceIds": [
+          "evidence-71",
+          "evidence-73",
+          "evidence-35",
+          "evidence-65"
+        ]
+      }
+    },
+    {
+      "id": "detached-adjustment-history",
+      "required": true,
+      "before": {
+        "meaning": "The ledger stores the supplied entry object directly. all returns a fresh outer array containing those same objects, so input or returned entry mutation can affect recorded data. Entries describe stocked/reserved/released movements; adjustment-specific history and ID lookup are absent.",
+        "changeIds": ["change-11", "change-13"],
+        "sourceIds": ["evidence-56"]
+      },
+      "after": {
+        "meaning": "The ledger copies entries on record/recordMany and copies them again on all. Adjustment entries retain ID, SKU, delta, before/after and the domain adjustment reason separately from the ledger movement tag adjusted. adjustments reconstructs detached receipts; service history returns only adjustments, optionally filtered by exact SKU and/or reason, in recorded order, and find returns the matching receipt or undefined. Changing original adjustment objects, apply receipts, history/find results or returned ledger records cannot change stored declared scalar fields or stock. Ordinary stock/reservation movement entries remain in all but are absent from adjustment history.",
+        "changeIds": ["change-11", "change-13"],
+        "sourceIds": [
+          "evidence-73",
+          "evidence-34",
+          "evidence-71",
+          "evidence-35"
+        ]
+      }
+    },
+    {
+      "id": "safe-stock-restoration",
+      "required": true,
+      "before": {
+        "meaning": "stock validates its positive quantity but adds without checking the resulting total. release and releaseCommitted mark an eligible reservation released before restoring its quantity without validating the sum; sufficiently large available stock can therefore produce an unsafe total. Missing or ineligible reservations return false.",
+        "changeIds": ["change-8"],
+        "sourceIds": ["evidence-54"]
+      },
+      "after": {
+        "meaning": "stock, release and releaseCommitted calculate and validate a safe nonnegative resulting total before mutating counts, reservation state or ledger. Restoration overflow throws while preserving that inventory operation's prior state; valid operations retain their existing effects, and missing/ineligible releases still return false. Expiry continues to use release. This is an inventory-local guarantee: unchanged CancellationService refunds before releaseCommitted, so a restoration error can occur after a refund; the separate cancellation-refunds-before-overflow-check issue captures that caller consequence.",
+        "changeIds": ["change-8"],
+        "sourceIds": ["evidence-71", "evidence-74"]
+      }
+    },
+    {
+      "id": "detached-reservation-queries",
+      "required": true,
+      "before": {
+        "meaning": "reservations returns a new array containing live stored reservation objects in insertion order. There is no queryReservations method or query contract for SKU, state and expiry filtering.",
+        "changeIds": ["change-8", "change-9", "change-10"],
+        "sourceIds": ["evidence-54", "evidence-55"]
+      },
+      "after": {
+        "meaning": "reservations now copies each reservation record. queryReservations builds on those copies, validates optional nonblank SKU, supported state and finite expiresAtOrBefore, and rejects any nonfinite stored expiry before filtering. Filters combine by exact SKU/state and an inclusive expiry cutoff; absent filters impose no restriction, and an unmatched valid SKU returns no rows. Results sort by expiry ascending then ID lexically, independent of insertion order, and are detached from storage. Finite negative or fractional times remain allowed. The change does not make all inventory returns detached: reserve and expire retain their existing live-reference behavior.",
+        "changeIds": ["change-8", "change-9", "change-10"],
+        "sourceIds": ["evidence-71", "evidence-29", "evidence-72"]
+      }
+    },
+    {
+      "id": "reservation-summary-and-expiry",
+      "required": true,
+      "before": {
+        "meaning": "inventory-report exports only lowStock over available SKU quantities; it offers no reservation report, state counts/quantities or expiry summary.",
+        "changeIds": ["change-7"],
+        "sourceIds": ["evidence-53", "evidence-54"]
+      },
+      "after": {
+        "meaning": "reservationReport keeps lowStock and adds a report with the supplied finite asOf time, detached filtered/sorted reservation rows, count/quantity totals for active/committed/released (including zero buckets), expiredActive totals and nextExpiry. Every returned quantity must be a positive safe integer and accumulated counts/quantities must stay safe. Only active rows with expiresAt <= now count as expired; nextExpiry is the earliest strictly future active expiry, or undefined. Summaries use the filtered rows, exclude committed/released rows from expiry calculations, and do not release reservations or change stock. The cutoff comparison is inclusive while nextExpiry is strictly future.",
+        "changeIds": ["change-7"],
+        "sourceIds": ["evidence-70", "evidence-71", "evidence-29"]
+      }
+    },
+    {
+      "id": "authenticated-adjustment-api",
+      "required": true,
+      "before": {
+        "meaning": "The stock-adjustment handler and request-parser paths are absent. Existing requirePrincipal rejects a missing principal; no adjustment apply/history/find API exists at the added paths.",
+        "changeIds": ["change-4", "change-5"],
+        "sourceIds": ["evidence-49"]
+      },
+      "after": {
+        "meaning": "The new handler requires a principal before applying, listing or finding adjustments. Apply parses unknown input as a non-array object with only an adjustments array; each row must have exactly the supported ID/SKU/delta/reason fields with string/number/enum types, then domain validation enforces nonempty batch, nonblank strings, quantity/reason constraints and safe stock. History accepts only optional nonblank string SKU and supported reason; find requires a nonblank string ID and returns undefined when absent. Unknown request/row/history keys and malformed shapes are rejected before service use. This is the existing host-supplied principal check over global inventory, not credential validation or a new tenant/role permission model.",
+        "changeIds": ["change-4", "change-5"],
+        "sourceIds": [
+          "evidence-5",
+          "evidence-6",
+          "evidence-66",
+          "evidence-35",
+          "evidence-71"
+        ]
+      }
+    },
+    {
+      "id": "authenticated-reservation-report-api",
+      "required": true,
+      "before": {
+        "meaning": "reservation-report-handler.ts is absent; there is no authenticated reservation report entry point at this path. The existing API principal helper requires a supplied principal.",
+        "changeIds": ["change-3"],
+        "sourceIds": ["evidence-49"]
+      },
+      "after": {
+        "meaning": "The new report handler requires a principal, defaults omitted input to an empty query, rejects null/array/non-object inputs and unknown filter keys, and checks SKU/state/cutoff types and domain validity. It passes the validated query and injected clock.now() to reservationReport, so a nonfinite report time is also rejected. It returns report data without expiring reservations or adjusting stock. Authentication applies before parsing/report work; the clock and inventory are injected rather than created per call.",
+        "changeIds": ["change-3"],
+        "sourceIds": ["evidence-4", "evidence-66", "evidence-29", "evidence-70"]
+      }
+    },
+    {
+      "id": "shared-inventory-handler-composition",
+      "required": true,
+      "before": {
+        "meaning": "inventory-handlers.ts is absent. Inventory already owns its counts, reservations and ledger; there is no factory at this path composing adjustment and reservation-report handlers.",
+        "changeIds": ["change-2"],
+        "sourceIds": ["evidence-54"]
+      },
+      "after": {
+        "meaning": "createInventoryHandlers accepts an existing Inventory and Clock and constructs adjustments plus reservations handlers over that same inventory. Adjustment changes are immediately visible to other users of the supplied inventory, including checkout, and reports observe its existing reservations. The factory introduces no separate inventory store, persistence, automatic expiry job, HTTP routing or tenant partition; callers own composition and the trusted principal boundary.",
+        "changeIds": ["change-2"],
+        "sourceIds": [
+          "evidence-3",
+          "evidence-5",
+          "evidence-4",
+          "evidence-34",
+          "evidence-71"
+        ]
+      }
+    }
+  ],
+  "incidentalChanges": [
+    {
+      "changeIds": ["change-1", "change-6"],
+      "reason": "API/catalog barrel exports expose the new handlers, composition factory and inventory contracts already covered above."
+    }
+  ],
+  "expectedIssues": [
+    {
+      "id": "cancellation-refunds-before-overflow-check",
+      "meaning": "Report the caller inconsistency introduced by making releaseCommitted throw on an unsafe restored stock total without adapting CancellationService, which refunds first. Trigger: a paid order retains its committed reservation, and a valid intervening stock addition or adjustment raises available stock so available + reserved quantity exceeds Number.MAX_SAFE_INTEGER. For example, reserve/commit one unit from stock 1, leaving zero, then add MAX_SAFE_INTEGER available units; both the new stock/adjustment validation and the retained reservation allow this state. cancel successfully refunds, releaseCommitted throws before changing inventory, and the order remains paid with its reservation committed. With the provided FakePaymentGateway, retry then fails because the payment is already refunded, even if stock is subsequently lowered. Explain the changed failure boundary and partial side effects, not a generic demand for transactions or an objection to the safe-integer guard itself. BASE completed cancellation while allowing an unsafe stock total; HEAD prevents that overflow but introduces the refund/order inconsistency for this explicit boundary condition. Ordinary stock levels do not trigger it, and a different payment gateway may have different retry behavior.",
+      "changeIds": ["change-8"],
+      "sourceIds": [
+        "evidence-71",
+        "evidence-74",
+        "evidence-75",
+        "evidence-76",
+        "evidence-77",
+        "evidence-35",
+        "evidence-54",
+        "evidence-57"
+      ]
+    }
+  ],
+  "falseAlarmControls": [
+    {
+      "id": "late-invalid-adjustment-partially-applies-batch",
+      "meaning": "Reject a concern that an invalid later adjustment or a duplicate ID leaves earlier rows in the same batch committed. Inventory stages counts and receipts without mutating live counts, validates all rows/intermediate totals, and the ledger checks all duplicate IDs before appending any entries; stock is committed only after ledger acceptance. The guarantee covers the shown synchronous validation failures. It does not promise recovery from process failure, external mutation through unrelated methods or rollback across checkout/payment operations.",
+      "changeIds": ["change-8", "change-13"],
+      "sourceIds": ["evidence-71", "evidence-73"]
+    },
+    {
+      "id": "returned-audit-or-query-rows-mutate-storage",
+      "meaning": "Reject a concern that changing declared scalar fields of adjustment inputs after apply, returned receipts/history/find results, ledger.all entries, reservations results or query/report rows changes stored inventory or audit records. These paths copy the relevant records and use scalar fields. Keep the scope explicit: reserve and expire still return live reservation objects, so this control must not dismiss concerns based on those separate paths.",
+      "changeIds": ["change-8", "change-11", "change-13"],
+      "sourceIds": ["evidence-71", "evidence-73", "evidence-34", "evidence-70"]
+    },
+    {
+      "id": "reservation-report-expires-or-misclassifies-boundary",
+      "meaning": "Reject a concern that requesting the report itself releases expired stock, that an active reservation expiring exactly at now is excluded from expiredActive, or that it is selected as a future nextExpiry. The report reads detached rows and uses expiresAt <= now for expired active totals, with nextExpiry drawn only from the strictly future active branch. Committed/released reservations do not enter either expiry summary. This does not assert that reserve rejects all invalid expiry inputs; queryReservations separately rejects nonfinite stored expiry.",
+      "changeIds": ["change-7", "change-9"],
+      "sourceIds": ["evidence-70", "evidence-71", "evidence-29"]
+    },
+    {
+      "id": "new-handlers-accept-missing-principal",
+      "meaning": "Reject a concern that apply/history/find or reservation reporting bypasses the existing missing-principal check. Each handler entry point calls requirePrincipal before parsing or delegating. The PR explicitly works over the existing global inventory model; these handlers do not claim per-tenant stock isolation or role checks. This control is only about the actual authentication gate, and assumes the host supplies a trusted principal rather than accepting client-asserted credentials.",
+      "changeIds": ["change-3", "change-4"],
+      "sourceIds": ["evidence-5", "evidence-4", "evidence-66", "evidence-3"]
+    }
+  ]
+}

@@ -5,6 +5,36 @@
       "id": "pr_1",
       "file": "cases/pr_1.json",
       "partition": "development"
+    },
+    {
+      "id": "pr_2",
+      "file": "cases/pr_2.json",
+      "partition": "development"
+    },
+    {
+      "id": "pr_3",
+      "file": "cases/pr_3.json",
+      "partition": "development"
+    },
+    {
+      "id": "pr_4",
+      "file": "cases/pr_4.json",
+      "partition": "development"
+    },
+    {
+      "id": "pr_5",
+      "file": "cases/pr_5.json",
+      "partition": "development"
+    },
+    {
+      "id": "pr_6",
+      "file": "cases/pr_6.json",
+      "partition": "development"
+    },
+    {
+      "id": "pr_9",
+      "file": "cases/pr_9.json",
+      "partition": "development"
     }
   ]
 }

@@ -1,0 +1,159 @@
+{
+  "format": "daphne-intentions-gold-v2",
+  "id": "pr_4",
+  "partition": "development",
+  "review": {
+    "status": "draft",
+    "reviewer": null,
+    "reviewedAt": null
+  },
+  "evidenceFile": "../evidence/pr_4.json",
+  "evidenceHash": "568786f3f17afaa6d1d8c37a52cab2baf2f4131466c2f754a9f8c471adee8456",
+  "behaviors": [
+    {
+      "id": "workspace-config-relocation",
+      "required": true,
+      "before": {
+        "meaning": "The private @daphne-test/tsconfig package and its shared base.json live under packages/tsconfig. npm workspaces include apps/* and packages/*, and the lockfile links the package name to packages/tsconfig.",
+        "changeIds": ["change-10", "change-11", "change-16", "change-17"],
+        "sourceIds": [
+          "evidence-41",
+          "evidence-40",
+          "evidence-43",
+          "evidence-44"
+        ]
+      },
+      "after": {
+        "meaning": "The same private package identity and unchanged base compiler settings move to tooling/tsconfig. The root workspace list adds tooling/* and the lockfile moves the package link and workspace entry to that location. After installing the updated workspace, consumers continue resolving @daphne-test/tsconfig/base.json by package name. This is a repository layout and resolution change, not publication of a new runtime package.",
+        "changeIds": ["change-10", "change-11", "change-16", "change-17"],
+        "sourceIds": [
+          "evidence-49",
+          "evidence-48",
+          "evidence-51",
+          "evidence-52"
+        ]
+      }
+    },
+    {
+      "id": "shared-compiler-settings",
+      "required": true,
+      "before": {
+        "meaning": "API, worker, catalog, core and fulfillment leaf configurations extend the old base by relative paths; checkout already extends @daphne-test/tsconfig/base.json. The shared base enables ES2022, CommonJS, Node resolution, strict checking, declarations, composite and skipLibCheck. The separate root build explicitly supplies its compiler defaults, uses rootDir . and outDir dist, and includes app/package TypeScript.",
+        "changeIds": [
+          "change-4",
+          "change-5",
+          "change-12",
+          "change-13",
+          "change-14",
+          "change-18"
+        ],
+        "sourceIds": [
+          "evidence-8",
+          "evidence-10",
+          "evidence-25",
+          "evidence-27",
+          "evidence-29",
+          "evidence-42",
+          "evidence-43",
+          "evidence-45"
+        ]
+      },
+      "after": {
+        "meaning": "All changed leaf configurations now extend the shared config through @daphne-test/tsconfig/base.json, retaining src rootDir, lib outDir and source includes; checkout already uses that form. The root build also extends it, explicitly disables inherited composite and keeps esModuleInterop enabled, rootDir ., outDir dist and its existing source scope. Effective compiler/output contracts are preserved while duplicated defaults are removed. Do not describe this as an ESM migration or a fix for pre-existing standalone leaf-build limitations.",
+        "changeIds": [
+          "change-4",
+          "change-5",
+          "change-12",
+          "change-13",
+          "change-14",
+          "change-18"
+        ],
+        "sourceIds": [
+          "evidence-9",
+          "evidence-11",
+          "evidence-26",
+          "evidence-28",
+          "evidence-30",
+          "evidence-50",
+          "evidence-51",
+          "evidence-53"
+        ]
+      }
+    },
+    {
+      "id": "offline-module-bundle",
+      "required": true,
+      "before": {
+        "meaning": "The root build already deletes dist and emits compiled modules there, but package.json has no deployment packaging command. The deployment script, documentation and documentation symlink paths are absent; there is no archive-producing workflow at those paths.",
+        "changeIds": ["change-6", "change-7", "change-9", "change-11"],
+        "sourceIds": ["evidence-41", "evidence-45"]
+      },
+      "after": {
+        "meaning": "package:deployment invokes the new executable shell script, which runs the existing clean build and writes dist/package.json with type commonjs before packaging dist, docs/deployment.md and deploy/README.md into releases/commerce.tar.gz. The explicit package boundary permits the CommonJS output to load even inside an ESM consumer. The archive includes compiled modules/declarations and documentation, preserving the documentation symlink, and omits source trees, node_modules, Git metadata and stale dist files removed by the build. API and worker remain modules loaded by a consumer; the command does not start or deploy a server. The symlink is represented by file metadata in the frozen inventory, with packaging/documentation sources supporting its intended archive treatment.",
+        "changeIds": ["change-6", "change-7", "change-9", "change-11"],
+        "sourceIds": [
+          "evidence-12",
+          "evidence-14",
+          "evidence-49",
+          "evidence-53",
+          "evidence-13"
+        ]
+      }
+    },
+    {
+      "id": "archive-publication-and-paths",
+      "required": true,
+      "before": {
+        "meaning": "The deployment script and its documentation are absent at these added paths, so they provide no packaging path resolution, temporary archive or last-successful-release contract.",
+        "changeIds": ["change-7", "change-9"],
+        "sourceIds": []
+      },
+      "after": {
+        "meaning": "The POSIX shell script resolves the repository root from its own location and quotes paths, allowing invocation from a different working directory and a checkout path containing spaces. It exits on build or tar failure. After a successful build it creates a temporary archive inside releases, installs an exit cleanup trap, and renames the completed archive to commerce.tar.gz only after tar succeeds. Ordinary build or archive failures leave a previous successful archive intact and remove a created temporary archive. This publication guarantee concerns the archive: a failed build can still change dist. The documented scope is macOS/Linux and one packaging process per checkout; it promises neither concurrent-build isolation nor crash durability.",
+        "changeIds": ["change-7", "change-9"],
+        "sourceIds": ["evidence-12", "evidence-14", "evidence-13"]
+      }
+    },
+    {
+      "id": "validation-and-ci-artifact",
+      "required": true,
+      "before": {
+        "meaning": "The root package exposes clean/build only, with no npm test, config/deployment checks or deployment packaging command. The new workflow and shell-check paths are absent.",
+        "changeIds": ["change-1", "change-8", "change-11", "change-15"],
+        "sourceIds": ["evidence-41"]
+      },
+      "after": {
+        "meaning": "npm test runs the new configuration checks followed by deployment checks. Config checks cover workspace resolution and effective leaf/root compiler settings; deployment checks build/package, load extracted API/worker modules inside an ESM consumer, verify the documentation symlink and stale-output exclusion, and exercise alternate paths plus build/archive failure preservation. The new GitHub workflow runs on pull requests, main pushes and manual dispatch using Ubuntu and Node 22, installs with npm ci, runs npm test, and uploads the archive produced by those checks with seven-day retention and missing-file failure. Repository contents permission is read-only. The workflow uploads an artifact; it does not provision infrastructure or deploy an environment. These are configured checks, not a claim that this gold author ran GitHub Actions.",
+        "changeIds": ["change-1", "change-8", "change-11", "change-15"],
+        "sourceIds": ["evidence-1", "evidence-49", "evidence-31", "evidence-13"]
+      }
+    }
+  ],
+  "incidentalChanges": [
+    {
+      "changeIds": ["change-2", "change-3"],
+      "reason": "Ignoring releases/ and updating the root README support the packaging/configuration contracts above and need no separate behavior card."
+    }
+  ],
+  "expectedIssues": [],
+  "falseAlarmControls": [
+    {
+      "id": "moved-config-package-stops-resolving",
+      "meaning": "Reject a concern that the config move alone leaves package-name consumers pointing to the deleted packages/tsconfig directory after npm ci. The package retains its name, tooling/* is an npm workspace, and the updated lockfile links node_modules/@daphne-test/tsconfig to tooling/tsconfig. This assumes installation against the updated lockfile; stale node_modules after switching revisions is explicitly addressed by the installation instructions. It does not assert that standalone leaf builds have newly gained support.",
+      "changeIds": ["change-10", "change-11", "change-16", "change-17"],
+      "sourceIds": ["evidence-49", "evidence-48", "evidence-52", "evidence-14"]
+    },
+    {
+      "id": "esm-consumer-breaks-commonjs-bundle",
+      "meaning": "Reject a concern that an outer consumer package.json containing type module necessarily makes these bundled .js files fail as ES modules. The packaging script writes a nearer dist/package.json declaring type commonjs, includes it in the archive, and the extraction check exercises an ESM parent directory. This control applies to a successfully produced archive with that metadata intact, not arbitrary copying of only the JavaScript files.",
+      "changeIds": ["change-7", "change-9"],
+      "sourceIds": ["evidence-12", "evidence-13", "evidence-14"]
+    },
+    {
+      "id": "failed-packaging-destroys-previous-archive",
+      "meaning": "Reject a concern that an ordinary build or tar failure truncates or replaces the previous releases/commerce.tar.gz. Build runs before archive publication, tar writes a separate temporary file in releases, set -e prevents the final mv on failure, and the exit trap removes that temporary file. Checks exercise both failure paths. Keep the scope to archive preservation in the documented single-process workflow; dist changes, concurrent packaging and abrupt crash durability are separate questions.",
+      "changeIds": ["change-7", "change-8"],
+      "sourceIds": ["evidence-12", "evidence-13", "evidence-14"]
+    }
+  ]
+}

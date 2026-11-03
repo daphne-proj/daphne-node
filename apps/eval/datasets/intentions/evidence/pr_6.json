@@ -1,0 +1,1838 @@
+{
+  "format": "daphne-intentions-gold-evidence-v1",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/6",
+  "identity": {
+    "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "9c7f14214bb297c96d38b935b01e253266054619"
+  },
+  "metadata": {
+    "title": "Add audited stock adjustments and reservation reporting",
+    "body": "Add atomic stock correction batches with adjustment IDs, reason validation, detached audit history, and safe stock restoration. Add an independent reservation query/report workflow with detached rows, validated filters, deterministic order, safe status totals, and exact expiry summaries. Authenticated handlers and a composition factory expose both workflows over the existing global inventory model.\n\nValidation: pinned TypeScript build; 65 expanded workflow assertions and 13 original regressions; strict public-export consumer compilation; clean diff whitespace check. External assertions are outside the analyzed repository. In-process batch atomicity and existing live reserve/expire references retain the fixture's documented limits.\n"
+  },
+  "changes": [
+    {
+      "id": "change-1",
+      "beforePath": "apps/api/src/index.ts",
+      "afterPath": "apps/api/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 4,
+          "beforeLineCount": 0,
+          "afterStartLine": 5,
+          "afterLineCount": 3
+        }
+      ]
+    },
+    {
+      "id": "change-2",
+      "beforePath": null,
+      "afterPath": "apps/api/src/inventory-handlers.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 16
+        }
+      ]
+    },
+    {
+      "id": "change-3",
+      "beforePath": null,
+      "afterPath": "apps/api/src/reservation-report-handler.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 70
+        }
+      ]
+    },
+    {
+      "id": "change-4",
+      "beforePath": null,
+      "afterPath": "apps/api/src/stock-adjustment-handler.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 34
+        }
+      ]
+    },
+    {
+      "id": "change-5",
+      "beforePath": null,
+      "afterPath": "apps/api/src/stock-adjustment-request.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 94
+        }
+      ]
+    },
+    {
+      "id": "change-6",
+      "beforePath": "packages/catalog/src/index.ts",
+      "afterPath": "packages/catalog/src/index.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 6,
+          "beforeLineCount": 0,
+          "afterStartLine": 7,
+          "afterLineCount": 3
+        }
+      ]
+    },
+    {
+      "id": "change-7",
+      "beforePath": "packages/catalog/src/inventory-report.ts",
+      "afterPath": "packages/catalog/src/inventory-report.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 0,
+          "afterStartLine": 2,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 5,
+          "beforeLineCount": 0,
+          "afterStartLine": 8,
+          "afterLineCount": 65
+        }
+      ]
+    },
+    {
+      "id": "change-8",
+      "beforePath": "packages/catalog/src/inventory.ts",
+      "afterPath": "packages/catalog/src/inventory.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 3,
+          "beforeLineCount": 0,
+          "afterStartLine": 4,
+          "afterLineCount": 11
+        },
+        {
+          "beforeStartLine": 11,
+          "beforeLineCount": 2,
+          "afterStartLine": 22,
+          "afterLineCount": 7
+        },
+        {
+          "beforeStartLine": 19,
+          "beforeLineCount": 0,
+          "afterStartLine": 36,
+          "afterLineCount": 50
+        },
+        {
+          "beforeStartLine": 37,
+          "beforeLineCount": 0,
+          "afterStartLine": 104,
+          "afterLineCount": 6
+        },
+        {
+          "beforeStartLine": 39,
+          "beforeLineCount": 2,
+          "afterStartLine": 111,
+          "afterLineCount": 6
+        },
+        {
+          "beforeStartLine": 46,
+          "beforeLineCount": 0,
+          "afterStartLine": 123,
+          "afterLineCount": 6
+        },
+        {
+          "beforeStartLine": 48,
+          "beforeLineCount": 2,
+          "afterStartLine": 130,
+          "afterLineCount": 6
+        },
+        {
+          "beforeStartLine": 65,
+          "beforeLineCount": 1,
+          "afterStartLine": 151,
+          "afterLineCount": 16
+        }
+      ]
+    },
+    {
+      "id": "change-9",
+      "beforePath": null,
+      "afterPath": "packages/catalog/src/reservation-query.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 62
+        }
+      ]
+    },
+    {
+      "id": "change-10",
+      "beforePath": "packages/catalog/src/reservation.ts",
+      "afterPath": "packages/catalog/src/reservation.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 2,
+          "beforeLineCount": 0,
+          "afterStartLine": 3,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 8,
+          "beforeLineCount": 1,
+          "afterStartLine": 10,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-11",
+      "beforePath": null,
+      "afterPath": "packages/catalog/src/stock-adjustment-service.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 37
+        }
+      ]
+    },
+    {
+      "id": "change-12",
+      "beforePath": null,
+      "afterPath": "packages/catalog/src/stock-adjustment.ts",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 41
+        }
+      ]
+    },
+    {
+      "id": "change-13",
+      "beforePath": "packages/catalog/src/stock-ledger.ts",
+      "afterPath": "packages/catalog/src/stock-ledger.ts",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 0,
+          "afterStartLine": 2,
+          "afterLineCount": 4
+        },
+        {
+          "beforeStartLine": 3,
+          "beforeLineCount": 1,
+          "afterStartLine": 7,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 8,
+          "beforeLineCount": 0,
+          "afterStartLine": 13,
+          "afterLineCount": 10
+        },
+        {
+          "beforeStartLine": 10,
+          "beforeLineCount": 0,
+          "afterStartLine": 25,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 13,
+          "beforeLineCount": 1,
+          "afterStartLine": 28,
+          "afterLineCount": 26
+        },
+        {
+          "beforeStartLine": 17,
+          "beforeLineCount": 1,
+          "afterStartLine": 57,
+          "afterLineCount": 22
+        }
+      ]
+    }
+  ],
+  "hunks": [
+    {
+      "changeId": "change-1",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-1", "evidence-2"]
+    },
+    {
+      "changeId": "change-2",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-3"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-4"]
+    },
+    {
+      "changeId": "change-4",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-5"]
+    },
+    {
+      "changeId": "change-5",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-6"]
+    },
+    {
+      "changeId": "change-6",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-7", "evidence-8"]
+    },
+    {
+      "changeId": "change-7",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-9", "evidence-10"]
+    },
+    {
+      "changeId": "change-7",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-11", "evidence-12"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-13", "evidence-14"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-15", "evidence-16"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 2,
+      "evidenceIds": ["evidence-17", "evidence-18"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 3,
+      "evidenceIds": ["evidence-19", "evidence-20"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 4,
+      "evidenceIds": ["evidence-21", "evidence-22"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 5,
+      "evidenceIds": ["evidence-23", "evidence-24"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 6,
+      "evidenceIds": ["evidence-25", "evidence-26"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 7,
+      "evidenceIds": ["evidence-27", "evidence-28"]
+    },
+    {
+      "changeId": "change-9",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-29"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-30", "evidence-31"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-32", "evidence-33"]
+    },
+    {
+      "changeId": "change-11",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-34"]
+    },
+    {
+      "changeId": "change-12",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-35"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-36", "evidence-37"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-38", "evidence-39"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 2,
+      "evidenceIds": ["evidence-40", "evidence-41"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 3,
+      "evidenceIds": ["evidence-42", "evidence-43"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 4,
+      "evidenceIds": ["evidence-44", "evidence-45"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 5,
+      "evidenceIds": ["evidence-46", "evidence-47"]
+    }
+  ],
+  "sources": [
+    {
+      "evidenceId": "evidence-1",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/index.ts",
+          "blobId": "2832b3a50b8805ef8d67705408ecec981e4c27a4",
+          "range": {
+            "startByte": 120,
+            "endByte": 120
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-2",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/index.ts",
+          "blobId": "59ff8202f45a3178f18bf8813eb0ea096aadc8d1",
+          "range": {
+            "startByte": 120,
+            "endByte": 248
+          }
+        },
+        "text": "export * from './stock-adjustment-handler';\nexport * from './reservation-report-handler';\nexport * from './inventory-handlers';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-3",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/inventory-handlers.ts",
+          "blobId": "7b27089dfa3f389ae2e656215799d256813c664a",
+          "range": {
+            "startByte": 0,
+            "endByte": 542
+          }
+        },
+        "text": "import {\n  Inventory,\n  StockAdjustmentService,\n} from '../../../packages/catalog/src';\nimport { Clock } from '../../../packages/core/src';\nimport { ReservationReportHandler } from './reservation-report-handler';\nimport { StockAdjustmentHandler } from './stock-adjustment-handler';\n\nexport function createInventoryHandlers(inventory: Inventory, clock: Clock) {\n  return {\n    adjustments: new StockAdjustmentHandler(\n      new StockAdjustmentService(inventory),\n    ),\n    reservations: new ReservationReportHandler(inventory, clock),\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-4",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/reservation-report-handler.ts",
+          "blobId": "57e67b575032996787e02b5719ea7059eda0ad77",
+          "range": {
+            "startByte": 0,
+            "endByte": 1686
+          }
+        },
+        "text": "import {\n  Inventory,\n  ReservationQuery,\n  reservationReport,\n  validateReservationQuery,\n} from '../../../packages/catalog/src';\nimport { Clock } from '../../../packages/core/src';\nimport { Principal, requirePrincipal } from './auth';\n\nfunction parseReservationQuery(value: unknown): ReservationQuery {\n  if (typeof value !== 'object' || value === null || Array.isArray(value)) {\n    throw new Error('invalid reservation query');\n  }\n\n  if (\n    Object.keys(value).some(\n      (key) => !['sku', 'state', 'expiresAtOrBefore'].includes(key),\n    )\n  ) {\n    throw new Error('unknown reservation filter');\n  }\n\n  const query: ReservationQuery = {};\n\n  if ('sku' in value) {\n    if (typeof value.sku !== 'string') {\n      throw new Error('invalid reservation SKU');\n    }\n\n    query.sku = value.sku;\n  }\n\n  if ('state' in value) {\n    if (\n      value.state !== 'active' &&\n      value.state !== 'committed' &&\n      value.state !== 'released'\n    ) {\n      throw new Error('invalid reservation state');\n    }\n\n    query.state = value.state;\n  }\n\n  if ('expiresAtOrBefore' in value) {\n    if (typeof value.expiresAtOrBefore !== 'number') {\n      throw new Error('invalid reservation expiry cutoff');\n    }\n\n    query.expiresAtOrBefore = value.expiresAtOrBefore;\n  }\n\n  validateReservationQuery(query);\n\n  return query;\n}\n\nexport class ReservationReportHandler {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly clock: Clock,\n  ) {}\n\n  handle(principal: Principal | undefined, input: unknown = {}) {\n    requirePrincipal(principal);\n    const query = parseReservationQuery(input);\n\n    return reservationReport(this.inventory, this.clock.now(), query);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-5",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/stock-adjustment-handler.ts",
+          "blobId": "5087279cf394f9cb3ff55350283efde4f59a8b66",
+          "range": {
+            "startByte": 0,
+            "endByte": 1006
+          }
+        },
+        "text": "import { StockAdjustmentService } from '../../../packages/catalog/src';\nimport { Principal, requirePrincipal } from './auth';\nimport {\n  parseAdjustmentHistoryQuery,\n  parseStockAdjustmentRequest,\n} from './stock-adjustment-request';\n\nexport class StockAdjustmentHandler {\n  constructor(private readonly adjustments: StockAdjustmentService) {}\n\n  handle(principal: Principal | undefined, input: unknown) {\n    requirePrincipal(principal);\n    const adjustments = parseStockAdjustmentRequest(input);\n\n    return this.adjustments.apply(adjustments);\n  }\n\n  history(principal: Principal | undefined, input: unknown = {}) {\n    requirePrincipal(principal);\n    const query = parseAdjustmentHistoryQuery(input);\n\n    return this.adjustments.history(query);\n  }\n\n  find(principal: Principal | undefined, id: unknown) {\n    requirePrincipal(principal);\n\n    if (typeof id !== 'string' || id.trim().length === 0) {\n      throw new Error('invalid adjustment ID');\n    }\n\n    return this.adjustments.find(id);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-6",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/stock-adjustment-request.ts",
+          "blobId": "ffda940d7aed8a8c98e1f4a849e95262c5a704a6",
+          "range": {
+            "startByte": 0,
+            "endByte": 2315
+          }
+        },
+        "text": "import {\n  AdjustmentHistoryQuery,\n  StockAdjustment,\n} from '../../../packages/catalog/src';\n\nfunction parseAdjustment(value: unknown): StockAdjustment {\n  if (typeof value !== 'object' || value === null || Array.isArray(value)) {\n    throw new Error('invalid adjustment row');\n  }\n\n  if (\n    !('id' in value) ||\n    typeof value.id !== 'string' ||\n    !('sku' in value) ||\n    typeof value.sku !== 'string' ||\n    !('delta' in value) ||\n    typeof value.delta !== 'number' ||\n    !('reason' in value) ||\n    (value.reason !== 'correction' &&\n      value.reason !== 'damage' &&\n      value.reason !== 'return')\n  ) {\n    throw new Error('invalid adjustment fields');\n  }\n\n  if (\n    Object.keys(value).some(\n      (key) => !['id', 'sku', 'delta', 'reason'].includes(key),\n    )\n  ) {\n    throw new Error('unknown adjustment field');\n  }\n\n  return {\n    id: value.id,\n    sku: value.sku,\n    delta: value.delta,\n    reason: value.reason,\n  };\n}\n\nexport function parseStockAdjustmentRequest(value: unknown): StockAdjustment[] {\n  if (\n    typeof value !== 'object' ||\n    value === null ||\n    Array.isArray(value) ||\n    !('adjustments' in value) ||\n    !Array.isArray(value.adjustments)\n  ) {\n    throw new Error('adjustments array is required');\n  }\n\n  if (Object.keys(value).some((key) => key !== 'adjustments')) {\n    throw new Error('unknown adjustment request field');\n  }\n\n  return value.adjustments.map(parseAdjustment);\n}\n\nexport function parseAdjustmentHistoryQuery(\n  value: unknown,\n): AdjustmentHistoryQuery {\n  if (typeof value !== 'object' || value === null || Array.isArray(value)) {\n    throw new Error('invalid adjustment history query');\n  }\n\n  if (Object.keys(value).some((key) => key !== 'sku' && key !== 'reason')) {\n    throw new Error('unknown adjustment history filter');\n  }\n\n  const query: AdjustmentHistoryQuery = {};\n\n  if ('sku' in value) {\n    if (typeof value.sku !== 'string' || value.sku.trim().length === 0) {\n      throw new Error('invalid adjustment history SKU');\n    }\n\n    query.sku = value.sku;\n  }\n\n  if ('reason' in value) {\n    if (\n      value.reason !== 'correction' &&\n      value.reason !== 'damage' &&\n      value.reason !== 'return'\n    ) {\n      throw new Error('invalid adjustment history reason');\n    }\n\n    query.reason = value.reason;\n  }\n\n  return query;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-7",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/index.ts",
+          "blobId": "80f369b79967005ebbce74fd33dccb0f694b48fa",
+          "range": {
+            "startByte": 182,
+            "endByte": 182
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-8",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/index.ts",
+          "blobId": "47690905f07020c99acae8f6c77b39f4dad9afa8",
+          "range": {
+            "startByte": 182,
+            "endByte": 299
+          }
+        },
+        "text": "export * from './stock-adjustment';\nexport * from './stock-adjustment-service';\nexport * from './reservation-query';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-9",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory-report.ts",
+          "blobId": "58fa0cf5a5f5288c6768bf5b31f46c94a1700937",
+          "range": {
+            "startByte": 41,
+            "endByte": 41
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-10",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory-report.ts",
+          "blobId": "0251a23152dd5c20841188699fabb670e82a593a",
+          "range": {
+            "startByte": 41,
+            "endByte": 160
+          }
+        },
+        "text": "import { Reservation, ReservationState } from './reservation';\nimport { ReservationQuery } from './reservation-query';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-11",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory-report.ts",
+          "blobId": "58fa0cf5a5f5288c6768bf5b31f46c94a1700937",
+          "range": {
+            "startByte": 208,
+            "endByte": 208
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-12",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory-report.ts",
+          "blobId": "0251a23152dd5c20841188699fabb670e82a593a",
+          "range": {
+            "startByte": 327,
+            "endByte": 2062
+          }
+        },
+        "text": "\nexport interface ReservationTotals {\n  count: number;\n  quantity: number;\n}\n\nexport interface ReservationReport {\n  asOf: number;\n  rows: Reservation[];\n  byState: Record<ReservationState, ReservationTotals>;\n  expiredActive: ReservationTotals;\n  nextExpiry: number | undefined;\n}\n\nfunction addReservation(totals: ReservationTotals, quantity: number): void {\n  const count = totals.count + 1;\n  const totalQuantity = totals.quantity + quantity;\n\n  if (\n    !Number.isSafeInteger(quantity) ||\n    quantity <= 0 ||\n    !Number.isSafeInteger(totalQuantity) ||\n    !Number.isSafeInteger(count)\n  ) {\n    throw new Error('reservation summary exceeds safe integer range');\n  }\n\n  totals.count = count;\n  totals.quantity = totalQuantity;\n}\n\nexport function reservationReport(\n  inventory: Inventory,\n  now: number,\n  query: ReservationQuery = {},\n): ReservationReport {\n  if (!Number.isFinite(now)) {\n    throw new Error('invalid report time');\n  }\n\n  const rows = inventory.queryReservations(query);\n  const byState: ReservationReport['byState'] = {\n    active: { count: 0, quantity: 0 },\n    committed: { count: 0, quantity: 0 },\n    released: { count: 0, quantity: 0 },\n  };\n  const expiredActive = { count: 0, quantity: 0 };\n  let nextExpiry: number | undefined;\n\n  for (const reservation of rows) {\n    addReservation(byState[reservation.state], reservation.quantity);\n\n    if (reservation.state !== 'active') {\n      continue;\n    }\n\n    if (reservation.expiresAt <= now) {\n      addReservation(expiredActive, reservation.quantity);\n    } else if (nextExpiry === undefined || reservation.expiresAt < nextExpiry) {\n      nextExpiry = reservation.expiresAt;\n    }\n  }\n\n  return { asOf: now, rows, byState, expiredActive, nextExpiry };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-13",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 143,
+            "endByte": 143
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-14",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 143,
+            "endByte": 385
+          }
+        },
+        "text": "import {\n  StockAdjustment,\n  StockAdjustmentReceipt,\n  validateStockAdjustment,\n} from './stock-adjustment';\nimport {\n  ReservationQuery,\n  validateReservationQuery,\n  matchesReservation,\n  compareReservations,\n} from './reservation-query';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-15",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 363,
+            "endByte": 522
+          }
+        },
+        "text": "    if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('invalid stock quantity');\n    this.counts.set(sku, this.available(sku) + quantity);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-16",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 605,
+            "endByte": 823
+          }
+        },
+        "text": "    if (!Number.isSafeInteger(quantity) || quantity <= 0) {\n      throw new Error('invalid stock quantity');\n    }\n\n    const total = this.checkedTotal(this.available(sku), quantity);\n\n    this.counts.set(sku, total);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-17",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 671,
+            "endByte": 671
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-18",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 972,
+            "endByte": 2305
+          }
+        },
+        "text": "  applyAdjustments(\n    adjustments: readonly StockAdjustment[],\n  ): StockAdjustmentReceipt[] {\n    if (adjustments.length === 0) {\n      throw new Error('adjustments must not be empty');\n    }\n\n    const pendingCounts = new Map<Sku, number>();\n    const receipts: StockAdjustmentReceipt[] = [];\n\n    for (const adjustment of adjustments) {\n      validateStockAdjustment(adjustment);\n\n      const before =\n        pendingCounts.get(adjustment.sku) ?? this.available(adjustment.sku);\n      const after = this.checkedTotal(before, adjustment.delta);\n      pendingCounts.set(adjustment.sku, after);\n      receipts.push({ ...adjustment, before, after });\n    }\n\n    /* The ledger rejects duplicate IDs before either collection changes. */\n    this.ledger.recordMany(\n      receipts.map((receipt) => ({\n        ...receipt,\n        reason: 'adjusted',\n        adjustmentReason: receipt.reason,\n      })),\n    );\n\n    for (const [sku, quantity] of pendingCounts) {\n      this.counts.set(sku, quantity);\n    }\n\n    return receipts;\n  }\n\n  private checkedTotal(before: number, delta: number): number {\n    const total = before + delta;\n\n    if (\n      !Number.isSafeInteger(delta) ||\n      !Number.isSafeInteger(total) ||\n      total < 0\n    ) {\n      throw new Error('stock total outside safe integer range');\n    }\n\n    return total;\n  }\n\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-19",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 1518,
+            "endByte": 1518
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-20",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 3152,
+            "endByte": 3265
+          }
+        },
+        "text": "\n    const total = this.checkedTotal(\n      this.available(reservation.sku),\n      reservation.quantity,\n    );\n\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-21",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 1554,
+            "endByte": 1747
+          }
+        },
+        "text": "    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-22",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 3301,
+            "endByte": 3468
+          }
+        },
+        "text": "    this.counts.set(reservation.sku, total);\n    this.ledger.record({\n      sku: reservation.sku,\n      delta: reservation.quantity,\n      reason: 'released',\n    });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-23",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 1927,
+            "endByte": 1927
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-24",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 3648,
+            "endByte": 3761
+          }
+        },
+        "text": "\n    const total = this.checkedTotal(\n      this.available(reservation.sku),\n      reservation.quantity,\n    );\n\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-25",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 1963,
+            "endByte": 2156
+          }
+        },
+        "text": "    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-26",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 3797,
+            "endByte": 3964
+          }
+        },
+        "text": "    this.counts.set(reservation.sku, total);\n    this.ledger.record({\n      sku: reservation.sku,\n      delta: reservation.quantity,\n      reason: 'released',\n    });\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-27",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 2530,
+            "endByte": 2566
+          }
+        },
+        "text": "    return [...this.held.values()];\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-28",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 4338,
+            "endByte": 4847
+          }
+        },
+        "text": "    return [...this.held.values()].map((reservation) => ({ ...reservation }));\n  }\n\n  queryReservations(query: ReservationQuery = {}): Reservation[] {\n    validateReservationQuery(query);\n    const rows = this.reservations();\n\n    for (const reservation of rows) {\n      if (!Number.isFinite(reservation.expiresAt)) {\n        throw new Error('invalid reservation expiry');\n      }\n    }\n\n    return rows\n      .filter((reservation) => matchesReservation(reservation, query))\n      .sort(compareReservations);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-29",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/reservation-query.ts",
+          "blobId": "8aef010ac6905e138569e59c12382bb9507ee33a",
+          "range": {
+            "startByte": 0,
+            "endByte": 1427
+          }
+        },
+        "text": "import { Reservation, ReservationState } from './reservation';\n\nexport interface ReservationQuery {\n  sku?: string;\n  state?: ReservationState;\n  expiresAtOrBefore?: number;\n}\n\nexport function validateReservationQuery(query: ReservationQuery): void {\n  if (query.sku !== undefined && query.sku.trim().length === 0) {\n    throw new Error('invalid reservation SKU');\n  }\n\n  if (\n    query.state !== undefined &&\n    query.state !== 'active' &&\n    query.state !== 'committed' &&\n    query.state !== 'released'\n  ) {\n    throw new Error('invalid reservation state');\n  }\n\n  if (\n    query.expiresAtOrBefore !== undefined &&\n    !Number.isFinite(query.expiresAtOrBefore)\n  ) {\n    throw new Error('invalid reservation expiry cutoff');\n  }\n}\n\nexport function matchesReservation(\n  reservation: Reservation,\n  query: ReservationQuery,\n): boolean {\n  if (query.sku !== undefined && reservation.sku !== query.sku) {\n    return false;\n  }\n\n  if (query.state !== undefined && reservation.state !== query.state) {\n    return false;\n  }\n\n  return (\n    query.expiresAtOrBefore === undefined ||\n    reservation.expiresAt <= query.expiresAtOrBefore\n  );\n}\n\nexport function compareReservations(\n  left: Reservation,\n  right: Reservation,\n): number {\n  if (left.expiresAt !== right.expiresAt) {\n    return left.expiresAt < right.expiresAt ? -1 : 1;\n  }\n\n  if (left.id === right.id) {\n    return 0;\n  }\n\n  return left.id < right.id ? -1 : 1;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-30",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/reservation.ts",
+          "blobId": "5288d352f62891a76752ed5e27bdc6f3fbb92623",
+          "range": {
+            "startByte": 54,
+            "endByte": 54
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-31",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/reservation.ts",
+          "blobId": "b1e462984d0b2dc84477b8d2c6d617ba8054cbfb",
+          "range": {
+            "startByte": 54,
+            "endByte": 123
+          }
+        },
+        "text": "export type ReservationState = 'active' | 'released' | 'committed';\n\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-32",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/reservation.ts",
+          "blobId": "5288d352f62891a76752ed5e27bdc6f3fbb92623",
+          "range": {
+            "startByte": 159,
+            "endByte": 205
+          }
+        },
+        "text": "  state: 'active' | 'released' | 'committed';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-33",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/reservation.ts",
+          "blobId": "b1e462984d0b2dc84477b8d2c6d617ba8054cbfb",
+          "range": {
+            "startByte": 228,
+            "endByte": 255
+          }
+        },
+        "text": "  state: ReservationState;\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-34",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-adjustment-service.ts",
+          "blobId": "ca393b84df69b0213c1c4e0c26437ab117eabfcb",
+          "range": {
+            "startByte": 0,
+            "endByte": 984
+          }
+        },
+        "text": "import { Inventory } from './inventory';\nimport {\n  StockAdjustment,\n  StockAdjustmentReason,\n  StockAdjustmentReceipt,\n} from './stock-adjustment';\n\nexport interface AdjustmentHistoryQuery {\n  sku?: string;\n  reason?: StockAdjustmentReason;\n}\n\nexport class StockAdjustmentService {\n  constructor(private readonly inventory: Inventory) {}\n\n  apply(adjustments: readonly StockAdjustment[]): StockAdjustmentReceipt[] {\n    return this.inventory.applyAdjustments(adjustments);\n  }\n\n  history(query: AdjustmentHistoryQuery = {}): StockAdjustmentReceipt[] {\n    return this.inventory.ledger.adjustments().filter((receipt) => {\n      if (query.sku !== undefined && receipt.sku !== query.sku) {\n        return false;\n      }\n\n      if (query.reason !== undefined && receipt.reason !== query.reason) {\n        return false;\n      }\n\n      return true;\n    });\n  }\n\n  find(id: string): StockAdjustmentReceipt | undefined {\n    return this.history().find((receipt) => receipt.id === id);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-35",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-adjustment.ts",
+          "blobId": "38b3ba56fac6c57a91679d4b2052e60a7421a07b",
+          "range": {
+            "startByte": 0,
+            "endByte": 1041
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\n\nexport type StockAdjustmentReason = 'correction' | 'damage' | 'return';\n\nexport interface StockAdjustment {\n  id: string;\n  sku: Sku;\n  delta: number;\n  reason: StockAdjustmentReason;\n}\n\nexport interface StockAdjustmentReceipt extends StockAdjustment {\n  before: number;\n  after: number;\n}\n\nexport function validateStockAdjustment(input: StockAdjustment): void {\n  if (input.id.trim().length === 0 || input.sku.trim().length === 0) {\n    throw new Error('adjustment ID and SKU are required');\n  }\n\n  if (!Number.isSafeInteger(input.delta) || input.delta === 0) {\n    throw new Error('invalid adjustment quantity');\n  }\n\n  if (\n    input.reason !== 'correction' &&\n    input.reason !== 'damage' &&\n    input.reason !== 'return'\n  ) {\n    throw new Error('invalid adjustment reason');\n  }\n\n  if (input.reason === 'damage' && input.delta > 0) {\n    throw new Error('damage must remove stock');\n  }\n\n  if (input.reason === 'return' && input.delta < 0) {\n    throw new Error('return must add stock');\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-36",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 38,
+            "endByte": 38
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-37",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 38,
+            "endByte": 127
+          }
+        },
+        "text": "import {\n  StockAdjustmentReason,\n  StockAdjustmentReceipt,\n} from './stock-adjustment';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-38",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 39,
+            "endByte": 69
+          }
+        },
+        "text": "export interface StockEntry {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-39",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 128,
+            "endByte": 159
+          }
+        },
+        "text": "interface StockMovementEntry {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-40",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 148,
+            "endByte": 148
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-41",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 238,
+            "endByte": 468
+          }
+        },
+        "text": "export interface StockAdjustmentEntry extends Omit<\n  StockAdjustmentReceipt,\n  'reason'\n> {\n  reason: 'adjusted';\n  adjustmentReason: StockAdjustmentReason;\n}\n\nexport type StockEntry = StockMovementEntry | StockAdjustmentEntry;\n\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-42",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 222,
+            "endByte": 222
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-43",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 542,
+            "endByte": 596
+          }
+        },
+        "text": "  private readonly adjustmentIds = new Set<string>();\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-44",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 259,
+            "endByte": 289
+          }
+        },
+        "text": "    this.entries.push(entry);\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-45",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 633,
+            "endByte": 1250
+          }
+        },
+        "text": "    this.recordMany([entry]);\n  }\n\n  recordMany(entries: readonly StockEntry[]): void {\n    const pendingIds = new Set<string>();\n    const copies = entries.map((entry) => ({ ...entry }));\n\n    for (const entry of copies) {\n      if (entry.reason !== 'adjusted') {\n        continue;\n      }\n\n      if (this.adjustmentIds.has(entry.id) || pendingIds.has(entry.id)) {\n        throw new Error('adjustment ID already used');\n      }\n\n      pendingIds.add(entry.id);\n    }\n\n    for (const entry of copies) {\n      this.entries.push(entry);\n    }\n\n    for (const id of pendingIds) {\n      this.adjustmentIds.add(id);\n    }\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-46",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 318,
+            "endByte": 348
+          }
+        },
+        "text": "    return [...this.entries];\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-47",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 1279,
+            "endByte": 1776
+          }
+        },
+        "text": "    return this.entries.map((entry) => ({ ...entry }));\n  }\n\n  adjustments(): StockAdjustmentReceipt[] {\n    const receipts: StockAdjustmentReceipt[] = [];\n\n    for (const entry of this.entries) {\n      if (entry.reason !== 'adjusted') {\n        continue;\n      }\n\n      receipts.push({\n        id: entry.id,\n        sku: entry.sku,\n        delta: entry.delta,\n        reason: entry.adjustmentReason,\n        before: entry.before,\n        after: entry.after,\n      });\n    }\n\n    return receipts;\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-48",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 0,
+            "endByte": 767
+          }
+        },
+        "text": "# Commerce operations PR review repository\n\nThis deterministic TypeScript workspace models checkout, inventory reservations,\npayments, cancellation, outbox delivery, job leases, and reservation expiry. It\nuses in-memory state and injected clocks and IDs so pull-request analysis is\nstable.\n\n```sh\nnpm ci\nnpm run build\n```\n\nThe repository is intentionally outside Daphne's tracked source. Its local Git\nhistory supplies exact BASE and HEAD commits and can later be published for a\nreal pull-request run. Scenario tooling and answer keys live in the sibling\n`commerce-fixture/` directory so Daphne cannot see them in analyzed source.\n\nThe model exercises explicit interleavings only. It does not claim database\ntransaction isolation or distributed delivery guarantees.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-49",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/auth.ts",
+          "blobId": "3528f6038f9091451410fdad144d452470e991f9",
+          "range": {
+            "startByte": 0,
+            "endByte": 211
+          }
+        },
+        "text": "export interface Principal {\n  tenantId: string;\n  userId: string;\n}\n\nexport function requirePrincipal(value: Principal | undefined): Principal {\n  if (!value) throw new Error('unauthorized');\n  return value;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-50",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/cancel-handler.ts",
+          "blobId": "3476da01142dc2cfc98f33555f675217ac41100c",
+          "range": {
+            "startByte": 0,
+            "endByte": 415
+          }
+        },
+        "text": "import { CancellationService } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\n\nexport class CancelHandler {\n  constructor(private readonly cancellation: CancellationService) {}\n\n  handle(principal: Principal | undefined, orderId: string) {\n    const actor = requirePrincipal(principal);\n    return this.cancellation.cancel({ tenantId: actor.tenantId, orderId });\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-51",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/src/index.ts",
+          "blobId": "2832b3a50b8805ef8d67705408ecec981e4c27a4",
+          "range": {
+            "startByte": 0,
+            "endByte": 120
+          }
+        },
+        "text": "export * from './auth';\nexport * from './cancel-handler';\nexport * from './checkout-handler';\nexport * from './health';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-52",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/index.ts",
+          "blobId": "80f369b79967005ebbce74fd33dccb0f694b48fa",
+          "range": {
+            "startByte": 0,
+            "endByte": 182
+          }
+        },
+        "text": "export * from './catalog';\nexport * from './inventory';\nexport * from './inventory-report';\nexport * from './product';\nexport * from './reservation';\nexport * from './stock-ledger';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-53",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory-report.ts",
+          "blobId": "58fa0cf5a5f5288c6768bf5b31f46c94a1700937",
+          "range": {
+            "startByte": 0,
+            "endByte": 208
+          }
+        },
+        "text": "import { Inventory } from './inventory';\n\nexport function lowStock(inventory: Inventory, skus: string[], threshold: number): string[] {\n  return skus.filter((sku) => inventory.available(sku) <= threshold);\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-54",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "8a015970252c3e76423dcb1e42f819e8de892fde",
+          "range": {
+            "startByte": 0,
+            "endByte": 2572
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\nimport { Reservation, ReserveInput } from './reservation';\nimport { StockLedger } from './stock-ledger';\n\nexport class Inventory {\n  private readonly counts = new Map<Sku, number>();\n  private readonly held = new Map<string, Reservation>();\n  readonly ledger = new StockLedger();\n\n  stock(sku: Sku, quantity: number): void {\n    if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('invalid stock quantity');\n    this.counts.set(sku, this.available(sku) + quantity);\n    this.ledger.record({ sku, delta: quantity, reason: 'stocked' });\n  }\n\n  available(sku: Sku): number {\n    return this.counts.get(sku) ?? 0;\n  }\n\n  reserve(input: ReserveInput): Reservation | undefined {\n    if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0) throw new Error('invalid reservation quantity');\n    if (this.available(input.sku) < input.quantity) return undefined;\n    const reservation: Reservation = { ...input, state: 'active' };\n    this.counts.set(input.sku, this.available(input.sku) - input.quantity);\n    this.held.set(input.id, reservation);\n    this.ledger.record({ sku: input.sku, delta: -input.quantity, reason: 'reserved' });\n    return reservation;\n  }\n\n  commit(id: string): void {\n    const reservation = this.held.get(id);\n    if (reservation?.state === 'active') reservation.state = 'committed';\n  }\n\n  release(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'active') return false;\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n    return true;\n  }\n\n  releaseCommitted(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'committed') return false;\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, this.available(reservation.sku) + reservation.quantity);\n    this.ledger.record({ sku: reservation.sku, delta: reservation.quantity, reason: 'released' });\n    return true;\n  }\n\n  expire(now: number): Reservation[] {\n    const expired: Reservation[] = [];\n    for (const reservation of this.held.values()) {\n      if (reservation.state === 'active' && reservation.expiresAt <= now) {\n        this.release(reservation.id);\n        expired.push(reservation);\n      }\n    }\n    return expired;\n  }\n\n  reservations(): Reservation[] {\n    return [...this.held.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-55",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/reservation.ts",
+          "blobId": "5288d352f62891a76752ed5e27bdc6f3fbb92623",
+          "range": {
+            "startByte": 0,
+            "endByte": 316
+          }
+        },
+        "text": "import { ReservationId, Sku } from '../../core/src';\n\nexport interface Reservation {\n  id: ReservationId;\n  sku: Sku;\n  quantity: number;\n  expiresAt: number;\n  state: 'active' | 'released' | 'committed';\n}\n\nexport interface ReserveInput {\n  id: ReservationId;\n  sku: Sku;\n  quantity: number;\n  expiresAt: number;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-56",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "b40eea53eb9b4aac92ec82be48f0c420763f5562",
+          "range": {
+            "startByte": 0,
+            "endByte": 354
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\n\nexport interface StockEntry {\n  sku: Sku;\n  delta: number;\n  reason: 'stocked' | 'reserved' | 'released';\n}\n\nexport class StockLedger {\n  private readonly entries: StockEntry[] = [];\n\n  record(entry: StockEntry): void {\n    this.entries.push(entry);\n  }\n\n  all(): StockEntry[] {\n    return [...this.entries];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-57",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/cancellation-service.ts",
+          "blobId": "5b0ed85f710420cff78192509dc3285c0d84e0ea",
+          "range": {
+            "startByte": 0,
+            "endByte": 838
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { orderNotFound } from '../../core/src';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\nexport class CancellationService {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly inventory: Inventory,\n  ) {}\n\n  cancel(input: { tenantId: string; orderId: string }): { cancelled: boolean } {\n    const order = this.orders.findForTenant(input.tenantId, input.orderId);\n    if (!order) throw orderNotFound();\n    if (order.state === 'cancelled') return { cancelled: false };\n    this.payments.refund(order.paymentId, order.totalCents);\n    this.inventory.releaseCommitted(order.reservationId);\n    order.state = 'cancelled';\n    return { cancelled: true };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-58",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-59",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/fake-payment.ts",
+          "blobId": "7355a33f8750f55ea7cbee30a2a07eb9a17f411e",
+          "range": {
+            "startByte": 0,
+            "endByte": 1546
+          }
+        },
+        "text": "import { Cents, PaymentId } from '../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from './payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-60",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "68af85d1019803a76ea9f6c525a723f526a4c293",
+          "range": {
+            "startByte": 0,
+            "endByte": 437
+          }
+        },
+        "text": "import { Order } from './order';\n\nexport class OrderRepository {\n  private readonly orders = new Map<string, Order>();\n\n  save(order: Order): void {\n    this.orders.set(order.id, order);\n  }\n\n  findForTenant(tenantId: string, orderId: string): Order | undefined {\n    const order = this.orders.get(orderId);\n    return order?.tenantId === tenantId ? order : undefined;\n  }\n\n  all(): Order[] {\n    return [...this.orders.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-61",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/order.ts",
+          "blobId": "4dd1e30a50b0cb223b9690df305fb3b80afdb101",
+          "range": {
+            "startByte": 0,
+            "endByte": 352
+          }
+        },
+        "text": "import { Cents, CustomerId, OrderId, PaymentId, ReservationId, Sku, TenantId } from '../../core/src';\n\nexport interface Order {\n  id: OrderId;\n  tenantId: TenantId;\n  customerId: CustomerId;\n  sku: Sku;\n  quantity: number;\n  totalCents: Cents;\n  paymentId: PaymentId;\n  reservationId: ReservationId;\n  eventId: string;\n  state: 'paid' | 'cancelled';\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-62",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/src/payment.ts",
+          "blobId": "69d54605f8fa9c62f1aa57800f21af391346e0b3",
+          "range": {
+            "startByte": 0,
+            "endByte": 574
+          }
+        },
+        "text": "import { Cents, PaymentId, TenantId } from '../../core/src';\n\nexport interface ChargeInput {\n  paymentId: PaymentId;\n  tenantId: TenantId;\n  amountCents: Cents;\n}\n\nexport interface PaymentAttempt extends ChargeInput {\n  state: 'captured' | 'rejected' | 'refunded';\n  reason?: string;\n}\n\nexport interface Refund {\n  paymentId: PaymentId;\n  amountCents: Cents;\n}\n\nexport type ChargeResult = { ok: true } | { ok: false; reason: string };\n\nexport interface PaymentGateway {\n  charge(input: ChargeInput): ChargeResult;\n  refund(paymentId: PaymentId, amountCents: Cents): void;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-63",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/src/ids.ts",
+          "blobId": "46927cce1257913dd8c4b264e95cf7d976efd635",
+          "range": {
+            "startByte": 0,
+            "endByte": 345
+          }
+        },
+        "text": "export interface IdSource {\n  next(kind: string): string;\n}\n\nexport function sequenceIds(prefix: string): IdSource {\n  const counters = new Map<string, number>();\n  return {\n    next(kind: string): string {\n      const next = (counters.get(kind) ?? 0) + 1;\n      counters.set(kind, next);\n      return `${prefix}-${kind}-${next}`;\n    },\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-64",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/src/types.ts",
+          "blobId": "3e4fb0675bef777a77aa0d2f2f0d434b893c750d",
+          "range": {
+            "startByte": 0,
+            "endByte": 233
+          }
+        },
+        "text": "export type TenantId = string;\nexport type CustomerId = string;\nexport type OrderId = string;\nexport type PaymentId = string;\nexport type ReservationId = string;\nexport type Sku = string;\n\nexport interface Clock {\n  now(): number;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-65",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 0,
+            "endByte": 767
+          }
+        },
+        "text": "# Commerce operations PR review repository\n\nThis deterministic TypeScript workspace models checkout, inventory reservations,\npayments, cancellation, outbox delivery, job leases, and reservation expiry. It\nuses in-memory state and injected clocks and IDs so pull-request analysis is\nstable.\n\n```sh\nnpm ci\nnpm run build\n```\n\nThe repository is intentionally outside Daphne's tracked source. Its local Git\nhistory supplies exact BASE and HEAD commits and can later be published for a\nreal pull-request run. Scenario tooling and answer keys live in the sibling\n`commerce-fixture/` directory so Daphne cannot see them in analyzed source.\n\nThe model exercises explicit interleavings only. It does not claim database\ntransaction isolation or distributed delivery guarantees.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-66",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/auth.ts",
+          "blobId": "3528f6038f9091451410fdad144d452470e991f9",
+          "range": {
+            "startByte": 0,
+            "endByte": 211
+          }
+        },
+        "text": "export interface Principal {\n  tenantId: string;\n  userId: string;\n}\n\nexport function requirePrincipal(value: Principal | undefined): Principal {\n  if (!value) throw new Error('unauthorized');\n  return value;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-67",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/cancel-handler.ts",
+          "blobId": "3476da01142dc2cfc98f33555f675217ac41100c",
+          "range": {
+            "startByte": 0,
+            "endByte": 415
+          }
+        },
+        "text": "import { CancellationService } from '../../../packages/checkout/src';\nimport { Principal, requirePrincipal } from './auth';\n\nexport class CancelHandler {\n  constructor(private readonly cancellation: CancellationService) {}\n\n  handle(principal: Principal | undefined, orderId: string) {\n    const actor = requirePrincipal(principal);\n    return this.cancellation.cancel({ tenantId: actor.tenantId, orderId });\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-68",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "apps/api/src/index.ts",
+          "blobId": "59ff8202f45a3178f18bf8813eb0ea096aadc8d1",
+          "range": {
+            "startByte": 0,
+            "endByte": 248
+          }
+        },
+        "text": "export * from './auth';\nexport * from './cancel-handler';\nexport * from './checkout-handler';\nexport * from './health';\nexport * from './stock-adjustment-handler';\nexport * from './reservation-report-handler';\nexport * from './inventory-handlers';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-69",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/index.ts",
+          "blobId": "47690905f07020c99acae8f6c77b39f4dad9afa8",
+          "range": {
+            "startByte": 0,
+            "endByte": 299
+          }
+        },
+        "text": "export * from './catalog';\nexport * from './inventory';\nexport * from './inventory-report';\nexport * from './product';\nexport * from './reservation';\nexport * from './stock-ledger';\nexport * from './stock-adjustment';\nexport * from './stock-adjustment-service';\nexport * from './reservation-query';\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-70",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory-report.ts",
+          "blobId": "0251a23152dd5c20841188699fabb670e82a593a",
+          "range": {
+            "startByte": 0,
+            "endByte": 2062
+          }
+        },
+        "text": "import { Inventory } from './inventory';\nimport { Reservation, ReservationState } from './reservation';\nimport { ReservationQuery } from './reservation-query';\n\nexport function lowStock(inventory: Inventory, skus: string[], threshold: number): string[] {\n  return skus.filter((sku) => inventory.available(sku) <= threshold);\n}\n\nexport interface ReservationTotals {\n  count: number;\n  quantity: number;\n}\n\nexport interface ReservationReport {\n  asOf: number;\n  rows: Reservation[];\n  byState: Record<ReservationState, ReservationTotals>;\n  expiredActive: ReservationTotals;\n  nextExpiry: number | undefined;\n}\n\nfunction addReservation(totals: ReservationTotals, quantity: number): void {\n  const count = totals.count + 1;\n  const totalQuantity = totals.quantity + quantity;\n\n  if (\n    !Number.isSafeInteger(quantity) ||\n    quantity <= 0 ||\n    !Number.isSafeInteger(totalQuantity) ||\n    !Number.isSafeInteger(count)\n  ) {\n    throw new Error('reservation summary exceeds safe integer range');\n  }\n\n  totals.count = count;\n  totals.quantity = totalQuantity;\n}\n\nexport function reservationReport(\n  inventory: Inventory,\n  now: number,\n  query: ReservationQuery = {},\n): ReservationReport {\n  if (!Number.isFinite(now)) {\n    throw new Error('invalid report time');\n  }\n\n  const rows = inventory.queryReservations(query);\n  const byState: ReservationReport['byState'] = {\n    active: { count: 0, quantity: 0 },\n    committed: { count: 0, quantity: 0 },\n    released: { count: 0, quantity: 0 },\n  };\n  const expiredActive = { count: 0, quantity: 0 };\n  let nextExpiry: number | undefined;\n\n  for (const reservation of rows) {\n    addReservation(byState[reservation.state], reservation.quantity);\n\n    if (reservation.state !== 'active') {\n      continue;\n    }\n\n    if (reservation.expiresAt <= now) {\n      addReservation(expiredActive, reservation.quantity);\n    } else if (nextExpiry === undefined || reservation.expiresAt < nextExpiry) {\n      nextExpiry = reservation.expiresAt;\n    }\n  }\n\n  return { asOf: now, rows, byState, expiredActive, nextExpiry };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-71",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/inventory.ts",
+          "blobId": "dc2d70637472b59c46c19f592d135c36c032d826",
+          "range": {
+            "startByte": 0,
+            "endByte": 4853
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\nimport { Reservation, ReserveInput } from './reservation';\nimport { StockLedger } from './stock-ledger';\nimport {\n  StockAdjustment,\n  StockAdjustmentReceipt,\n  validateStockAdjustment,\n} from './stock-adjustment';\nimport {\n  ReservationQuery,\n  validateReservationQuery,\n  matchesReservation,\n  compareReservations,\n} from './reservation-query';\n\nexport class Inventory {\n  private readonly counts = new Map<Sku, number>();\n  private readonly held = new Map<string, Reservation>();\n  readonly ledger = new StockLedger();\n\n  stock(sku: Sku, quantity: number): void {\n    if (!Number.isSafeInteger(quantity) || quantity <= 0) {\n      throw new Error('invalid stock quantity');\n    }\n\n    const total = this.checkedTotal(this.available(sku), quantity);\n\n    this.counts.set(sku, total);\n    this.ledger.record({ sku, delta: quantity, reason: 'stocked' });\n  }\n\n  available(sku: Sku): number {\n    return this.counts.get(sku) ?? 0;\n  }\n\n  applyAdjustments(\n    adjustments: readonly StockAdjustment[],\n  ): StockAdjustmentReceipt[] {\n    if (adjustments.length === 0) {\n      throw new Error('adjustments must not be empty');\n    }\n\n    const pendingCounts = new Map<Sku, number>();\n    const receipts: StockAdjustmentReceipt[] = [];\n\n    for (const adjustment of adjustments) {\n      validateStockAdjustment(adjustment);\n\n      const before =\n        pendingCounts.get(adjustment.sku) ?? this.available(adjustment.sku);\n      const after = this.checkedTotal(before, adjustment.delta);\n      pendingCounts.set(adjustment.sku, after);\n      receipts.push({ ...adjustment, before, after });\n    }\n\n    /* The ledger rejects duplicate IDs before either collection changes. */\n    this.ledger.recordMany(\n      receipts.map((receipt) => ({\n        ...receipt,\n        reason: 'adjusted',\n        adjustmentReason: receipt.reason,\n      })),\n    );\n\n    for (const [sku, quantity] of pendingCounts) {\n      this.counts.set(sku, quantity);\n    }\n\n    return receipts;\n  }\n\n  private checkedTotal(before: number, delta: number): number {\n    const total = before + delta;\n\n    if (\n      !Number.isSafeInteger(delta) ||\n      !Number.isSafeInteger(total) ||\n      total < 0\n    ) {\n      throw new Error('stock total outside safe integer range');\n    }\n\n    return total;\n  }\n\n  reserve(input: ReserveInput): Reservation | undefined {\n    if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0) throw new Error('invalid reservation quantity');\n    if (this.available(input.sku) < input.quantity) return undefined;\n    const reservation: Reservation = { ...input, state: 'active' };\n    this.counts.set(input.sku, this.available(input.sku) - input.quantity);\n    this.held.set(input.id, reservation);\n    this.ledger.record({ sku: input.sku, delta: -input.quantity, reason: 'reserved' });\n    return reservation;\n  }\n\n  commit(id: string): void {\n    const reservation = this.held.get(id);\n    if (reservation?.state === 'active') reservation.state = 'committed';\n  }\n\n  release(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'active') return false;\n\n    const total = this.checkedTotal(\n      this.available(reservation.sku),\n      reservation.quantity,\n    );\n\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, total);\n    this.ledger.record({\n      sku: reservation.sku,\n      delta: reservation.quantity,\n      reason: 'released',\n    });\n    return true;\n  }\n\n  releaseCommitted(id: string): boolean {\n    const reservation = this.held.get(id);\n    if (!reservation || reservation.state !== 'committed') return false;\n\n    const total = this.checkedTotal(\n      this.available(reservation.sku),\n      reservation.quantity,\n    );\n\n    reservation.state = 'released';\n    this.counts.set(reservation.sku, total);\n    this.ledger.record({\n      sku: reservation.sku,\n      delta: reservation.quantity,\n      reason: 'released',\n    });\n    return true;\n  }\n\n  expire(now: number): Reservation[] {\n    const expired: Reservation[] = [];\n    for (const reservation of this.held.values()) {\n      if (reservation.state === 'active' && reservation.expiresAt <= now) {\n        this.release(reservation.id);\n        expired.push(reservation);\n      }\n    }\n    return expired;\n  }\n\n  reservations(): Reservation[] {\n    return [...this.held.values()].map((reservation) => ({ ...reservation }));\n  }\n\n  queryReservations(query: ReservationQuery = {}): Reservation[] {\n    validateReservationQuery(query);\n    const rows = this.reservations();\n\n    for (const reservation of rows) {\n      if (!Number.isFinite(reservation.expiresAt)) {\n        throw new Error('invalid reservation expiry');\n      }\n    }\n\n    return rows\n      .filter((reservation) => matchesReservation(reservation, query))\n      .sort(compareReservations);\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-72",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/reservation.ts",
+          "blobId": "b1e462984d0b2dc84477b8d2c6d617ba8054cbfb",
+          "range": {
+            "startByte": 0,
+            "endByte": 366
+          }
+        },
+        "text": "import { ReservationId, Sku } from '../../core/src';\n\nexport type ReservationState = 'active' | 'released' | 'committed';\n\nexport interface Reservation {\n  id: ReservationId;\n  sku: Sku;\n  quantity: number;\n  expiresAt: number;\n  state: ReservationState;\n}\n\nexport interface ReserveInput {\n  id: ReservationId;\n  sku: Sku;\n  quantity: number;\n  expiresAt: number;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-73",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/catalog/src/stock-ledger.ts",
+          "blobId": "94900a698f90a23cad93e784f62643500160ab77",
+          "range": {
+            "startByte": 0,
+            "endByte": 1782
+          }
+        },
+        "text": "import { Sku } from '../../core/src';\nimport {\n  StockAdjustmentReason,\n  StockAdjustmentReceipt,\n} from './stock-adjustment';\n\ninterface StockMovementEntry {\n  sku: Sku;\n  delta: number;\n  reason: 'stocked' | 'reserved' | 'released';\n}\n\nexport interface StockAdjustmentEntry extends Omit<\n  StockAdjustmentReceipt,\n  'reason'\n> {\n  reason: 'adjusted';\n  adjustmentReason: StockAdjustmentReason;\n}\n\nexport type StockEntry = StockMovementEntry | StockAdjustmentEntry;\n\nexport class StockLedger {\n  private readonly entries: StockEntry[] = [];\n  private readonly adjustmentIds = new Set<string>();\n\n  record(entry: StockEntry): void {\n    this.recordMany([entry]);\n  }\n\n  recordMany(entries: readonly StockEntry[]): void {\n    const pendingIds = new Set<string>();\n    const copies = entries.map((entry) => ({ ...entry }));\n\n    for (const entry of copies) {\n      if (entry.reason !== 'adjusted') {\n        continue;\n      }\n\n      if (this.adjustmentIds.has(entry.id) || pendingIds.has(entry.id)) {\n        throw new Error('adjustment ID already used');\n      }\n\n      pendingIds.add(entry.id);\n    }\n\n    for (const entry of copies) {\n      this.entries.push(entry);\n    }\n\n    for (const id of pendingIds) {\n      this.adjustmentIds.add(id);\n    }\n  }\n\n  all(): StockEntry[] {\n    return this.entries.map((entry) => ({ ...entry }));\n  }\n\n  adjustments(): StockAdjustmentReceipt[] {\n    const receipts: StockAdjustmentReceipt[] = [];\n\n    for (const entry of this.entries) {\n      if (entry.reason !== 'adjusted') {\n        continue;\n      }\n\n      receipts.push({\n        id: entry.id,\n        sku: entry.sku,\n        delta: entry.delta,\n        reason: entry.adjustmentReason,\n        before: entry.before,\n        after: entry.after,\n      });\n    }\n\n    return receipts;\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-74",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/checkout/src/cancellation-service.ts",
+          "blobId": "5b0ed85f710420cff78192509dc3285c0d84e0ea",
+          "range": {
+            "startByte": 0,
+            "endByte": 838
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { orderNotFound } from '../../core/src';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\n\nexport class CancellationService {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly payments: PaymentGateway,\n    private readonly inventory: Inventory,\n  ) {}\n\n  cancel(input: { tenantId: string; orderId: string }): { cancelled: boolean } {\n    const order = this.orders.findForTenant(input.tenantId, input.orderId);\n    if (!order) throw orderNotFound();\n    if (order.state === 'cancelled') return { cancelled: false };\n    this.payments.refund(order.paymentId, order.totalCents);\n    this.inventory.releaseCommitted(order.reservationId);\n    order.state = 'cancelled';\n    return { cancelled: true };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-75",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/checkout/src/checkout-service.ts",
+          "blobId": "7d4c066bbf70b10a0860bd5f00b07fa146520400",
+          "range": {
+            "startByte": 0,
+            "endByte": 2135
+          }
+        },
+        "text": "import { Inventory } from '../../catalog/src';\nimport { Clock, IdSource, TenantId } from '../../core/src';\nimport { Outbox } from '../../fulfillment/src/outbox';\nimport { OrderRepository } from './order-repository';\nimport { PaymentGateway } from './payment';\nimport { price } from './pricing';\n\nexport interface PlaceOrderInput {\n  tenantId: TenantId;\n  customerId: string;\n  sku: string;\n  quantity: number;\n  unitPriceCents: number;\n  promotionBps: number;\n}\n\nexport type PlaceOrderResult =\n  | { ok: true; orderId: string; totalCents: number }\n  | { ok: false; reason: string };\n\nexport class CheckoutService {\n  constructor(\n    private readonly inventory: Inventory,\n    private readonly payments: PaymentGateway,\n    private readonly orders: OrderRepository,\n    private readonly outbox: Outbox,\n    private readonly clock: Clock,\n    private readonly ids: IdSource,\n  ) {}\n\n  place(input: PlaceOrderInput): PlaceOrderResult {\n    const total = price(input);\n    const reservationId = this.ids.next('reservation');\n    const reservation = this.inventory.reserve({\n      id: reservationId,\n      sku: input.sku,\n      quantity: input.quantity,\n      expiresAt: this.clock.now() + 15 * 60_000,\n    });\n    if (!reservation) return { ok: false, reason: 'insufficient_stock' };\n\n    const paymentId = this.ids.next('payment');\n    const charge = this.payments.charge({ paymentId, tenantId: input.tenantId, amountCents: total.totalCents });\n    if (!charge.ok) {\n      this.inventory.release(reservationId);\n      return charge;\n    }\n\n    const orderId = this.ids.next('order');\n    const eventId = this.ids.next('event');\n    this.inventory.commit(reservationId);\n    this.orders.save({\n      id: orderId,\n      tenantId: input.tenantId,\n      customerId: input.customerId,\n      sku: input.sku,\n      quantity: input.quantity,\n      totalCents: total.totalCents,\n      paymentId,\n      reservationId,\n      eventId,\n      state: 'paid',\n    });\n    this.outbox.append({ id: eventId, type: 'order.placed', occurredAt: this.clock.now(), payload: { orderId } });\n    return { ok: true, orderId, totalCents: total.totalCents };\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-76",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/checkout/src/fake-payment.ts",
+          "blobId": "7355a33f8750f55ea7cbee30a2a07eb9a17f411e",
+          "range": {
+            "startByte": 0,
+            "endByte": 1546
+          }
+        },
+        "text": "import { Cents, PaymentId } from '../../core/src';\nimport { ChargeInput, ChargeResult, PaymentAttempt, PaymentGateway, Refund } from './payment';\n\nexport class FakePaymentGateway implements PaymentGateway {\n  private readonly paymentAttempts: PaymentAttempt[] = [];\n  private readonly paymentRefunds: Refund[] = [];\n  private nextRejection?: string;\n\n  rejectNext(reason: string): void {\n    this.nextRejection = reason;\n  }\n\n  charge(input: ChargeInput): ChargeResult {\n    if (this.nextRejection) {\n      const reason = this.nextRejection;\n      this.nextRejection = undefined;\n      this.paymentAttempts.push({ ...input, state: 'rejected', reason });\n      return { ok: false, reason };\n    }\n    this.paymentAttempts.push({ ...input, state: 'captured' });\n    return { ok: true };\n  }\n\n  refund(paymentId: PaymentId, amountCents: Cents): void {\n    const payment = this.paymentAttempts.find((attempt) => attempt.paymentId === paymentId);\n    if (!payment || payment.state !== 'captured') throw new Error('payment not captured');\n    const alreadyRefunded = this.paymentRefunds\n      .filter((refund) => refund.paymentId === paymentId)\n      .reduce((total, refund) => total + refund.amountCents, 0);\n    if (alreadyRefunded + amountCents > payment.amountCents) throw new Error('refund exceeds capture');\n    this.paymentRefunds.push({ paymentId, amountCents });\n    payment.state = 'refunded';\n  }\n\n  attempts(): PaymentAttempt[] {\n    return [...this.paymentAttempts];\n  }\n\n  refunds(): Refund[] {\n    return [...this.paymentRefunds];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-77",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/checkout/src/order-repository.ts",
+          "blobId": "68af85d1019803a76ea9f6c525a723f526a4c293",
+          "range": {
+            "startByte": 0,
+            "endByte": 437
+          }
+        },
+        "text": "import { Order } from './order';\n\nexport class OrderRepository {\n  private readonly orders = new Map<string, Order>();\n\n  save(order: Order): void {\n    this.orders.set(order.id, order);\n  }\n\n  findForTenant(tenantId: string, orderId: string): Order | undefined {\n    const order = this.orders.get(orderId);\n    return order?.tenantId === tenantId ? order : undefined;\n  }\n\n  all(): Order[] {\n    return [...this.orders.values()];\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-78",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/checkout/src/order.ts",
+          "blobId": "4dd1e30a50b0cb223b9690df305fb3b80afdb101",
+          "range": {
+            "startByte": 0,
+            "endByte": 352
+          }
+        },
+        "text": "import { Cents, CustomerId, OrderId, PaymentId, ReservationId, Sku, TenantId } from '../../core/src';\n\nexport interface Order {\n  id: OrderId;\n  tenantId: TenantId;\n  customerId: CustomerId;\n  sku: Sku;\n  quantity: number;\n  totalCents: Cents;\n  paymentId: PaymentId;\n  reservationId: ReservationId;\n  eventId: string;\n  state: 'paid' | 'cancelled';\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-79",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/checkout/src/payment.ts",
+          "blobId": "69d54605f8fa9c62f1aa57800f21af391346e0b3",
+          "range": {
+            "startByte": 0,
+            "endByte": 574
+          }
+        },
+        "text": "import { Cents, PaymentId, TenantId } from '../../core/src';\n\nexport interface ChargeInput {\n  paymentId: PaymentId;\n  tenantId: TenantId;\n  amountCents: Cents;\n}\n\nexport interface PaymentAttempt extends ChargeInput {\n  state: 'captured' | 'rejected' | 'refunded';\n  reason?: string;\n}\n\nexport interface Refund {\n  paymentId: PaymentId;\n  amountCents: Cents;\n}\n\nexport type ChargeResult = { ok: true } | { ok: false; reason: string };\n\nexport interface PaymentGateway {\n  charge(input: ChargeInput): ChargeResult;\n  refund(paymentId: PaymentId, amountCents: Cents): void;\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-80",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/core/src/ids.ts",
+          "blobId": "46927cce1257913dd8c4b264e95cf7d976efd635",
+          "range": {
+            "startByte": 0,
+            "endByte": 345
+          }
+        },
+        "text": "export interface IdSource {\n  next(kind: string): string;\n}\n\nexport function sequenceIds(prefix: string): IdSource {\n  const counters = new Map<string, number>();\n  return {\n    next(kind: string): string {\n      const next = (counters.get(kind) ?? 0) + 1;\n      counters.set(kind, next);\n      return `${prefix}-${kind}-${next}`;\n    },\n  };\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-81",
+      "source": {
+        "ref": {
+          "sessionId": "998ba753-f6c8-47f5-adca-5a95d2028ad3",
+          "side": "head",
+          "commit": "9c7f14214bb297c96d38b935b01e253266054619",
+          "path": "packages/core/src/types.ts",
+          "blobId": "3e4fb0675bef777a77aa0d2f2f0d434b893c750d",
+          "range": {
+            "startByte": 0,
+            "endByte": 233
+          }
+        },
+        "text": "export type TenantId = string;\nexport type CustomerId = string;\nexport type OrderId = string;\nexport type PaymentId = string;\nexport type ReservationId = string;\nexport type Sku = string;\n\nexport interface Clock {\n  now(): number;\n}\n"
+      }
+    }
+  ]
+}

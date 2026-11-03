@@ -1,0 +1,1363 @@
+{
+  "format": "daphne-intentions-gold-evidence-v1",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/4",
+  "identity": {
+    "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "410da83eaee97864746415247d1bfbf0f559381c"
+  },
+  "metadata": {
+    "title": "Migrate workspace configuration and deployment assets",
+    "body": "Move the shared TypeScript configuration from `packages/tsconfig` to `tooling/tsconfig` and resolve it through the existing `@daphne-test/tsconfig` package identity. Update workspace registration, the lockfile, leaf configs, and root build inheritance while preserving effective compiler settings and compiled output.\n\nAdd an offline deployment-module bundle: an executable shell command performs a clean build and atomically replaces `releases/commerce.tar.gz` only after packaging succeeds. The archive contains compiled modules, explicit CommonJS package metadata for ESM consumers, and deployment documentation with a relative documentation symlink. Add a GitHub Actions workflow that installs, validates, and uploads the artifact. The API and worker remain reusable modules; no server or environment is deployed.\n\nValidation:\n- Clean `npm ci` and `npm test`: eight configuration checks and two packaging integration checks pass.\n- All seven effective configurations and all 80 emitted JS/declaration file hashes match `main`; no production TypeScript files change.\n- Packaging covers stale output removal, extraction inside an ESM consumer without runtime dependencies, paths with spaces, another working directory, preserved documentation symlinks, and retaining the previous archive after build/archive failures.\n- Shell syntax, workflow YAML parsing, executable/symlink Git modes, and `git diff --check` verified.\n- [GitHub Actions build and artifact upload passed](https://github.com/daphne-proj/pr-review-test/actions/runs/38890426498) for head `410da83eaee97864746415247d1bfbf0f559381c`.\n\nBased directly on `main`, independently of PRs #1–#3. Daphne analysis, `ask-pr`, and evals are deferred. The packaging script targets macOS/Linux and runs one build per checkout at a time.\n\nFresh whole-branch review identified the ESM-consumer package boundary; a failing regression test reproduced it and passed after adding the CommonJS metadata. No other findings remain. Existing business logic and standalone leaf-build limitations are unchanged. Archive metadata is not normalized for byte-for-byte reproducibility, and packaging makes no crash-durability guarantee. Host provisioning, deployment credentials, and npm publication remain outside this module-bundling workflow.\n"
+  },
+  "changes": [
+    {
+      "id": "change-1",
+      "beforePath": null,
+      "afterPath": ".github/workflows/build.yml",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 28
+        }
+      ]
+    },
+    {
+      "id": "change-2",
+      "beforePath": ".gitignore",
+      "afterPath": ".gitignore",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 0,
+          "afterStartLine": 2,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-3",
+      "beforePath": "README.md",
+      "afterPath": "README.md",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 10,
+          "beforeLineCount": 0,
+          "afterStartLine": 11,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 19,
+          "beforeLineCount": 0,
+          "afterStartLine": 22,
+          "afterLineCount": 9
+        }
+      ]
+    },
+    {
+      "id": "change-4",
+      "beforePath": "apps/api/tsconfig.json",
+      "afterPath": "apps/api/tsconfig.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 1,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-5",
+      "beforePath": "apps/worker/tsconfig.json",
+      "afterPath": "apps/worker/tsconfig.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 1,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-6",
+      "beforePath": null,
+      "afterPath": "deploy/README.md",
+      "beforeMode": null,
+      "afterMode": "120000",
+      "status": "added",
+      "kind": "symlink",
+      "hunks": []
+    },
+    {
+      "id": "change-7",
+      "beforePath": null,
+      "afterPath": "deploy/package.sh",
+      "beforeMode": null,
+      "afterMode": "100755",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 14
+        }
+      ]
+    },
+    {
+      "id": "change-8",
+      "beforePath": null,
+      "afterPath": "deploy/tests/package.test.sh",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 61
+        }
+      ]
+    },
+    {
+      "id": "change-9",
+      "beforePath": null,
+      "afterPath": "docs/deployment.md",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 45
+        }
+      ]
+    },
+    {
+      "id": "change-10",
+      "beforePath": "package-lock.json",
+      "afterPath": "package-lock.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 12,
+          "beforeLineCount": 1,
+          "afterStartLine": 12,
+          "afterLineCount": 2
+        },
+        {
+          "beforeStartLine": 47,
+          "beforeLineCount": 1,
+          "afterStartLine": 48,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 84,
+          "beforeLineCount": 1,
+          "afterStartLine": 85,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-11",
+      "beforePath": "package.json",
+      "afterPath": "package.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 5,
+          "beforeLineCount": 1,
+          "afterStartLine": 5,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 8,
+          "beforeLineCount": 1,
+          "afterStartLine": 8,
+          "afterLineCount": 5
+        }
+      ]
+    },
+    {
+      "id": "change-12",
+      "beforePath": "packages/catalog/tsconfig.json",
+      "afterPath": "packages/catalog/tsconfig.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 1,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-13",
+      "beforePath": "packages/core/tsconfig.json",
+      "afterPath": "packages/core/tsconfig.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 1,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-14",
+      "beforePath": "packages/fulfillment/tsconfig.json",
+      "afterPath": "packages/fulfillment/tsconfig.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 1,
+          "afterStartLine": 1,
+          "afterLineCount": 1
+        }
+      ]
+    },
+    {
+      "id": "change-15",
+      "beforePath": null,
+      "afterPath": "tooling/tests/workspace-config.test.sh",
+      "beforeMode": null,
+      "afterMode": "100644",
+      "status": "added",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 0,
+          "beforeLineCount": 0,
+          "afterStartLine": 1,
+          "afterLineCount": 60
+        }
+      ]
+    },
+    {
+      "id": "change-16",
+      "beforePath": "packages/tsconfig/base.json",
+      "afterPath": "tooling/tsconfig/base.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "renamed",
+      "kind": "text",
+      "hunks": []
+    },
+    {
+      "id": "change-17",
+      "beforePath": "packages/tsconfig/package.json",
+      "afterPath": "tooling/tsconfig/package.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "renamed",
+      "kind": "text",
+      "hunks": []
+    },
+    {
+      "id": "change-18",
+      "beforePath": "tsconfig.build.json",
+      "afterPath": "tsconfig.build.json",
+      "beforeMode": "100644",
+      "afterMode": "100644",
+      "status": "modified",
+      "kind": "text",
+      "hunks": [
+        {
+          "beforeStartLine": 1,
+          "beforeLineCount": 0,
+          "afterStartLine": 2,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 3,
+          "beforeLineCount": 4,
+          "afterStartLine": 4,
+          "afterLineCount": 1
+        },
+        {
+          "beforeStartLine": 9,
+          "beforeLineCount": 3,
+          "afterStartLine": 7,
+          "afterLineCount": 1
+        }
+      ]
+    }
+  ],
+  "hunks": [
+    {
+      "changeId": "change-1",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-1"]
+    },
+    {
+      "changeId": "change-2",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-2", "evidence-3"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-4", "evidence-5"]
+    },
+    {
+      "changeId": "change-3",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-6", "evidence-7"]
+    },
+    {
+      "changeId": "change-4",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-8", "evidence-9"]
+    },
+    {
+      "changeId": "change-5",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-10", "evidence-11"]
+    },
+    {
+      "changeId": "change-6",
+      "hunkIndex": null,
+      "evidenceIds": []
+    },
+    {
+      "changeId": "change-7",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-12"]
+    },
+    {
+      "changeId": "change-8",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-13"]
+    },
+    {
+      "changeId": "change-9",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-14"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-15", "evidence-16"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-17", "evidence-18"]
+    },
+    {
+      "changeId": "change-10",
+      "hunkIndex": 2,
+      "evidenceIds": ["evidence-19", "evidence-20"]
+    },
+    {
+      "changeId": "change-11",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-21", "evidence-22"]
+    },
+    {
+      "changeId": "change-11",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-23", "evidence-24"]
+    },
+    {
+      "changeId": "change-12",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-25", "evidence-26"]
+    },
+    {
+      "changeId": "change-13",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-27", "evidence-28"]
+    },
+    {
+      "changeId": "change-14",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-29", "evidence-30"]
+    },
+    {
+      "changeId": "change-15",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-31"]
+    },
+    {
+      "changeId": "change-16",
+      "hunkIndex": null,
+      "evidenceIds": []
+    },
+    {
+      "changeId": "change-17",
+      "hunkIndex": null,
+      "evidenceIds": []
+    },
+    {
+      "changeId": "change-18",
+      "hunkIndex": 0,
+      "evidenceIds": ["evidence-32", "evidence-33"]
+    },
+    {
+      "changeId": "change-18",
+      "hunkIndex": 1,
+      "evidenceIds": ["evidence-34", "evidence-35"]
+    },
+    {
+      "changeId": "change-18",
+      "hunkIndex": 2,
+      "evidenceIds": ["evidence-36", "evidence-37"]
+    }
+  ],
+  "sources": [
+    {
+      "evidenceId": "evidence-1",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": ".github/workflows/build.yml",
+          "blobId": "2254625d568dd9054fcea5e90ca917778b402c5d",
+          "range": {
+            "startByte": 0,
+            "endByte": 560
+          }
+        },
+        "text": "name: Build deployment modules\n\non:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:\n\npermissions:\n  contents: read\n\njobs:\n  package:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v7\n      - uses: actions/setup-node@v7\n        with:\n          node-version: '22'\n          cache: npm\n      - run: npm ci\n      - run: npm test\n      - uses: actions/upload-artifact@v7\n        with:\n          name: commerce-deployment\n          path: releases/commerce.tar.gz\n          if-no-files-found: error\n          retention-days: 7\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-2",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": ".gitignore",
+          "blobId": "83631f817f87f044ca090dffe62cc2acf03fa062",
+          "range": {
+            "startByte": 6,
+            "endByte": 6
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-3",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": ".gitignore",
+          "blobId": "b88c8cd6ed1160ddaa214732377bc6963449c245",
+          "range": {
+            "startByte": 6,
+            "endByte": 16
+          }
+        },
+        "text": "releases/\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-4",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 318,
+            "endByte": 318
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-5",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "README.md",
+          "blobId": "22fc72ed4aa3e53c82348e909da2e9bd8a8efb57",
+          "range": {
+            "startByte": 318,
+            "endByte": 354
+          }
+        },
+        "text": "npm test\nnpm run package:deployment\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-6",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 767,
+            "endByte": 767
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-7",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "README.md",
+          "blobId": "22fc72ed4aa3e53c82348e909da2e9bd8a8efb57",
+          "range": {
+            "startByte": 803,
+            "endByte": 1323
+          }
+        },
+        "text": "\nShared TypeScript defaults live in the `tooling/tsconfig` workspace. Apps,\npackages, and the root build inherit `@daphne-test/tsconfig/base.json`; run\n`npm ci` after switching to this layout to refresh workspace links.\n\nThe deployment bundle contains compiled modules, package metadata, and documentation. See the\n[deployment instructions](docs/deployment.md) for prerequisites, extraction,\nartifact checks, and CI behavior. No production TypeScript or runtime behavior\nchanges as part of this configuration migration.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-8",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/api/tsconfig.json",
+          "blobId": "a700d0f4832f6af2f0ee9ca0c8f95b1a3eaa9b38",
+          "range": {
+            "startByte": 0,
+            "endByte": 125
+          }
+        },
+        "text": "{\"extends\":\"../../packages/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-9",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "apps/api/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-10",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "apps/worker/tsconfig.json",
+          "blobId": "a700d0f4832f6af2f0ee9ca0c8f95b1a3eaa9b38",
+          "range": {
+            "startByte": 0,
+            "endByte": 125
+          }
+        },
+        "text": "{\"extends\":\"../../packages/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-11",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "apps/worker/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-12",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "deploy/package.sh",
+          "blobId": "ee44b45a9a4bc0acc017698f9ba96e4f969aca75",
+          "range": {
+            "startByte": 0,
+            "endByte": 417
+          }
+        },
+        "text": "#!/bin/sh\nset -eu\n\nrepo_root=$(CDPATH= cd -- \"$(dirname -- \"$0\")/..\" && pwd)\ncd \"$repo_root\"\nnpm run build\nprintf '%s\\n' '{\"type\":\"commonjs\"}' > dist/package.json\n\nmkdir -p releases\narchive=$(mktemp \"$repo_root/releases/.commerce.XXXXXX\")\ntrap 'rm -f \"$archive\"' 0\ntar -czf \"$archive\" dist docs/deployment.md deploy/README.md\nmv \"$archive\" releases/commerce.tar.gz\nprintf '%s\\n' \"$repo_root/releases/commerce.tar.gz\"\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-13",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "deploy/tests/package.test.sh",
+          "blobId": "8557def1b9938b27ad7f3d07a3dd131a93aaf7dc",
+          "range": {
+            "startByte": 0,
+            "endByte": 3400
+          }
+        },
+        "text": "#!/bin/sh\nset -eu\ncd \"$(CDPATH= cd -- \"$(dirname -- \"$0\")/../..\" && pwd)\"\n\nnode <<'NODE'\nconst test = require('node:test');\nconst assert = require('node:assert/strict');\nconst fs = require('node:fs');\nconst os = require('node:os');\nconst path = require('node:path');\nconst { execFileSync } = require('node:child_process');\nconst repo = process.cwd();\nconst run = (command, args, cwd = repo) => execFileSync(command, args, { cwd, encoding: 'utf8', stdio: 'pipe' });\n\ntest('release loads fresh modules inside an ESM consumer and preserves its documentation symlink', t => {\n  const extracted = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-extracted-'));\n  t.after(() => fs.rmSync(extracted, { recursive: true, force: true }));\n  fs.mkdirSync('dist', { recursive: true });\n  fs.writeFileSync('dist/stale.txt', 'must not ship');\n  run('npm', ['run', 'package:deployment']);\n  const archive = path.resolve('releases/commerce.tar.gz');\n  const entries = run('tar', ['-tzf', archive]).trim().split('\\n');\n  assert.ok(entries.every(entry => entry.startsWith('dist/') || entry === 'docs/deployment.md' || entry === 'deploy/README.md'));\n  assert.ok(!entries.includes('dist/stale.txt'));\n  run('tar', ['-xzf', archive, '-C', extracted]);\n  fs.writeFileSync(path.join(extracted, 'package.json'), '{\"type\":\"module\"}\\n');\n  assert.equal(fs.existsSync(path.join(extracted, 'node_modules')), false);\n  assert.deepEqual(require(path.join(extracted, 'dist/apps/api/src')).health(), { status: 'ok' });\n  const worker = require(path.join(extracted, 'dist/apps/worker/src'));\n  assert.equal(typeof worker.DeliveryRunner, 'function');\n  assert.equal(typeof worker.ExpiryWorker, 'function');\n  const link = path.join(extracted, 'deploy/README.md');\n  assert.ok(fs.lstatSync(link).isSymbolicLink());\n  assert.equal(fs.realpathSync(link), fs.realpathSync(path.join(extracted, 'docs/deployment.md')));\n});\n\ntest('packaging handles spaces and alternate cwd, preserving the last release on failures', t => {\n  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-package-'));\n  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));\n  const copy = path.join(scratch, 'workspace with spaces');\n  fs.cpSync(repo, copy, {\n    recursive: true,\n    verbatimSymlinks: true,\n    filter: source => !['.git', '.superpowers', 'node_modules', 'dist', 'releases'].includes(path.relative(repo, source).split(path.sep)[0]),\n  });\n  fs.symlinkSync(path.join(repo, 'node_modules'), path.join(copy, 'node_modules'), 'dir');\n  const script = path.join(copy, 'deploy/package.sh');\n  run(script, [], scratch);\n  const archive = path.join(copy, 'releases/commerce.tar.gz');\n  const previous = fs.readFileSync(archive);\n  const invalidSource = path.join(copy, 'apps/api/src/invalid-build-fixture.ts');\n  fs.writeFileSync(invalidSource, 'const broken: string = 123;\\n');\n  assert.throws(() => run(script, [], scratch), error => error.status !== 0 && error.stdout.includes('invalid-build-fixture.ts'));\n  assert.deepEqual(fs.readFileSync(archive), previous);\n  fs.unlinkSync(invalidSource);\n  fs.unlinkSync(path.join(copy, 'docs/deployment.md'));\n  assert.throws(() => run(script, [], scratch), error => error.status !== 0 && error.stderr.includes('docs/deployment.md'));\n  assert.deepEqual(fs.readFileSync(archive), previous);\n  assert.deepEqual(fs.readdirSync(path.join(copy, 'releases')), ['commerce.tar.gz']);\n});\nNODE\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-14",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "docs/deployment.md",
+          "blobId": "3ad742ab6df99056d5d11b8c812e01271d7c305f",
+          "range": {
+            "startByte": 0,
+            "endByte": 2069
+          }
+        },
+        "text": "# Deployment module bundle\n\nUse Node 22, npm, a POSIX shell, and tar/gzip on macOS or Linux. From the\nrepository root:\n\n```sh\nnpm ci\nnpm test\nnpm run package:deployment\n```\n\nThe shared TypeScript configuration now lives in `tooling/tsconfig`. All apps,\npackages, and the root build resolve it as `@daphne-test/tsconfig/base.json`\nthrough the npm workspace link. Run `npm ci` after switching from the old layout.\nThe root build still emits CommonJS JavaScript and declarations under `dist/`;\nsource behavior and effective compiler settings are unchanged.\n\n`package:deployment` performs a clean build, then writes\n`releases/commerce.tar.gz` containing compiled `dist/` modules, their package\nmetadata, and this documentation. `dist/package.json` explicitly declares\nCommonJS so the modules also load when extracted inside an ESM consumer project.\n`deploy/README.md` is a relative symlink to this file; the archive\npreserves it. Sources, node_modules, Git metadata, and old build files are excluded.\nThe executable `deploy/package.sh` also works from another working directory.\nA failed build or archive operation exits nonzero and leaves the previous\nsuccessful archive intact. Only use the archive after a successful command.\n\nExtract the bundle into an empty directory and smoke-test it:\n\n```sh\nmkdir release\ntar -xzf releases/commerce.tar.gz -C release\nnode -e \"console.log(require('./release/dist/apps/api/src').health())\"\n```\n\nThe API and worker are reusable modules, not running services. Consumers load\n`dist/apps/api/src/index.js` or `dist/apps/worker/src/index.js`; they require no\nruntime npm dependencies. This process does not deploy a server or provision\ninfrastructure. Run one packaging process per checkout because the build output\nis shared.\n\nThe build workflow runs on pull requests, pushes to main, and manual dispatch.\nIt installs dependencies, runs config and packaging checks, and uploads the tar\narchive as a GitHub Actions artifact with seven-day retention. It has read-only\nrepository contents permissions and performs no environment deployment.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-15",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package-lock.json",
+          "blobId": "13855d2f99a7bfb677eb46661a0e6be72db3d11a",
+          "range": {
+            "startByte": 252,
+            "endByte": 273
+          }
+        },
+        "text": "        \"packages/*\"\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-16",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package-lock.json",
+          "blobId": "4adaf60fd66f84829c027639a27a8741dbafc618",
+          "range": {
+            "startByte": 252,
+            "endByte": 294
+          }
+        },
+        "text": "        \"packages/*\",\n        \"tooling/*\"\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-17",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package-lock.json",
+          "blobId": "13855d2f99a7bfb677eb46661a0e6be72db3d11a",
+          "range": {
+            "startByte": 1099,
+            "endByte": 1138
+          }
+        },
+        "text": "      \"resolved\": \"packages/tsconfig\",\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-18",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package-lock.json",
+          "blobId": "4adaf60fd66f84829c027639a27a8741dbafc618",
+          "range": {
+            "startByte": 1120,
+            "endByte": 1158
+          }
+        },
+        "text": "      \"resolved\": \"tooling/tsconfig\",\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-19",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package-lock.json",
+          "blobId": "13855d2f99a7bfb677eb46661a0e6be72db3d11a",
+          "range": {
+            "startByte": 2107,
+            "endByte": 2134
+          }
+        },
+        "text": "    \"packages/tsconfig\": {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-20",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package-lock.json",
+          "blobId": "4adaf60fd66f84829c027639a27a8741dbafc618",
+          "range": {
+            "startByte": 2127,
+            "endByte": 2153
+          }
+        },
+        "text": "    \"tooling/tsconfig\": {\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-21",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package.json",
+          "blobId": "982801ddb0e196ca9ce286c77a03177fb3d9e7d2",
+          "range": {
+            "startByte": 87,
+            "endByte": 129
+          }
+        },
+        "text": "  \"workspaces\": [\"apps/*\", \"packages/*\"],\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-22",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package.json",
+          "blobId": "0aee0c44384800034a5a08b3bc7e0d9c270ab710",
+          "range": {
+            "startByte": 87,
+            "endByte": 142
+          }
+        },
+        "text": "  \"workspaces\": [\"apps/*\", \"packages/*\", \"tooling/*\"],\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-23",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package.json",
+          "blobId": "982801ddb0e196ca9ce286c77a03177fb3d9e7d2",
+          "range": {
+            "startByte": 234,
+            "endByte": 293
+          }
+        },
+        "text": "    \"build\": \"npm run clean && tsc -p tsconfig.build.json\"\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-24",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package.json",
+          "blobId": "0aee0c44384800034a5a08b3bc7e0d9c270ab710",
+          "range": {
+            "startByte": 247,
+            "endByte": 539
+          }
+        },
+        "text": "    \"build\": \"npm run clean && tsc -p tsconfig.build.json\",\n    \"test:config\": \"sh tooling/tests/workspace-config.test.sh\",\n    \"test:deployment\": \"sh deploy/tests/package.test.sh\",\n    \"test\": \"npm run test:config && npm run test:deployment\",\n    \"package:deployment\": \"./deploy/package.sh\"\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-25",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/catalog/tsconfig.json",
+          "blobId": "69aba2fcedef23e0da42ff2bff34d24a80611b7a",
+          "range": {
+            "startByte": 0,
+            "endByte": 113
+          }
+        },
+        "text": "{\"extends\":\"../tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-26",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "packages/catalog/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-27",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/core/tsconfig.json",
+          "blobId": "69aba2fcedef23e0da42ff2bff34d24a80611b7a",
+          "range": {
+            "startByte": 0,
+            "endByte": 113
+          }
+        },
+        "text": "{\"extends\":\"../tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-28",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "packages/core/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-29",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/fulfillment/tsconfig.json",
+          "blobId": "69aba2fcedef23e0da42ff2bff34d24a80611b7a",
+          "range": {
+            "startByte": 0,
+            "endByte": 113
+          }
+        },
+        "text": "{\"extends\":\"../tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-30",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "packages/fulfillment/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-31",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tooling/tests/workspace-config.test.sh",
+          "blobId": "2b1810928834357caf191d866135ab0dce77a198",
+          "range": {
+            "startByte": 0,
+            "endByte": 2633
+          }
+        },
+        "text": "#!/bin/sh\nset -eu\ncd \"$(CDPATH= cd -- \"$(dirname -- \"$0\")/../..\" && pwd)\"\n\nnode <<'NODE'\nconst test = require('node:test');\nconst assert = require('node:assert/strict');\nconst fs = require('node:fs');\nconst path = require('node:path');\nconst ts = require('typescript');\n\nfunction loadConfig(file) {\n  const absolute = path.resolve(file);\n  const loaded = ts.readConfigFile(absolute, ts.sys.readFile);\n  assert.equal(loaded.error, undefined);\n  const parsed = ts.parseJsonConfigFileContent(loaded.config, ts.sys, path.dirname(absolute));\n  assert.deepEqual(parsed.errors, []);\n  return parsed;\n}\n\nfunction checkDefaults(options) {\n  assert.equal(options.target, ts.ScriptTarget.ES2022);\n  assert.equal(options.module, ts.ModuleKind.CommonJS);\n  assert.equal(options.moduleResolution, ts.ModuleResolutionKind.Node10);\n  assert.equal(options.strict, true);\n  assert.equal(options.declaration, true);\n  assert.equal(options.skipLibCheck, true);\n}\n\ntest('npm resolves the shared config from the tooling workspace', () => {\n  assert.equal(fs.realpathSync('node_modules/@daphne-test/tsconfig'), path.resolve('tooling/tsconfig'));\n});\n\nfor (const workspace of ['apps/api', 'apps/worker', 'packages/catalog', 'packages/checkout', 'packages/core', 'packages/fulfillment']) {\n  test(`${workspace} inherits compiler defaults and keeps local source/output paths`, () => {\n    const config = loadConfig(`${workspace}/tsconfig.json`);\n    checkDefaults(config.options);\n    assert.equal(config.options.composite, true);\n    assert.equal(config.options.rootDir, path.resolve(workspace, 'src'));\n    assert.equal(config.options.outDir, path.resolve(workspace, 'lib'));\n    assert.ok(config.fileNames.includes(path.resolve(workspace, 'src/index.ts')));\n    assert.ok(config.fileNames.every(file => file.startsWith(path.resolve(workspace, 'src') + path.sep)));\n  });\n}\n\ntest('root build includes every application and package source with existing output layout', () => {\n  const config = loadConfig('tsconfig.build.json');\n  checkDefaults(config.options);\n  assert.equal(!!config.options.composite, false);\n  assert.equal(config.options.esModuleInterop, true);\n  assert.equal(config.options.rootDir, process.cwd());\n  assert.equal(config.options.outDir, path.resolve('dist'));\n  const sources = ['apps', 'packages'].flatMap(root => fs.readdirSync(root).flatMap(name => {\n    const source = path.join(root, name, 'src');\n    if (!fs.existsSync(source)) return [];\n    return fs.readdirSync(source).filter(file => file.endsWith('.ts')).map(file => path.resolve(source, file));\n  }));\n  assert.deepEqual(config.fileNames.sort(), sources.sort());\n});\nNODE\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-32",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "tsconfig.build.json",
+          "blobId": "df5eb23a4ca1a42fafef73aa534bbd37d3af76f8",
+          "range": {
+            "startByte": 2,
+            "endByte": 2
+          }
+        },
+        "text": ""
+      }
+    },
+    {
+      "evidenceId": "evidence-33",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tsconfig.build.json",
+          "blobId": "5486d708709b3b82f1e503cc49b42ea01b6fea3d",
+          "range": {
+            "startByte": 2,
+            "endByte": 50
+          }
+        },
+        "text": "  \"extends\": \"@daphne-test/tsconfig/base.json\",\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-34",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "tsconfig.build.json",
+          "blobId": "df5eb23a4ca1a42fafef73aa534bbd37d3af76f8",
+          "range": {
+            "startByte": 25,
+            "endByte": 127
+          }
+        },
+        "text": "    \"target\": \"ES2022\",\n    \"module\": \"CommonJS\",\n    \"moduleResolution\": \"Node\",\n    \"strict\": true,\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-35",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tsconfig.build.json",
+          "blobId": "5486d708709b3b82f1e503cc49b42ea01b6fea3d",
+          "range": {
+            "startByte": 73,
+            "endByte": 97
+          }
+        },
+        "text": "    \"composite\": false,\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-36",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "tsconfig.build.json",
+          "blobId": "df5eb23a4ca1a42fafef73aa534bbd37d3af76f8",
+          "range": {
+            "startByte": 176,
+            "endByte": 248
+          }
+        },
+        "text": "    \"outDir\": \"dist\",\n    \"declaration\": true,\n    \"skipLibCheck\": true\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-37",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tsconfig.build.json",
+          "blobId": "5486d708709b3b82f1e503cc49b42ea01b6fea3d",
+          "range": {
+            "startByte": 146,
+            "endByte": 167
+          }
+        },
+        "text": "    \"outDir\": \"dist\"\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-38",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": ".gitignore",
+          "blobId": "83631f817f87f044ca090dffe62cc2acf03fa062",
+          "range": {
+            "startByte": 0,
+            "endByte": 34
+          }
+        },
+        "text": "dist/\nnode_modules/\n*.tsbuildinfo\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-39",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "README.md",
+          "blobId": "ad19a08ae965eecd3d5b2488a2ca1c38a83d096c",
+          "range": {
+            "startByte": 0,
+            "endByte": 767
+          }
+        },
+        "text": "# Commerce operations PR review repository\n\nThis deterministic TypeScript workspace models checkout, inventory reservations,\npayments, cancellation, outbox delivery, job leases, and reservation expiry. It\nuses in-memory state and injected clocks and IDs so pull-request analysis is\nstable.\n\n```sh\nnpm ci\nnpm run build\n```\n\nThe repository is intentionally outside Daphne's tracked source. Its local Git\nhistory supplies exact BASE and HEAD commits and can later be published for a\nreal pull-request run. Scenario tooling and answer keys live in the sibling\n`commerce-fixture/` directory so Daphne cannot see them in analyzed source.\n\nThe model exercises explicit interleavings only. It does not claim database\ntransaction isolation or distributed delivery guarantees.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-40",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package-lock.json",
+          "blobId": "13855d2f99a7bfb677eb46661a0e6be72db3d11a",
+          "range": {
+            "startByte": 0,
+            "endByte": 2210
+          }
+        },
+        "text": "{\n  \"name\": \"daphne-commerce-review-fixture\",\n  \"version\": \"1.0.0\",\n  \"lockfileVersion\": 3,\n  \"requires\": true,\n  \"packages\": {\n    \"\": {\n      \"name\": \"daphne-commerce-review-fixture\",\n      \"version\": \"1.0.0\",\n      \"workspaces\": [\n        \"apps/*\",\n        \"packages/*\"\n      ],\n      \"devDependencies\": {\n        \"typescript\": \"5.6.3\"\n      }\n    },\n    \"apps/api\": {\n      \"name\": \"@daphne-test/api\",\n      \"version\": \"1.0.0\"\n    },\n    \"apps/worker\": {\n      \"name\": \"@daphne-test/worker\",\n      \"version\": \"1.0.0\"\n    },\n    \"node_modules/@daphne-test/api\": {\n      \"resolved\": \"apps/api\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/catalog\": {\n      \"resolved\": \"packages/catalog\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/checkout\": {\n      \"resolved\": \"packages/checkout\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/core\": {\n      \"resolved\": \"packages/core\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/fulfillment\": {\n      \"resolved\": \"packages/fulfillment\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/tsconfig\": {\n      \"resolved\": \"packages/tsconfig\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/worker\": {\n      \"resolved\": \"apps/worker\",\n      \"link\": true\n    },\n    \"node_modules/typescript\": {\n      \"version\": \"5.6.3\",\n      \"resolved\": \"https://registry.npmjs.org/typescript/-/typescript-5.6.3.tgz\",\n      \"integrity\": \"sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==\",\n      \"dev\": true,\n      \"license\": \"Apache-2.0\",\n      \"bin\": {\n        \"tsc\": \"bin/tsc\",\n        \"tsserver\": \"bin/tsserver\"\n      },\n      \"engines\": {\n        \"node\": \">=14.17\"\n      }\n    },\n    \"packages/catalog\": {\n      \"name\": \"@daphne-test/catalog\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/checkout\": {\n      \"name\": \"@daphne-test/checkout\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/core\": {\n      \"name\": \"@daphne-test/core\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/fulfillment\": {\n      \"name\": \"@daphne-test/fulfillment\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/tsconfig\": {\n      \"name\": \"@daphne-test/tsconfig\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-41",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "package.json",
+          "blobId": "982801ddb0e196ca9ce286c77a03177fb3d9e7d2",
+          "range": {
+            "startByte": 0,
+            "endByte": 353
+          }
+        },
+        "text": "{\n  \"name\": \"daphne-commerce-review-fixture\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"workspaces\": [\"apps/*\", \"packages/*\"],\n  \"scripts\": {\n    \"clean\": \"node -e \\\"require('node:fs').rmSync('dist',{recursive:true,force:true})\\\"\",\n    \"build\": \"npm run clean && tsc -p tsconfig.build.json\"\n  },\n  \"devDependencies\": {\n    \"typescript\": \"5.6.3\"\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-42",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/checkout/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-43",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/tsconfig/base.json",
+          "blobId": "b8bf8012e2fa4710085cc4aa8aa08c809628c7df",
+          "range": {
+            "startByte": 0,
+            "endByte": 206
+          }
+        },
+        "text": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"CommonJS\",\n    \"moduleResolution\": \"Node\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"composite\": true,\n    \"skipLibCheck\": true\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-44",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "packages/tsconfig/package.json",
+          "blobId": "296e61f3fd50687be8c153b9ecc4d3c87887ccff",
+          "range": {
+            "startByte": 0,
+            "endByte": 105
+          }
+        },
+        "text": "{\n  \"name\": \"@daphne-test/tsconfig\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"files\": [\"base.json\"]\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-45",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "base",
+          "commit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+          "path": "tsconfig.build.json",
+          "blobId": "df5eb23a4ca1a42fafef73aa534bbd37d3af76f8",
+          "range": {
+            "startByte": 0,
+            "endByte": 344
+          }
+        },
+        "text": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"CommonJS\",\n    \"moduleResolution\": \"Node\",\n    \"strict\": true,\n    \"esModuleInterop\": true,\n    \"rootDir\": \".\",\n    \"outDir\": \"dist\",\n    \"declaration\": true,\n    \"skipLibCheck\": true\n  },\n  \"include\": [\"apps/**/*.ts\", \"packages/**/*.ts\"],\n  \"exclude\": [\"dist\", \"node_modules\"]\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-46",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": ".gitignore",
+          "blobId": "b88c8cd6ed1160ddaa214732377bc6963449c245",
+          "range": {
+            "startByte": 0,
+            "endByte": 44
+          }
+        },
+        "text": "dist/\nreleases/\nnode_modules/\n*.tsbuildinfo\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-47",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "README.md",
+          "blobId": "22fc72ed4aa3e53c82348e909da2e9bd8a8efb57",
+          "range": {
+            "startByte": 0,
+            "endByte": 1323
+          }
+        },
+        "text": "# Commerce operations PR review repository\n\nThis deterministic TypeScript workspace models checkout, inventory reservations,\npayments, cancellation, outbox delivery, job leases, and reservation expiry. It\nuses in-memory state and injected clocks and IDs so pull-request analysis is\nstable.\n\n```sh\nnpm ci\nnpm run build\nnpm test\nnpm run package:deployment\n```\n\nThe repository is intentionally outside Daphne's tracked source. Its local Git\nhistory supplies exact BASE and HEAD commits and can later be published for a\nreal pull-request run. Scenario tooling and answer keys live in the sibling\n`commerce-fixture/` directory so Daphne cannot see them in analyzed source.\n\nThe model exercises explicit interleavings only. It does not claim database\ntransaction isolation or distributed delivery guarantees.\n\nShared TypeScript defaults live in the `tooling/tsconfig` workspace. Apps,\npackages, and the root build inherit `@daphne-test/tsconfig/base.json`; run\n`npm ci` after switching to this layout to refresh workspace links.\n\nThe deployment bundle contains compiled modules, package metadata, and documentation. See the\n[deployment instructions](docs/deployment.md) for prerequisites, extraction,\nartifact checks, and CI behavior. No production TypeScript or runtime behavior\nchanges as part of this configuration migration.\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-48",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package-lock.json",
+          "blobId": "4adaf60fd66f84829c027639a27a8741dbafc618",
+          "range": {
+            "startByte": 0,
+            "endByte": 2229
+          }
+        },
+        "text": "{\n  \"name\": \"daphne-commerce-review-fixture\",\n  \"version\": \"1.0.0\",\n  \"lockfileVersion\": 3,\n  \"requires\": true,\n  \"packages\": {\n    \"\": {\n      \"name\": \"daphne-commerce-review-fixture\",\n      \"version\": \"1.0.0\",\n      \"workspaces\": [\n        \"apps/*\",\n        \"packages/*\",\n        \"tooling/*\"\n      ],\n      \"devDependencies\": {\n        \"typescript\": \"5.6.3\"\n      }\n    },\n    \"apps/api\": {\n      \"name\": \"@daphne-test/api\",\n      \"version\": \"1.0.0\"\n    },\n    \"apps/worker\": {\n      \"name\": \"@daphne-test/worker\",\n      \"version\": \"1.0.0\"\n    },\n    \"node_modules/@daphne-test/api\": {\n      \"resolved\": \"apps/api\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/catalog\": {\n      \"resolved\": \"packages/catalog\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/checkout\": {\n      \"resolved\": \"packages/checkout\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/core\": {\n      \"resolved\": \"packages/core\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/fulfillment\": {\n      \"resolved\": \"packages/fulfillment\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/tsconfig\": {\n      \"resolved\": \"tooling/tsconfig\",\n      \"link\": true\n    },\n    \"node_modules/@daphne-test/worker\": {\n      \"resolved\": \"apps/worker\",\n      \"link\": true\n    },\n    \"node_modules/typescript\": {\n      \"version\": \"5.6.3\",\n      \"resolved\": \"https://registry.npmjs.org/typescript/-/typescript-5.6.3.tgz\",\n      \"integrity\": \"sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==\",\n      \"dev\": true,\n      \"license\": \"Apache-2.0\",\n      \"bin\": {\n        \"tsc\": \"bin/tsc\",\n        \"tsserver\": \"bin/tsserver\"\n      },\n      \"engines\": {\n        \"node\": \">=14.17\"\n      }\n    },\n    \"packages/catalog\": {\n      \"name\": \"@daphne-test/catalog\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/checkout\": {\n      \"name\": \"@daphne-test/checkout\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/core\": {\n      \"name\": \"@daphne-test/core\",\n      \"version\": \"1.0.0\"\n    },\n    \"packages/fulfillment\": {\n      \"name\": \"@daphne-test/fulfillment\",\n      \"version\": \"1.0.0\"\n    },\n    \"tooling/tsconfig\": {\n      \"name\": \"@daphne-test/tsconfig\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-49",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "package.json",
+          "blobId": "0aee0c44384800034a5a08b3bc7e0d9c270ab710",
+          "range": {
+            "startByte": 0,
+            "endByte": 599
+          }
+        },
+        "text": "{\n  \"name\": \"daphne-commerce-review-fixture\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"workspaces\": [\"apps/*\", \"packages/*\", \"tooling/*\"],\n  \"scripts\": {\n    \"clean\": \"node -e \\\"require('node:fs').rmSync('dist',{recursive:true,force:true})\\\"\",\n    \"build\": \"npm run clean && tsc -p tsconfig.build.json\",\n    \"test:config\": \"sh tooling/tests/workspace-config.test.sh\",\n    \"test:deployment\": \"sh deploy/tests/package.test.sh\",\n    \"test\": \"npm run test:config && npm run test:deployment\",\n    \"package:deployment\": \"./deploy/package.sh\"\n  },\n  \"devDependencies\": {\n    \"typescript\": \"5.6.3\"\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-50",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "packages/checkout/tsconfig.json",
+          "blobId": "b92a709a6442febb26f78323d0301609db9fbf19",
+          "range": {
+            "startByte": 0,
+            "endByte": 123
+          }
+        },
+        "text": "{\"extends\":\"@daphne-test/tsconfig/base.json\",\"compilerOptions\":{\"rootDir\":\"src\",\"outDir\":\"lib\"},\"include\":[\"src/**/*.ts\"]}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-51",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tooling/tsconfig/base.json",
+          "blobId": "b8bf8012e2fa4710085cc4aa8aa08c809628c7df",
+          "range": {
+            "startByte": 0,
+            "endByte": 206
+          }
+        },
+        "text": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"CommonJS\",\n    \"moduleResolution\": \"Node\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"composite\": true,\n    \"skipLibCheck\": true\n  }\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-52",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tooling/tsconfig/package.json",
+          "blobId": "296e61f3fd50687be8c153b9ecc4d3c87887ccff",
+          "range": {
+            "startByte": 0,
+            "endByte": 105
+          }
+        },
+        "text": "{\n  \"name\": \"@daphne-test/tsconfig\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"files\": [\"base.json\"]\n}\n"
+      }
+    },
+    {
+      "evidenceId": "evidence-53",
+      "source": {
+        "ref": {
+          "sessionId": "b3b83570-9cad-45dd-aada-372675e9b4d7",
+          "side": "head",
+          "commit": "410da83eaee97864746415247d1bfbf0f559381c",
+          "path": "tsconfig.build.json",
+          "blobId": "5486d708709b3b82f1e503cc49b42ea01b6fea3d",
+          "range": {
+            "startByte": 0,
+            "endByte": 263
+          }
+        },
+        "text": "{\n  \"extends\": \"@daphne-test/tsconfig/base.json\",\n  \"compilerOptions\": {\n    \"composite\": false,\n    \"esModuleInterop\": true,\n    \"rootDir\": \".\",\n    \"outDir\": \"dist\"\n  },\n  \"include\": [\"apps/**/*.ts\", \"packages/**/*.ts\"],\n  \"exclude\": [\"dist\", \"node_modules\"]\n}\n"
+      }
+    }
+  ]
+}
