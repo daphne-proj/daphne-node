@@ -53,6 +53,7 @@ export function createOpenAI(
         {
           ...request,
           store: false,
+          stream: true,
           max_output_tokens: maxOutputTokens,
           ...(request.tools?.length
             ? { include: ['reasoning.encrypted_content'] }

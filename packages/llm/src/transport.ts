@@ -1,4 +1,5 @@
 import type { ModelCallObservation, ModelProvider } from './contracts.js';
+import { readOpenAIStream } from './openai-stream.js';
 import { ModelError, isObject, object } from './response.js';
 
 /* Share deadlines, observations and failure accounting across both HTTP adapters. */
@@ -54,16 +55,29 @@ export function createTransport(
         );
       }
 
+      if (provider === 'openai' && path === '') {
+        return await readOpenAIStream(response);
+      }
+
       return object(await response.json(), label);
     } catch (error) {
       if (error instanceof ModelError) {
         throw error;
       }
 
-      throw new ModelError(
-        `${label} request failed, timed out or was cancelled.`,
-        { cause: error },
-      );
+      /* CLI artifacts retain only this message, so include the underlying fetch failure. */
+      const cause =
+        error instanceof Error && error.cause instanceof Error
+          ? error.cause
+          : error;
+      const detail =
+        cause instanceof Error
+          ? `${cause.name}: ${cause.message.slice(0, 1000)}`
+          : 'Unknown transport error';
+
+      throw new ModelError(`${label} request failed (${detail}).`, {
+        cause: error,
+      });
     }
   }
 
