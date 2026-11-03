@@ -140,6 +140,20 @@ function sourceLineCount(text: string): number {
   return count;
 }
 
+/*
+ * Require exactly one entry for each expected change/hunk pair. Text hunks must
+ * supply snippets for every existing file side, ordered BASE then HEAD, with
+ * matching paths and line counts. Metadata-only entries must contain no snippets.
+ *
+ * Store each snippet in the context engine and append its evidence IDs, change
+ * ID, and hunk index to the supplied mappings array. The workflow uses these
+ * mappings to assemble the initial model context and reviewers use them to
+ * check coverage.
+ *
+ * Throw when evidence is missing or inconsistent. Validation and storage happen
+ * incrementally: a failure can leave previously stored sources and appended
+ * mappings in place.
+ */
 export function retainDiff(
   input: IntentionsInput,
   engine: ContextEngine,

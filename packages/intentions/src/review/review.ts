@@ -122,6 +122,7 @@ export async function reviewIntentionCandidate(
   const signal = AbortSignal.any([runtime.budget.signal, controller.signal]);
   const failures: unknown[] = [];
   const proposal = writer.validation.proposal;
+
   const results = await Promise.allSettled(
     intentionReviewers.map(async (reviewer) => {
       try {
@@ -141,10 +142,12 @@ export async function reviewIntentionCandidate(
           },
           candidate.deliveredEvidenceIds,
         );
+
         const reply = await runIntentionConversation(
           conversation,
           runtime.forConversation(conversation, signal),
         );
+
         checkIntentionCancellation(signal);
         const turn = runtime.progress.turns[reply.turnNumber - 1];
 
@@ -162,6 +165,7 @@ export async function reviewIntentionCandidate(
           deliveredEvidenceIds: reply.deliveredEvidenceIds,
           sources: runtime.engine.getEvidenceSnapshot().sources,
         });
+
         turn.review = report;
 
         return { turn, report };
@@ -178,12 +182,14 @@ export async function reviewIntentionCandidate(
   }
 
   checkIntentionCancellation(signal);
+
   const reviews = results.flatMap((result) =>
     result.status === 'fulfilled' ? [result.value] : [],
   );
   const deliveredEvidenceIds = [
     ...new Set(reviews.flatMap(({ turn }) => turn.deliveredEvidenceIds)),
   ];
+
   const report = combineIntentionReviews(
     reviews.map((review) => review.report),
     {
