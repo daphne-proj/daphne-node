@@ -29,9 +29,7 @@ test('shared retention and reviewer replies cannot confirm delivery to a pending
   expect(writerTool.delivered).toBe(false);
   expect([...writer.deliveredEvidenceIds]).toEqual([harness.initialId]);
   expect(
-    harness.runtime.engine
-      .getEvidenceSnapshot()
-      .sources.map((source) => source.source),
+    harness.engine.getEvidenceSnapshot().sources.map((source) => source.source),
   ).toContainEqual(harness.discovered);
 
   /* The same call ID is valid in a different conversation, using the same engine/client/budget. */

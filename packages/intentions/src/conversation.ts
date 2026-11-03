@@ -1,4 +1,3 @@
-import type { ContextEngine } from '@daphne/context-engine';
 import type { RunBudget } from '@daphne/evaluator-optimizer';
 import { ModelError, runModelConversation } from '@daphne/llm';
 import type {
@@ -28,7 +27,7 @@ export interface IntentionCandidate {
 /*
  * Keep replay and unconfirmed delivery local to one conversation.
  * A continuing writer updates candidateNumber before each proposal attempt;
- * a reviewer uses a separate instance even when both borrow the same runtime.
+ * a reviewer uses a separate instance while sharing investigation progress.
  */
 export interface IntentionConversation extends ModelConversation {
   role: 'writer' | 'reviewer';
@@ -45,10 +44,13 @@ export interface IntentionConversation extends ModelConversation {
   pendingTools: Extract<IntentionToolRecord, { status: 'complete' }>[];
 }
 
-/* Conversations own clients and receipts; shared recording and tool retention remain run-local. */
+/*
+ * Supply runIntentionConversation with its client, limits and shared recording.
+ * The tool runner retains evidence internally; conversations only need its
+ * results to track delivery. Reuse this runtime for the same writer's revisions.
+ */
 export interface IntentionConversationRuntime {
   model: ModelClient;
-  engine: ContextEngine;
   runTool: (
     call: ModelFunctionCall,
     turn: IntentionTurn,
@@ -117,7 +119,7 @@ export function checkIntentionCancellation(signal: AbortSignal): void {
  *
  * Mutate the supplied conversation and shared progress in place. Reuse the writer
  * across revisions, but create a separate conversation/client for each review.
- * The shared runtime queues tools while model calls can run concurrently.
+ * The runtime factory shares one tool queue while model calls can run concurrently.
  *
  * Return the terminal turn's number and evidence snapshot; its full reply remains
  * in progress.turns. Errors propagate while completed work stays recorded, and

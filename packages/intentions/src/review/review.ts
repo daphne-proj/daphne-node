@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { ContextLimitError } from '@daphne/context-engine';
+import type { ContextEngine } from '@daphne/context-engine';
 import { ModelError } from '@daphne/llm';
 import type { ContextNotice } from '@daphne/review-evidence/contracts';
 import type { IntentionHunkEvidence, IntentionsInput } from '../contracts.js';
@@ -10,10 +11,13 @@ import {
   runIntentionConversation,
 } from '../conversation.js';
 import { intentionsLimits } from '../limits.js';
-import type { IntentionCandidate } from '../conversation.js';
+import type {
+  IntentionCandidate,
+  IntentionConversationRuntime,
+} from '../conversation.js';
 import { intentionReviewerInstructions } from './prompts.js';
 import { combineIntentionReviews } from './combine.js';
-import type { IntentionRuntime } from '../runtime.js';
+import type { IntentionRuntimeFactory } from '../runtime.js';
 import type {
   IntentionReviewer,
   IntentionReviewTurnNumbers,
@@ -25,8 +29,16 @@ import {
   parseIntentionReviewerReport,
 } from './validation.js';
 
-export interface IntentionReviewRuntime {
-  runtime: IntentionRuntime;
+/*
+ * Supply the writer's shared evidence, progress and runtime factory so reviewer
+ * tools join the same queue and records. The signal cancels the review batch;
+ * reviewIntentionCandidate also cancels sibling reviewers when one fails.
+ */
+export interface IntentionReviewInput {
+  engine: ContextEngine;
+  progress: IntentionConversationRuntime['progress'];
+  signal: AbortSignal;
+  createConversationRuntime: IntentionRuntimeFactory;
   input: IntentionsInput;
   hunks: IntentionHunkEvidence[];
   limitations: ContextNotice[];
@@ -41,10 +53,10 @@ export interface IntentionReviewRuntime {
  */
 export async function reviewIntentionCandidate(
   candidate: IntentionCandidate,
-  input: IntentionReviewRuntime,
+  input: IntentionReviewInput,
 ) {
-  const { runtime } = input;
-  const writer = runtime.progress.turns[candidate.writerTurnNumber - 1];
+  const { engine, progress, createConversationRuntime } = input;
+  const writer = progress.turns[candidate.writerTurnNumber - 1];
 
   if (
     !writer ||
@@ -68,9 +80,9 @@ export async function reviewIntentionCandidate(
     );
   }
 
-  const initial = assembleEvidence(runtime.engine, [...diffIds], []);
+  const initial = assembleEvidence(engine, [...diffIds], []);
   const supplemental = assembleEvidence(
-    runtime.engine,
+    engine,
     candidate.deliveredEvidenceIds.filter((id) => !diffIds.has(id)),
   );
 
@@ -119,7 +131,7 @@ export async function reviewIntentionCandidate(
     },
   ];
   const controller = new AbortController();
-  const signal = AbortSignal.any([runtime.budget.signal, controller.signal]);
+  const signal = AbortSignal.any([input.signal, controller.signal]);
   const failures: unknown[] = [];
   const proposal = writer.validation.proposal;
 
@@ -145,11 +157,11 @@ export async function reviewIntentionCandidate(
 
         const reply = await runIntentionConversation(
           conversation,
-          runtime.forConversation(conversation, signal),
+          createConversationRuntime(conversation, signal),
         );
 
         checkIntentionCancellation(signal);
-        const turn = runtime.progress.turns[reply.turnNumber - 1];
+        const turn = progress.turns[reply.turnNumber - 1];
 
         if (!turn || turn.role !== 'reviewer') {
           throw new ModelError(
@@ -163,7 +175,7 @@ export async function reviewIntentionCandidate(
           proposal,
           changes: input.input.changes,
           deliveredEvidenceIds: reply.deliveredEvidenceIds,
-          sources: runtime.engine.getEvidenceSnapshot().sources,
+          sources: engine.getEvidenceSnapshot().sources,
         });
 
         turn.review = report;
@@ -197,7 +209,7 @@ export async function reviewIntentionCandidate(
       proposal,
       changes: input.input.changes,
       deliveredEvidenceIds,
-      sources: runtime.engine.getEvidenceSnapshot().sources,
+      sources: engine.getEvidenceSnapshot().sources,
     },
   );
 

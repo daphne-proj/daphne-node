@@ -11,7 +11,7 @@ import type {
 } from '@daphne/review-evidence/contracts';
 import { createIntentionConversation } from '../src/conversation.js';
 import { assembleEvidence } from '../src/context.js';
-import { createIntentionRuntime } from '../src/runtime.js';
+import { createIntentionRuntimeFactory } from '../src/runtime.js';
 import type { IntentionConversationRuntime } from '../src/conversation.js';
 
 const identity = {
@@ -106,7 +106,8 @@ export function intentionConversationHarness() {
     tools: [],
     calls: { count: 0, generate: 0, tools: 0 },
   };
-  const runtime = createIntentionRuntime(
+
+  const createConversationRuntime = createIntentionRuntimeFactory(
     {
       apiKey: 'unused-key',
       model: 'test-model',
@@ -116,10 +117,13 @@ export function intentionConversationHarness() {
     },
     engine,
     progress,
-  ).forConversation(conversation('writer'));
+  );
+
+  const runtime = createConversationRuntime(conversation('writer'));
   const model = runtime.model;
   const count = vi.spyOn(model, 'count').mockResolvedValue(42);
   const generate = vi.fn(() => Promise.resolve(intentionReply()));
+
   vi.spyOn(model, 'generate').mockImplementation(() => {
     model.calls.generate += 1;
     return generate();
@@ -145,6 +149,7 @@ export function intentionConversationHarness() {
   }
 
   return {
+    engine,
     runtime,
     conversation,
     initialId,

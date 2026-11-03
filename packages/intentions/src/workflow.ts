@@ -31,7 +31,7 @@ import type {
   IntentionReview,
   IntentionReviewTurnNumbers,
 } from './review/contracts.js';
-import { createIntentionRuntime } from './runtime.js';
+import { createIntentionRuntimeFactory } from './runtime.js';
 
 type IntentionFeedback =
   | { kind: 'structural'; diagnostics: string[] }
@@ -67,7 +67,7 @@ export async function runIntentions(
   const { budget, maxInputTokens } = options;
   const { signal, maxCandidates, deadlineAt } = budget;
 
-  let engine: ContextEngine | null = null;
+  let retainedEngine: ContextEngine | null = null;
 
   const progress: IntentionsProgress = {
     comparison: null,
@@ -84,7 +84,7 @@ export async function runIntentions(
   };
 
   function collected(): IntentionsProgress {
-    const evidence = engine?.getEvidenceSnapshot() ?? null;
+    const evidence = retainedEngine?.getEvidenceSnapshot() ?? null;
 
     return {
       ...progress,
@@ -113,10 +113,11 @@ export async function runIntentions(
       pr: input.pr,
     };
 
-    engine = createContextEngine(input.identity, {
+    const engine = createContextEngine(input.identity, {
       maxContextBytes: intentionsLimits.maxContextBytes,
       maxRetainedBytes: intentionsLimits.maxRetainedBytes,
     });
+    retainedEngine = engine;
 
     progress.limitations = initialLimitations(input.changes);
     retainDiff(input, engine, progress.hunks);
@@ -162,8 +163,12 @@ export async function runIntentions(
       initial.includedEvidenceIds,
     );
 
-    const runtime = createIntentionRuntime(options, engine, progress);
-    const writerRuntime = runtime.forConversation(writer);
+    const createConversationRuntime = createIntentionRuntimeFactory(
+      options,
+      engine,
+      progress,
+    );
+    const writerRuntime = createConversationRuntime(writer);
     const evaluations = new Map<number, IntentionEvaluation>();
 
     const result = await runEvaluatorOptimizer<
@@ -180,10 +185,7 @@ export async function runIntentions(
           let context: string | undefined;
 
           if (feedback.kind === 'semantic') {
-            const packet = assembleEvidence(
-              runtime.engine,
-              feedback.evidenceIds,
-            );
+            const packet = assembleEvidence(engine, feedback.evidenceIds);
             context = packet.renderedContext;
             writer.pendingDeliveries.push({
               kind: 'review_feedback',
@@ -222,7 +224,7 @@ export async function runIntentions(
           identity: input.identity,
           changes: input.changes,
           pr: input.pr,
-          sources: runtime.engine.getEvidenceSnapshot().sources,
+          sources: engine.getEvidenceSnapshot().sources,
           deliveredEvidenceIds: candidate.deliveredEvidenceIds,
         });
         turn.validation = validation;
@@ -245,12 +247,15 @@ export async function runIntentions(
         }
 
         const review = await reviewIntentionCandidate(candidate, {
-          runtime,
+          engine,
+          progress,
+          signal,
+          createConversationRuntime,
           input,
           hunks: progress.hunks,
           limitations: [
             ...progress.limitations,
-            ...retrievalLimitations(runtime.engine.getEvidenceSnapshot()),
+            ...retrievalLimitations(engine.getEvidenceSnapshot()),
           ],
         });
         const reviewTurnNumbers = review.reviewTurnNumbers;
