@@ -1,6 +1,6 @@
 import { getExpectedUnitIds } from '@daphne/semantic-split';
 import type { PairLabel, SplitCase } from './contracts.js';
-import { parseSplitEvidence } from './evidence.js';
+import { parseSplitArtifact } from './artifact.js';
 import * as parse from '../parse.js';
 
 function labels(value: unknown, expected: ReadonlySet<string>): PairLabel[] {
@@ -172,31 +172,17 @@ export function parseSplitCase(
   expectations: unknown,
   caseId: string,
 ): SplitCase {
-  const artifact = parse.object(value, 'artifact');
-  parse.choice(artifact.format, ['daphne-split-pr-v3'], 'artifact.format');
-  const status = parse.choice(
-    artifact.status,
-    ['complete', 'failed'],
-    'artifact.status',
-  );
-  const calls = parse.object(artifact.calls, 'artifact.calls');
-  const count = parse.integer(calls.count, 'artifact.calls.count');
-  const generate = parse.integer(calls.generate, 'artifact.calls.generate');
-  parse.array(artifact.pages, 'artifact.pages');
-  parse.array(artifact.attempts, 'artifact.attempts');
+  const {
+    input: artifact,
+    evidence,
+    originalComplete,
+  } = parseSplitArtifact(value);
 
-  /* A failed acquisition must not become a valid empty reference. */
-  if (status === 'failed' && count === 0 && generate === 0) {
+  if (!originalComplete) {
     throw new parse.EvaluationError(
-      'artifact: failed with no workflow activity; acquisition completion is ambiguous.',
+      'Frozen case preparation requires the complete original diff to fit the supported retention limit.',
     );
   }
-
-  const evidence = parseSplitEvidence({
-    identity: artifact.identity,
-    changes: artifact.changes,
-    hunks: artifact.hunks,
-  });
   const input: Record<string, unknown> = {
     partition: 'development',
     tags: [],

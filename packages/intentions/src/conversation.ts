@@ -13,7 +13,7 @@ import type {
   IntentionTurn,
 } from './contracts.js';
 import { intentionsLimits } from './limits.js';
-import { intentionsTools } from './tools.js';
+import { repositoryTools } from '@daphne/review-evidence/tool-definitions';
 
 /*
  * A writer candidate references its retained terminal reply instead of copying
@@ -122,7 +122,7 @@ export async function runIntentionConversation(
         ? {}
         : { reasoning: runtime.reasoning }),
       instructions: conversation.instructions,
-      tools: intentionsTools,
+      tools: repositoryTools,
       /* Batch independent reads into one reply; the shared loop executes them sequentially. */
       parallel_tool_calls: true,
       max_output_tokens: intentionsLimits.maxOutputTokens,

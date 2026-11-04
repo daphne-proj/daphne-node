@@ -1,4 +1,8 @@
-import { createContextEngine } from '@daphne/context-engine';
+import {
+  initialLimitations,
+  retrievalLimitations,
+} from '@daphne/context-engine';
+import { createContextEngine, retainDiff } from '@daphne/context-engine';
 import type { ContextEngine } from '@daphne/context-engine';
 import { runEvaluatorOptimizer } from '@daphne/evaluator-optimizer';
 import { ModelError } from '@daphne/llm';
@@ -9,13 +13,7 @@ import type {
   IntentionsResult,
   IntentionEvaluation,
 } from './contracts.js';
-import {
-  assembleEvidence,
-  initialLimitations,
-  retainDiff,
-  retrievalLimitations,
-  assertValidInput,
-} from './context.js';
+import { assembleEvidence, assertValidInput } from './context.js';
 import {
   checkIntentionCancellation,
   createIntentionConversation,

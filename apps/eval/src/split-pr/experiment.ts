@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { context, trace } from '@opentelemetry/api';
 import { startObservation } from '@langfuse/tracing';
 import type { LangfuseClient } from '@langfuse/client';
-import { runSemanticSplit } from '@daphne/semantic-split';
+import { runSplitCase } from './repository.js';
 import type { SemanticSplitOptions } from '@daphne/semantic-split';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
 import {
@@ -22,19 +22,14 @@ import {
   collectModelCallIssues,
   createModelCallRecorder,
 } from '../model-calls.js';
-import {
-  toSemanticSplitInput,
-  toSplitExperimentOutput,
-  toSplitTrial,
-} from './trial.js';
+import { toSplitExperimentOutput, toSplitTrial } from './trial.js';
 
 async function observeSplit(
   caseData: PreparedSplitCase,
-  options: SemanticSplitOptions,
+  options: Omit<SemanticSplitOptions, 'executeTool'>,
   issues: string[],
 ) {
   let span: ReturnType<typeof startObservation> | undefined;
-  const input = toSemanticSplitInput(caseData.definition.evidence);
 
   try {
     span = startObservation('semantic-split');
@@ -54,7 +49,7 @@ async function observeSplit(
     ? trace.setSpan(context.active(), span.otelSpan)
     : context.active();
   const result = await context.with(active, () =>
-    runSemanticSplit(input, options),
+    runSplitCase(caseData, options),
   );
 
   try {
@@ -190,6 +185,7 @@ export async function runSplitExperiment(
               status: 'failed',
               proposal: null,
               response: null,
+              acceptedCandidate: null,
               error: {
                 name: 'SplitError',
                 message: 'Trial publication was cancelled.',

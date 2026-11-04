@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { defaultModels } from '@daphne/llm';
+import { defaultModels, parseOpenAIReasoningEffort } from '@daphne/llm';
 import { resolve } from 'node:path';
 import { LangfuseConfigurationError } from '../langfuse.js';
 import { loadSplitCase, loadSplitSuite } from './dataset.js';
@@ -13,9 +13,10 @@ import { writeJsonArtifact } from '../artifacts.js';
 import { EvaluationError, text, choice } from '../parse.js';
 import { runSplitEvaluation } from './run.js';
 import { uploadSplitEvaluation } from './upload.js';
+import { runFrozenSplit } from './run-case.js';
 
 const usage =
-  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--provider openai|anthropic|codex] [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
+  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run-case --case PATH [--reference PATH] --output NEW_DIRECTORY [model/budget options]\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--provider openai|anthropic|codex] [--model NAME] [--reasoning-effort LEVEL] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
 
 function options(
   args: string[],
@@ -160,26 +161,34 @@ export async function runSplitCommand(
       await writeJsonArtifact(text(values.output, '--output'), report);
       signal.throwIfAborted();
       process.stdout.write(JSON.stringify(report) + '\n');
-    } else if (command === 'run') {
+    } else if (command === 'run' || command === 'run-case') {
       const defaults = {
         provider: 'openai',
-        'max-input-tokens': '16384',
+        'max-input-tokens': '256000',
         trials: '3',
         concurrency: '2',
       };
       const values = options(
         rest,
         [
-          'suite',
-          'partition',
+          ...(command === 'run'
+            ? ['suite', 'partition']
+            : ['case', 'reference']),
           'output',
           ...Object.keys(defaults),
           'model',
+          'reasoning-effort',
           'max-candidates',
           'run-timeout-ms',
         ],
         defaults,
-        ['model', 'max-candidates', 'run-timeout-ms'],
+        [
+          'model',
+          'reasoning-effort',
+          'max-candidates',
+          'run-timeout-ms',
+          'reference',
+        ],
       );
 
       const provider = choice(
@@ -187,6 +196,52 @@ export async function runSplitCommand(
         ['openai', 'anthropic', 'codex'],
         '--provider',
       );
+
+      if (
+        provider === 'anthropic' &&
+        values['reasoning-effort'] !== undefined
+      ) {
+        throw new EvaluationError(
+          '--reasoning-effort is supported only for OpenAI/Codex.',
+        );
+      }
+
+      const modelConfig = {
+        provider,
+        model: values.model ?? defaultModels[provider],
+        maxInputTokens: Number(values['max-input-tokens']),
+        ...(provider === 'anthropic'
+          ? {}
+          : {
+              reasoningEffort: parseOpenAIReasoningEffort(
+                values['reasoning-effort'] ??
+                  (provider === 'codex' ? 'high' : 'medium'),
+              ),
+            }),
+      };
+      const policy = {
+        ...(values['max-candidates'] === undefined
+          ? {}
+          : { maxCandidates: Number(values['max-candidates']) }),
+        ...(values['run-timeout-ms'] === undefined
+          ? {}
+          : { timeoutMs: Number(values['run-timeout-ms']) }),
+      };
+
+      if (command === 'run-case') {
+        return await runFrozenSplit(
+          {
+            casePath: text(values.case, '--case'),
+            ...(values.reference === undefined
+              ? {}
+              : { referencePath: values.reference }),
+            outputDirectory: text(values.output, '--output'),
+            ...modelConfig,
+            ...policy,
+          },
+          signal,
+        );
+      }
 
       return await runSplitEvaluation(
         {
@@ -197,17 +252,10 @@ export async function runSplitCommand(
             '--partition',
           ),
           outputDirectory: text(values.output, '--output'),
-          provider,
-          model: values.model ?? defaultModels[provider],
-          maxInputTokens: Number(values['max-input-tokens']),
+          ...modelConfig,
+          ...policy,
           trials: Number(values.trials),
           concurrency: Number(values.concurrency),
-          ...(values['max-candidates'] === undefined
-            ? {}
-            : { maxCandidates: Number(values['max-candidates']) }),
-          ...(values['run-timeout-ms'] === undefined
-            ? {}
-            : { timeoutMs: Number(values['run-timeout-ms']) }),
         },
         signal,
       );

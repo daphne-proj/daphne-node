@@ -2,13 +2,13 @@ import { isDeepStrictEqual } from 'node:util';
 import { decodeModelReply } from '@daphne/llm';
 import type { ModelProvider } from '@daphne/llm';
 import type { EvidenceSnapshot } from '@daphne/context-engine';
-import { parseIntentionToolEvidence } from './artifact-tools.js';
-import type { IntentionSearchReceipt } from './artifact-tools.js';
+import { parseToolEvidence } from './artifact-tools.js';
+import type { WriterSearchReceipt } from './artifact-tools.js';
 import type { ReviewIdentity } from '@daphne/review-evidence/contracts';
-import * as parse from '../parse.js';
+import * as parse from './parse.js';
 
 /* The trace reader supplies one validated ledger; query history never expands source citation eligibility. */
-export interface IntentionDeliveryContext {
+export interface WriterDeliveryContext {
   provider?: ModelProvider;
   identity: ReviewIdentity;
   sources: EvidenceSnapshot['sources'];
@@ -82,7 +82,7 @@ function parseTurn(value: unknown, index: number, provider: ModelProvider) {
   };
 }
 
-type DeliveredIntentionTurn = ReturnType<typeof parseTurn>;
+type DeliveredWriterTurn = ReturnType<typeof parseTurn>;
 
 function evidenceIds(value: unknown, known: ReadonlySet<string>): string[] {
   const ids = parse
@@ -102,12 +102,13 @@ function evidenceIds(value: unknown, known: ReadonlySet<string>): string[] {
  * Reconstruct the continuing writer's delivery before validating saved citations.
  * For example, a tool receipt must follow its requesting turn and refer to a
  * completed, delivered tool. Search receipts retain navigation separately from
- * citable source bytes. Inconsistent roles, receipts or snapshots throw before
- * the saved explanation can reach the independent judge.
+ * citable source bytes. Complete runs require every tool to be delivered; failed
+ * runs may end with pending or unexecuted calls. Inconsistent records throw before
+ * either evaluator can trust the saved context.
  */
 export function parseDeliveredTurns(
   investigation: Record<string, unknown>,
-  context: IntentionDeliveryContext,
+  context: WriterDeliveryContext,
 ) {
   const turns = parse
     .array(investigation.turns, 'investigation.turns')
@@ -117,15 +118,27 @@ export function parseDeliveredTurns(
   const tools = parse
     .array(investigation.tools, 'investigation.tools')
     .map((value) => parse.object(value, 'tool'));
-  const toolEvidence = parseIntentionToolEvidence(tools, context);
-  const searches: IntentionSearchReceipt[] = [];
+  const complete = investigation.status === 'complete';
+  const completedTools = tools.filter(
+    (tool) =>
+      parse.choice(tool.status, ['complete', 'failed'], 'tool.status') ===
+      'complete',
+  );
+  const packets = parseToolEvidence(completedTools, context);
+  const toolEvidence = new Map(
+    completedTools.map((tool, index) => [
+      parse.integer(tool.number, 'tool.number'),
+      packets[index],
+    ]),
+  );
+  const searches: WriterSearchReceipt[] = [];
   const known = new Set(context.sources.map((source) => source.evidenceId));
   const delivered = new Set<string>();
   const callIds = new Set<string>();
   const deliveredTools = new Set<number>();
   const requestedTools: {
-    turn: DeliveredIntentionTurn;
-    call: DeliveredIntentionTurn['reply']['functionCalls'][number];
+    turn: DeliveredWriterTurn;
+    call: DeliveredWriterTurn['reply']['functionCalls'][number];
   }[] = [];
 
   for (const turn of turns) {
@@ -179,7 +192,7 @@ export function parseDeliveredTurns(
           );
         }
 
-        const evidence = toolEvidence[number - 1];
+        const evidence = toolEvidence.get(number);
 
         if (!evidence) {
           throw new parse.EvaluationError(
@@ -230,11 +243,18 @@ export function parseDeliveredTurns(
   }
 
   if (
-    tools.length !== requestedTools.length ||
-    deliveredTools.size !== tools.length
+    tools.length > requestedTools.length ||
+    (complete &&
+      (tools.length !== requestedTools.length ||
+        deliveredTools.size !== tools.length)) ||
+    completedTools.some(
+      (tool) =>
+        tool.delivered !==
+        deliveredTools.has(parse.integer(tool.number, 'tool.number')),
+    )
   ) {
     throw new parse.EvaluationError(
-      'A completed investigation contains missing, extra or undelivered tools.',
+      'Tool completion or delivery disagrees with recorded replies.',
     );
   }
 
@@ -253,7 +273,12 @@ export function parseDeliveredTurns(
 
     if (
       !requested ||
+      requested !== requestedTools[index] ||
       matched.has(key) ||
+      (tool.status === 'failed' &&
+        (complete ||
+          index !== tools.length - 1 ||
+          deliveredTools.has(index + 1))) ||
       tool.number !== index + 1 ||
       !isDeepStrictEqual(call, requested.call)
     ) {

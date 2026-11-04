@@ -8,9 +8,9 @@ import { isGoldenDatasetPath } from '@daphne/cli/output-path';
 import {
   correctionInstructions,
   groupingInstructions,
-  pageInstructions,
   proposalSchema,
 } from '@daphne/semantic-split';
+import { repositoryTools } from '@daphne/review-evidence/tool-definitions';
 import {
   LangfuseConfigurationError,
   readLangfuseConnection,
@@ -112,15 +112,18 @@ export async function runSplitEvaluation(
       provider: options.provider ?? 'openai',
       model: options.model,
       maxInputTokens: options.maxInputTokens,
+      ...(options.reasoningEffort === undefined
+        ? {}
+        : { reasoningEffort: options.reasoningEffort }),
     },
     budgetPolicy,
     scorerVersion: splitScorerVersion,
     promptHash: sha256(
       JSON.stringify([
-        pageInstructions,
         groupingInstructions,
         correctionInstructions,
         proposalSchema,
+        repositoryTools,
       ]),
     ),
     sdkVersion: '6.0.2',

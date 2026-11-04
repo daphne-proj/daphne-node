@@ -14,7 +14,7 @@ export type ProposalValidation =
       unknownIds: string[];
     };
 
-/* Derive coverage from Git's inventory so missing page entries cannot hide omissions. */
+/* Derive coverage from the original Git inventory, independently of supplied hunk evidence. */
 export function getExpectedUnitIds(
   changes: readonly Change[],
 ): ReadonlySet<string> {

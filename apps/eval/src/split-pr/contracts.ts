@@ -1,25 +1,22 @@
-import type {
-  SourceEvidence,
-  Change,
-  ReviewIdentity,
-} from '@daphne/review-evidence/contracts';
+import type { CapturedDiffEvidence } from '../diff-evidence.js';
 import type {
   Proposal,
   ProposalValidation,
   SemanticSplitResult,
 } from '@daphne/semantic-split';
-import type { ModelProvider } from '@daphne/llm';
+import type { ModelProvider, OpenAIReasoningEffort } from '@daphne/llm';
 import type { RecordedModelCall } from '../model-calls.js';
 import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 
-export interface FrozenSplitEvidence {
-  identity: ReviewIdentity;
-  changes: Change[];
-  hunks: {
-    changeId: string;
-    hunkIndex: number | null;
-    sources: SourceEvidence[];
-  }[];
+/* Frozen model input includes acquisition coordinates so tools can reopen the same comparison. */
+export interface FrozenSplitEvidence extends CapturedDiffEvidence {
+  pr: { url: string; title: string; body: string | null };
+  source: {
+    targetRepositoryUrl: string;
+    headRepositoryUrl: string;
+    targetCommit: string;
+    headCommit: string;
+  };
 }
 
 export interface PairLabel {
@@ -109,6 +106,7 @@ export interface SplitTrial {
     provider?: ModelProvider;
     model: string;
     maxInputTokens: number;
+    reasoningEffort?: OpenAIReasoningEffort;
   };
   elapsedMs: number;
   modelCalls: RecordedModelCall[];
@@ -130,6 +128,7 @@ export interface SplitRunOptions extends RunBudgetPolicy {
   provider?: ModelProvider;
   model: string;
   maxInputTokens: number;
+  reasoningEffort?: OpenAIReasoningEffort;
   trials: number;
   concurrency: number;
 }

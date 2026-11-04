@@ -24,7 +24,7 @@ From the repository root, compile with `bun run build`, then use `bun run cli --
 ## How it works
 
 1. Parse a command, install SIGINT/SIGTERM cancellation, and validate its PR and output arguments.
-2. For inspection, resolve PR metadata, acquire Git, retrieve and retain tool pages, close Git, then build the packet. For splitting, delegate to `splitPullRequest`; for intentions, delegate to `analyzePullRequestIntentions`, which keeps Git available during investigation.
+2. For inspection, resolve PR metadata, acquire Git, retrieve and retain tool pages, close Git, then build the packet. For splitting and intentions, delegate to their PR hosts, which keep Git available for read-only investigation tools.
 3. Save completed work and failure diagnostics, then print a summary and set the exit code. Inspection writes `context.json` when available and `run.json`; splitting writes one `run.json` and replaces it on reruns. Intentions writes a fresh `run.json` with generation accounting, shows tables on interactive stdout and emits indented JSON when redirected.
 
 `pr-review` supplies metadata, split and intentions workflows. Inspection directly composes `git-source`, `review-evidence` and `context-engine`; `llm` errors are translated into user-facing diagnostics. Node's `parseArgs`, `loadEnvFile` and filesystem APIs provide argument parsing, configuration and artifact publication. `cli-table3` handles table layout, wrapping, Unicode widths and alignment; Node's `styleText` supplies colors and respects `NO_COLOR`. The repository's existing Zod library defines and validates the shared generation summary in one place.
@@ -36,3 +36,5 @@ See the root [inspection instructions](../../README.md#getting-started) and [spl
 See the [intentions command guide](docs/intentions.md) for credentials, output fields, limits and failure behavior.
 
 Model commands accept `--provider openai|anthropic` (default `openai`) and optional `--model` for an explicit model. Make exposes only `PROVIDER`; the default model strings live in `packages/llm/src/providers.ts`. The app reads the corresponding `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+
+Split defaults: 256,000 input tokens and optional OpenAI/Codex reasoning effort (medium/high). Its current `run.json` retains captured metadata, original hunks and investigation turns/tools/attempts; attempts reference replies by turn number. See the [split flow and validation](../../packages/semantic-split/README.md).

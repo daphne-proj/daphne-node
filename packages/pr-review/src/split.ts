@@ -1,153 +1,223 @@
+import { initialLimitations } from '@daphne/context-engine';
 import {
   acquireSnapshot,
   defaultGitLimits,
   listSnapshotChanges,
 } from '@daphne/git-source';
+import type { GitSnapshot } from '@daphne/git-source';
+import { runSemanticSplit } from '@daphne/semantic-split';
+import type {
+  SemanticSplitOptions,
+  Proposal,
+  SemanticSplitResult,
+} from '@daphne/semantic-split';
 import {
   createEvidenceSession,
+  readOriginalDiff,
   defaultEvidenceLimits,
 } from '@daphne/review-evidence';
 import type {
   Change,
-  EvidenceSession,
+  ContextNotice,
   ReviewIdentity,
-} from '@daphne/review-evidence';
+} from '@daphne/review-evidence/contracts';
 import type { DiffContextHunk } from '@daphne/context-engine';
-import { runSemanticSplit } from '@daphne/semantic-split';
+import {
+  PullRequestError,
+  resolvePullRequest,
+} from './acquisition/pull-request.js';
 import type {
-  Proposal,
-  SemanticSplitOptions,
-  SemanticSplitResult,
-} from '@daphne/semantic-split';
-import { resolvePullRequest } from './acquisition/pull-request.js';
-import type { PullRequestRef } from './acquisition/pull-request.js';
+  PullRequestRef,
+  ResolvedPullRequest,
+} from './acquisition/pull-request.js';
 import { defaultPullRequestLimits } from './limits.js';
 
-export interface SplitPullRequestOptions extends SemanticSplitOptions {
+/* The app supplies one run budget; acquisition and runSemanticSplit' borrowed executor share its signal. */
+export interface SplitPullRequestOptions extends Omit<
+  SemanticSplitOptions,
+  'executeTool'
+> {
   githubToken?: string;
 }
 
 interface PullRequestEvidence {
+  metadata: ResolvedPullRequest | null;
   identity: ReviewIdentity | null;
   changes: readonly Change[];
   hunks: DiffContextHunk[];
+  limitations: ContextNotice[];
 }
 
-export type SplitPullRequestResult = PullRequestEvidence &
-  Pick<SemanticSplitResult, 'budget' | 'pages' | 'attempts' | 'calls'> &
-  (
+type WorkflowError = {
+  stage: 'acquisition' | 'investigation' | 'cleanup';
+  error: unknown;
+};
+
+/*
+ * Retains acquisition and investigation progress even if later work fails.
+ * Callers accept proposal only when status === 'complete'; a valid draft in
+ * recorded turns remain diagnostic when cleanup or late cancellation fails.
+ * Errors identify their stage; closing an acquired snapshot cannot replace a recorded failure.
+ */
+export type SplitPullRequestResult = PullRequestEvidence & {
+  investigation: SemanticSplitResult | null;
+} & (
     | {
         status: 'complete';
         proposal: Proposal;
         response: Record<string, unknown> | null;
         errors: [];
       }
-    | { status: 'failed'; proposal: null; response: null; errors: unknown[] }
+    | {
+        status: 'failed';
+        proposal: null;
+        response: null;
+        errors: WorkflowError[];
+      }
   );
 
-async function* readDiffHunks(
-  session: EvidenceSession,
-  changes: readonly Change[],
-): AsyncIterable<DiffContextHunk> {
-  for (const change of changes) {
-    const indexes =
-      change.kind === 'text' && change.hunks.length > 0
-        ? change.hunks.map((_, index) => index)
-        : [null];
-
-    for (const hunkIndex of indexes) {
-      const sources =
-        hunkIndex === null
-          ? []
-          : await session.readHunk({ changeId: change.id, hunkIndex });
-
-      yield { change, hunkIndex, sources };
-    }
+function checkCancellation(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw new PullRequestError(
+      'cancelled',
+      'The PR split workflow was cancelled or timed out.',
+    );
   }
 }
 
-/* Use the host's budget throughout acquisition and splitting, retaining retrieval and cleanup failures. */
+/*
+ * Resolves a PR and lends read-only repository tools to runSemanticSplit. For
+ * example, splitPullRequest(ref, options) returns groups only after
+ * investigation and cleanup succeed. Git stays open because tool turns may read
+ * unchanged files in either pinned revision. Cancellation and failures return
+ * collected work; finally closes the snapshot without using the cancelled signal.
+ */
 export async function splitPullRequest(
   ref: PullRequestRef,
   options: SplitPullRequestOptions,
 ): Promise<SplitPullRequestResult> {
   const { githubToken, ...modelOptions } = options;
-  const { signal, maxCandidates, deadlineAt } = modelOptions.budget;
+  const { signal } = modelOptions.budget;
+
   const evidence: PullRequestEvidence = {
+    metadata: null,
     identity: null,
     changes: [],
     hunks: [],
+    limitations: [],
   };
-  const errors: unknown[] = [];
-  let split: SemanticSplitResult | undefined;
+
+  const errors: WorkflowError[] = [];
+  let snapshot: GitSnapshot | null = null;
+  let investigation: SemanticSplitResult | null = null;
+  let stage: 'acquisition' | 'investigation' = 'acquisition';
 
   try {
+    checkCancellation(signal);
+
     const metadata = await resolvePullRequest(ref, {
       signal,
       limits: defaultPullRequestLimits,
       ...(githubToken === undefined ? {} : { token: githubToken }),
     });
-    const snapshot = await acquireSnapshot(metadata, {
+
+    evidence.metadata = metadata;
+
+    snapshot = await acquireSnapshot(
+      {
+        targetRepositoryUrl: metadata.targetRepositoryUrl,
+        headRepositoryUrl: metadata.headRepositoryUrl,
+        targetCommit: metadata.targetCommit,
+        headCommit: metadata.headCommit,
+      },
+      { signal, limits: defaultGitLimits },
+    );
+
+    evidence.identity = snapshot.identity;
+    evidence.changes = await listSnapshotChanges(snapshot, {
       signal,
       limits: defaultGitLimits,
     });
 
-    try {
-      evidence.identity = snapshot.identity;
-      evidence.changes = await listSnapshotChanges(snapshot, {
-        signal,
-        limits: defaultGitLimits,
-      });
-      const session = createEvidenceSession(snapshot, {
-        signal,
-        gitLimits: defaultGitLimits,
-        limits: defaultEvidenceLimits,
-      });
+    evidence.limitations = initialLimitations(evidence.changes);
 
-      for await (const hunk of readDiffHunks(session, evidence.changes)) {
-        evidence.hunks.push(hunk);
-      }
-    } catch (error) {
-      errors.push(error);
-    } finally {
+    const session = createEvidenceSession(snapshot, {
+      signal,
+      gitLimits: defaultGitLimits,
+      limits: defaultEvidenceLimits,
+    });
+
+    for await (const hunk of readOriginalDiff(session, evidence.changes)) {
+      evidence.hunks.push(hunk);
+    }
+
+    stage = 'investigation';
+
+    investigation = await runSemanticSplit(
+      {
+        identity: snapshot.identity,
+        changes: evidence.changes,
+        hunks: evidence.hunks,
+        pr: {
+          url: metadata.ref.url,
+          title: metadata.title,
+          body: metadata.body,
+        },
+      },
+      { ...modelOptions, executeTool: (request) => session.execute(request) },
+    );
+
+    if (investigation.status === 'failed') {
+      errors.push({ stage, error: investigation.error });
+    }
+  } catch (error) {
+    errors.push({ stage, error });
+  } finally {
+    if (snapshot !== null) {
       try {
         await snapshot.close();
       } catch (error) {
-        errors.push(error);
+        errors.push({ stage: 'cleanup', error });
       }
     }
-
-    if (errors.length === 0) {
-      split = await runSemanticSplit(
-        {
-          identity: snapshot.identity,
-          changes: evidence.changes,
-          hunks: evidence.hunks,
-        },
-        modelOptions,
-      );
-
-      if (split.status === 'failed') {
-        errors.push(split.error);
-      } else {
-        signal.throwIfAborted();
-      }
-    }
-  } catch (error) {
-    errors.push(error);
   }
 
-  if (split?.status === 'complete' && errors.length === 0) {
-    return { ...evidence, ...split, errors: [] };
+  /* Cancellation during cleanup must not publish a previously accepted draft. */
+  if (errors.length === 0) {
+    try {
+      checkCancellation(signal);
+    } catch (error) {
+      errors.push({ stage, error });
+    }
+  }
+
+  if (investigation?.status === 'complete' && errors.length === 0) {
+    return {
+      ...evidence,
+      investigation,
+      status: 'complete',
+      proposal: investigation.proposal,
+      response: investigation.response,
+      errors: [],
+    };
+  }
+
+  if (investigation?.status === 'complete') {
+    investigation = {
+      ...investigation,
+      status: 'failed',
+      proposal: null,
+      response: null,
+      acceptedCandidate: null,
+      error:
+        errors[0]?.error ?? new Error('The split workflow did not complete.'),
+    };
   }
 
   return {
     ...evidence,
+    investigation,
     status: 'failed',
-    budget: { maxCandidates, deadlineAt },
-    pages: split?.pages ?? [],
-    attempts: split?.attempts ?? [],
-    calls: split?.calls ?? { count: 0, generate: 0 },
     proposal: null,
     response: null,
     errors,

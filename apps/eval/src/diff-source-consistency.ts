@@ -1,5 +1,5 @@
 import type { SourceEvidence } from '@daphne/review-evidence/contracts';
-import { EvaluationError } from '../parse.js';
+import { EvaluationError } from './parse.js';
 
 export function validateSourceConsistency(sources: SourceEvidence[]): void {
   const paths = new Map<string, SourceEvidence[]>();

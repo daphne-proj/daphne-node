@@ -3,12 +3,7 @@ import { ContextInputError } from '@daphne/context-engine';
 import { createModel, ModelError } from '@daphne/llm';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
 import { runSemanticSplit } from '@daphne/semantic-split';
-import {
-  countOneUnitPerPage,
-  modelReply,
-  proposalText,
-  setupWorkflow,
-} from './workflow.helpers.js';
+import { modelReply, proposalText, setupWorkflow } from './workflow.helpers.js';
 
 vi.mock(import('@daphne/llm'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -44,28 +39,32 @@ test.each([
     const result = await runSemanticSplit(input, options);
 
     expect(result.status).toBe(status);
-    expect(result.calls).toEqual({ count: 2, generate: generations });
+    expect(result.calls).toEqual({ count: 2, generate: generations, tools: 0 });
     expect(result.attempts).toHaveLength(generations);
     expect(result.attempts[0]).toMatchObject({
       number: 1,
-      inputTokens: 16,
-      text: draft.text,
+      writerTurnNumber: 1,
       validation: { status: 'invalid_json' },
     });
-    expect(result.attempts[0]?.response).toEqual(draft.response);
+    expect(result.turns[0]).toMatchObject({ inputTokens: 16, reply: draft });
 
     if (result.status === 'failed') {
-      expect(result).toMatchObject({ proposal: null, response: null });
+      expect(result).toMatchObject({
+        proposal: null,
+        response: null,
+        acceptedCandidate: null,
+      });
       expect(result.error).toBeInstanceOf(ModelError);
       expect(result.error).toHaveProperty(
         'message',
-        expect.stringContaining('--max-input-tokens'),
+        expect.stringContaining('input token capacity'),
       );
     } else {
       expect(result.attempts[1]).toMatchObject({
-        inputTokens: 128,
+        writerTurnNumber: 2,
         validation: { status: 'valid' },
       });
+      expect(result.turns[1]?.inputTokens).toBe(128);
       expect(result.response).toEqual(accepted.response);
     }
   },
@@ -80,7 +79,7 @@ test('oversized replay stops before another request and retains the draft', asyn
       id: 'large-reasoning',
       type: 'reasoning',
       summary: [],
-      encrypted_content: 'x'.repeat(65_536),
+      encrypted_content: 'x'.repeat(8_388_608),
     },
   ];
   draft.response.output = draft.output;
@@ -92,50 +91,40 @@ test('oversized replay stops before another request and retains the draft', asyn
     status: 'failed',
     proposal: null,
     response: null,
-    calls: { count: 1, generate: 1 },
+    acceptedCandidate: null,
+    calls: { count: 1, generate: 1, tools: 0 },
     attempts: [
       {
         number: 1,
-        text: draft.text,
-        response: draft.response,
+        writerTurnNumber: 1,
         validation: { status: 'invalid_json' },
       },
     ],
   });
+  expect(result.turns[0]?.reply).toEqual(draft);
   expect(result.attempts).toHaveLength(1);
 
   if (result.status === 'failed') {
     expect(result.error).toBeInstanceOf(ModelError);
     expect(result.error).toHaveProperty(
       'message',
-      expect.stringContaining('byte budget'),
+      expect.stringContaining('byte capacity'),
     );
   }
 });
 
 test.each(['count', 'generate'])(
-  'a later %s failure retains analyses and completed attempts',
+  'a later %s failure retains completed turns and attempts',
   async (operation) => {
     const { input, options, count, generate } = setupWorkflow(['a', 'b']);
     const failure = new ModelError('Provider unavailable.');
-
-    const analyses = [
-      modelReply('Notes A', 'analysis-a'),
-      modelReply('Notes B', 'analysis-b'),
-    ];
-
     const draft = modelReply('{', 'draft');
-    count.mockImplementation(countOneUnitPerPage);
-
-    for (const analysis of analyses) {
-      generate.mockResolvedValueOnce(analysis);
-    }
-
     generate
       .mockImplementationOnce(() => {
         if (operation === 'count') {
           count.mockRejectedValueOnce(failure);
         }
+
         return Promise.resolve(draft);
       })
       .mockRejectedValueOnce(failure);
@@ -146,57 +135,22 @@ test.each(['count', 'generate'])(
       status: 'failed',
       proposal: null,
       response: null,
+      acceptedCandidate: null,
     });
-    expect(result.pages.map((page) => page.analysis)).toEqual(
-      analyses.map(({ text, response }) => ({ text, response })),
-    );
-    expect(result.attempts).toMatchObject([
-      {
-        number: 1,
-        inputTokens: 16,
-        text: draft.text,
-        validation: { status: 'invalid_json' },
-      },
-    ]);
-    expect(result.attempts[0]?.response).toEqual(draft.response);
-    expect(result.calls.generate).toBe(operation === 'count' ? 3 : 4);
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0]).toMatchObject({
+      number: 1,
+      writerTurnNumber: 1,
+      validation: { status: 'invalid_json' },
+    });
+    expect(result.turns[0]).toMatchObject({ inputTokens: 16, reply: draft });
+    expect(result.calls.generate).toBe(operation === 'count' ? 1 : 2);
 
     if (result.status === 'failed') {
       expect(result.error).toBe(failure);
     }
   },
 );
-
-test('a page callback failure preserves every page already prepared', async () => {
-  const { input, options, count } = setupWorkflow(['a', 'b', 'c']);
-  const failure = new Error('Progress display failed.');
-
-  count.mockImplementation(countOneUnitPerPage);
-
-  options.onPage = (_page, number) => {
-    if (number === 2) {
-      throw failure;
-    }
-  };
-
-  const result = await runSemanticSplit(input, options);
-
-  expect(result).toMatchObject({
-    status: 'failed',
-    proposal: null,
-    response: null,
-    pages: [
-      { unitIds: ['a:metadata'], analysis: null },
-      { unitIds: ['b:metadata'], analysis: null },
-    ],
-    attempts: [],
-    calls: { generate: 0 },
-  });
-
-  if (result.status === 'failed') {
-    expect(result.error).toBe(failure);
-  }
-});
 
 test('an already-cancelled empty run fails without model calls', async () => {
   const { input, options, controller } = setupWorkflow([]);
@@ -208,9 +162,10 @@ test('an already-cancelled empty run fails without model calls', async () => {
     status: 'failed',
     proposal: null,
     response: null,
-    pages: [],
+    acceptedCandidate: null,
+    turns: [],
     attempts: [],
-    calls: { count: 0, generate: 0 },
+    calls: { count: 0, generate: 0, tools: 0 },
   });
 
   if (result.status === 'failed') {
@@ -225,7 +180,6 @@ test('an already-cancelled empty run fails without model calls', async () => {
 test('cancellation after a valid reply keeps the draft without accepting success', async () => {
   const { input, options, controller, generate } = setupWorkflow();
   const answer = modelReply(proposalText('a:metadata'), 'valid');
-
   generate.mockImplementationOnce(() => {
     controller.abort();
     return Promise.resolve(answer);
@@ -237,17 +191,13 @@ test('cancellation after a valid reply keeps the draft without accepting success
     status: 'failed',
     proposal: null,
     response: null,
-    calls: { count: 1, generate: 1 },
-    attempts: [
-      {
-        number: 1,
-        text: answer.text,
-        response: answer.response,
-        validation: { status: 'valid' },
-      },
-    ],
+    acceptedCandidate: null,
+    calls: { count: 1, generate: 1, tools: 0 },
   });
-  expect(result.attempts).toHaveLength(1);
+  expect(result.attempts).toEqual([
+    { number: 1, writerTurnNumber: 1, validation: null },
+  ]);
+  expect(result.turns[0]?.reply).toEqual(answer);
 
   if (result.status === 'failed') {
     expect(result.error).toBe(controller.signal.reason);
@@ -255,20 +205,26 @@ test('cancellation after a valid reply keeps the draft without accepting success
 });
 
 test('an empty inventory completes without model calls', async () => {
-  const { input, options } = setupWorkflow([]);
+  const { input, options, generate } = setupWorkflow([]);
+  const result = await runSemanticSplit(input, options);
 
-  expect(await runSemanticSplit(input, options)).toEqual({
+  expect(result).toMatchObject({
     status: 'complete',
+    comparison: { identity: input.identity, changes: [] },
     budget: { maxCandidates: null, deadlineAt: null },
-    pages: [],
+    hunks: [],
+    tools: [],
+    turns: [],
     attempts: [],
-    calls: { count: 0, generate: 0 },
+    calls: { count: 0, generate: 0, tools: 0 },
     proposal: { groups: [], warnings: [] },
     response: null,
+    acceptedCandidate: null,
   });
+  expect(generate).not.toHaveBeenCalled();
 });
 
-test('one page groups directly using the exact request already counted', async () => {
+test('the complete diff groups directly using the exact request already counted', async () => {
   const {
     input,
     options,
@@ -283,25 +239,20 @@ test('one page groups directly using the exact request already counted', async (
 
   expect(result).toMatchObject({
     status: 'complete',
-    pages: [{ unitIds: ['a:metadata'], analysis: null }],
-    calls: { count: 1, generate: 1 },
+    calls: { count: 1, generate: 1, tools: 0 },
     proposal: { groups: [{ unitIds: ['a:metadata'] }] },
     response: answer.response,
+    acceptedCandidate: { candidateNumber: 1, writerTurnNumber: 1 },
     attempts: [
-      {
-        number: 1,
-        inputTokens: 16,
-        text: answer.text,
-        response: answer.response,
-        validation: { status: 'valid' },
-      },
+      { number: 1, writerTurnNumber: 1, validation: { status: 'valid' } },
     ],
   });
+  expect(result.turns[0]).toMatchObject({ inputTokens: 16, reply: answer });
   expect(result.attempts).toHaveLength(1);
   expect(generatedRequests).toEqual(countedBeforeGeneration);
 });
 
-test('missing evidence fails before generation and keeps prepared pages', async () => {
+test('missing evidence fails before generation and keeps retained hunks', async () => {
   const { input, options } = setupWorkflow(['a', 'b']);
   input.hunks = input.hunks.slice(0, 1);
 
@@ -311,17 +262,17 @@ test('missing evidence fails before generation and keeps prepared pages', async 
     status: 'failed',
     proposal: null,
     response: null,
-    pages: [{ unitIds: ['a:metadata'], analysis: null }],
+    acceptedCandidate: null,
+    hunks: [{ changeId: 'a', hunkIndex: null, evidenceIds: [] }],
     attempts: [],
-    calls: { generate: 0 },
+    calls: { count: 0, generate: 0, tools: 0 },
   });
-  expect(result.status).toBe('failed');
 
   if (result.status === 'failed') {
     expect(result.error).toBeInstanceOf(ContextInputError);
     expect(result.error).toHaveProperty(
       'message',
-      expect.stringContaining('"missingIds":["b:metadata"]'),
+      expect.stringContaining('Missing 1 required diff entries'),
     );
   }
 });
@@ -409,17 +360,21 @@ test.each([
   expect(result.attempts.map((attempt) => attempt.number)).toEqual(
     replies.map((_, index) => index + 1),
   );
-  expect(result.attempts.map((attempt) => attempt.validation.status)).toEqual(
+  expect(result.attempts.map((attempt) => attempt.validation?.status)).toEqual(
     validations,
   );
-  expect(result.attempts.map((attempt) => attempt.response)).toEqual(
+  expect(result.turns.map((turn) => turn.reply.response)).toEqual(
     answers.map((answer) => answer.response),
   );
   expect(result.calls.generate).toBe(replies.length);
   expect(generatedRequests).toEqual(countedBeforeGeneration);
 
   if (result.status === 'failed') {
-    expect(result).toMatchObject({ proposal: null, response: null });
+    expect(result).toMatchObject({
+      proposal: null,
+      response: null,
+      acceptedCandidate: null,
+    });
     expect(result.error).toHaveProperty(
       'message',
       expect.stringContaining('configured run ceiling'),
@@ -436,31 +391,21 @@ test.each([
   {
     name: 'missing and duplicated units',
     invalidIds: ['a:metadata', 'a:metadata', 'c:metadata'],
-    neededPages: [0, 1],
   },
   {
     name: 'only an unknown unit',
     invalidIds: ['a:metadata', 'b:metadata', 'c:metadata', 'unknown'],
-    neededPages: [],
   },
 ])(
-  'corrections replay complete replies and supply evidence for $name',
-  async ({ invalidIds, neededPages }) => {
+  'corrections replay complete replies and original evidence for $name',
+  async ({ invalidIds }) => {
     const {
       input,
       options,
-      count,
       generate,
       generatedRequests,
       countedBeforeGeneration,
     } = setupWorkflow(['a', 'b', 'c']);
-
-    count.mockImplementation(countOneUnitPerPage);
-
-    const analyses = ['a', 'b', 'c'].map((id) =>
-      modelReply(`Notes for ${id}`, `analysis-${id}`),
-    );
-
     const first = modelReply(proposalText(...invalidIds), 'first');
     const second = modelReply(proposalText(...invalidIds), 'second');
     const accepted = modelReply(
@@ -468,32 +413,22 @@ test.each([
       'accepted',
     );
 
-    for (const answer of [...analyses, first, second, accepted]) {
+    for (const answer of [first, second, accepted]) {
       generate.mockResolvedValueOnce(answer);
     }
 
     const result = await runSemanticSplit(input, options);
 
     expect(result.status).toBe('complete');
-    expect(result.pages.map((page) => page.unitIds)).toEqual([
-      ['a:metadata'],
-      ['b:metadata'],
-      ['c:metadata'],
-    ]);
-    expect(result.pages.map((page) => page.analysis)).toEqual(
-      analyses.map(({ text, response }) => ({ text, response })),
-    );
+    expect(result.hunks.map((hunk) => hunk.changeId)).toEqual(['a', 'b', 'c']);
     expect(result.attempts.map((attempt) => attempt.number)).toEqual([1, 2, 3]);
     expect(result.response).toEqual(accepted.response);
-    expect(result.calls.generate).toBe(6);
+    expect(result.calls.generate).toBe(3);
     expect(generatedRequests).toEqual(countedBeforeGeneration);
 
-    const initialHistory = generatedRequests[3]?.input;
-    const firstCorrection = generatedRequests[4]?.input;
-    const secondCorrection = generatedRequests[5]?.input;
-    expect(Array.isArray(initialHistory)).toBe(true);
-    expect(Array.isArray(firstCorrection)).toBe(true);
-    expect(Array.isArray(secondCorrection)).toBe(true);
+    const initialHistory = generatedRequests[0]?.input;
+    const firstCorrection = generatedRequests[1]?.input;
+    const secondCorrection = generatedRequests[2]?.input;
 
     if (
       typeof initialHistory !== 'object' ||
@@ -511,13 +446,18 @@ test.each([
       ...firstCorrection,
       ...second.output,
     ]);
+    const original = initialHistory[0]?.content;
 
-    for (const [history, indexes] of [
-      [firstCorrection, neededPages],
-      [secondCorrection, []],
-    ] as const) {
+    if (typeof original !== 'string') {
+      throw new Error('Expected original diff context.');
+    }
+
+    expect(JSON.parse(original)).toMatchObject({
+      units: ['a', 'b', 'c'].map((id) => ({ unitId: `${id}:metadata` })),
+    });
+
+    for (const history of [firstCorrection, secondCorrection]) {
       const content = history.at(-1)?.content;
-      expect(typeof content).toBe('string');
 
       if (typeof content !== 'string') {
         throw new Error('Expected a correction message.');
@@ -526,12 +466,8 @@ test.each([
       const correction: unknown = JSON.parse(content);
       expect(correction).toMatchObject({
         validation: { status: 'invalid_coverage' },
-        pages: indexes.map((pageIndex) => ({
-          pageIndex,
-          unitIds: result.pages[pageIndex]?.unitIds,
-          context: result.pages[pageIndex]?.context,
-        })),
       });
+      expect(correction).not.toHaveProperty('pages');
     }
   },
 );

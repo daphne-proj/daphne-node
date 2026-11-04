@@ -18,7 +18,7 @@ See the [package overview](../README.md) for the main APIs, types and dependenci
 | ------------------------------------------------------------------- | --------------------------------------------------------- |
 | PR acquisition, retrieval policy and snapshot cleanup               | `pr-review` or another acquiring caller                   |
 | Git subprocesses, snapshot storage, inventory cache and blob access | `git-source`                                              |
-| Retaining evidence and packing it into model context pages          | `context-engine`                                          |
+| Retaining evidence and assembling model context                     | `context-engine`                                          |
 | Semantic grouping, coverage decisions and corrections               | `semantic-split`                                          |
 | Model calls and provider responses                                  | `llm`                                                     |
 | Syntax extraction and code index construction                       | Their dedicated extractor/index packages when implemented |
@@ -122,7 +122,7 @@ Unknown changes, invalid indexes and changes without text hunks throw `EvidenceI
 
 `inspect_change` continues to add three surrounding lines and merge nearby windows. `readHunk` returns only the selected original hunk.
 
-The host can collect these sources with their original change/hunk indexes and pass the entries with the session identity to [`splitDiffIntoContextPages`](../../context-engine/docs/context-and-paging.md#page-a-supplied-diff) in `@daphne/context-engine`. The pager packs supplied hunks together and splits oversized evidence. Consume its pages completely and follow every inventory cursor for a whole comparison. Changes without readable text hunks use a metadata-only entry; a failed source read must still be reported as unfinished work.
+The host collects these sources with their original change/hunk indexes and passes them to `retainDiff` in `@daphne/context-engine`. Follow every inventory cursor and retain every expected hunk before building complete model context. Changes without readable text hunks use a metadata-only entry; failed source reads remain unfinished work. Repository lookup cursors still bound individual tool replies.
 
 ## Bounded repository tools
 

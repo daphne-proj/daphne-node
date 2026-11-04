@@ -50,30 +50,11 @@ export interface EvidenceSnapshot {
   readonly queries: readonly RecordedQuery[];
 }
 
-/* Let the caller count its complete model input, including prompts and schema, without coupling this package to a tokenizer. */
-export interface TokenBudget {
-  readonly counterId: string;
-  readonly maxTokens: number;
-  readonly countTokens: (renderedContext: string) => Promise<number>;
-}
-
-/*
- * One supplied diff hunk and the exact excerpts the pager will render.
- * A modified text hunk at index 0 carries BASE then HEAD sources; a
- * metadata-only change has a null index and no sources. Keeping excerpts here
- * lets the pager split oversized text without reading the repository again.
- */
+/* One original hunk with exact BASE-then-HEAD sources; metadata has a null index and no text. */
 export interface DiffContextHunk {
   readonly change: Change;
   readonly hunkIndex: number | null;
   readonly sources: readonly SourceEvidence[];
-}
-
-/* Keep the original unit IDs on every fragment so page boundaries do not change which hunks the caller must account for. */
-export interface DiffContextPage {
-  readonly unitIds: readonly string[];
-  readonly context: string;
-  readonly inputTokens: number;
 }
 
 /*

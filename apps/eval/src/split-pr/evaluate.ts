@@ -1,108 +1,33 @@
 import { resolve } from 'node:path';
-import { getExpectedUnitIds, validateProposal } from '@daphne/semantic-split';
 import type {
   PreparedSplitCase,
   SplitArtifactEvaluation,
   SplitScoreInput,
 } from './contracts.js';
 import { loadSplitCase, loadSplitSuite } from './dataset.js';
-import { parseSplitEvidence } from './evidence.js';
+import { rebindSplitEvidence } from './evidence.js';
+import { parseSplitArtifact } from './artifact.js';
 import { scoreSplitResult, splitScorerVersion } from './score.js';
 import { summarizeSplitCase } from './validation.js';
-import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
 function artifactResult(
   value: unknown,
   prepared: PreparedSplitCase,
 ): SplitScoreInput {
-  const input = parse.object(value, 'artifact');
-  parse.choice(input.format, ['daphne-split-pr-v3'], 'artifact.format');
-  const status = parse.choice(
-    input.status,
-    ['complete', 'failed'],
-    'artifact.status',
+  const { evidence, result } = parseSplitArtifact(value);
+  const comparisonEvidence = rebindSplitEvidence(
+    evidence,
+    prepared.definition.evidence.identity.sessionId,
   );
-  const evidence = parseSplitEvidence({
-    identity: input.identity,
-    changes: input.changes,
-    hunks: input.hunks,
-  });
-
-  /* Fresh captures have new session IDs; compare validated evidence in the case's session. */
-  const sessionId = prepared.definition.evidence.identity.sessionId;
-  const comparisonEvidence = {
-    ...evidence,
-    identity: { ...evidence.identity, sessionId },
-    hunks: evidence.hunks.map((hunk) => ({
-      ...hunk,
-      sources: hunk.sources.map((source) => ({
-        ...source,
-        ref: { ...source.ref, sessionId },
-      })),
-    })),
-  };
 
   if (parse.sha256(JSON.stringify(comparisonEvidence)) !== prepared.inputHash) {
     throw new parse.EvaluationError(
-      'artifact: evidence does not match the selected case input hash.',
+      'Artifact model input does not match the selected frozen case.',
     );
   }
 
-  const budget = parseRunBudget(input.budget);
-  const attemptTexts = parse
-    .array(input.attempts, 'artifact.attempts')
-    .map((value, index) => {
-      const field = `artifact.attempts[${String(index)}]`;
-      const attempt = parse.object(value, field);
-
-      if (attempt.number !== index + 1) {
-        throw new parse.EvaluationError(
-          `${field}.number: require consecutive attempts starting at one.`,
-        );
-      }
-
-      return parse.text(attempt.text, `${field}.text`, true);
-    });
-  const calls = parse.object(input.calls, 'artifact.calls');
-  parse.integer(calls.count, 'artifact.calls.count');
-  const generate = parse.integer(calls.generate, 'artifact.calls.generate');
-
-  if (
-    (budget.maxCandidates !== null &&
-      attemptTexts.length > budget.maxCandidates) ||
-    generate < attemptTexts.length
-  ) {
-    throw new parse.EvaluationError(
-      'artifact: attempt count exceeds the configured candidate ceiling or generation count.',
-    );
-  }
-
-  if (status === 'failed') {
-    if (input.proposal !== null || input.response !== null) {
-      throw new parse.EvaluationError(
-        'artifact: a failed run must not contain an accepted proposal or response.',
-      );
-    }
-
-    return { status, attemptTexts };
-  }
-
-  if (
-    prepared.definition.evidence.changes.length > 0 &&
-    attemptTexts.length === 0
-  ) {
-    throw new parse.EvaluationError(
-      'artifact: a complete nonempty run requires a completed grouping attempt.',
-    );
-  }
-
-  const proposalText = parse.text(
-    JSON.stringify(input.proposal),
-    'artifact.proposal',
-  );
-
-  return { status, attemptTexts, proposalText };
+  return result;
 }
 
 async function scoreArtifact(
@@ -119,26 +44,6 @@ async function scoreArtifact(
         result,
         reviewPolicy,
       );
-      const lastText = result.attemptTexts.at(-1);
-
-      /* A valid top-level copy cannot conceal a different or invalid final reply. */
-      if (lastText !== undefined && scores.validation?.status === 'valid') {
-        const lastValidation = validateProposal(
-          lastText,
-          getExpectedUnitIds(prepared.definition.evidence.changes),
-        );
-
-        if (
-          lastValidation.status !== 'valid' ||
-          JSON.stringify(lastValidation.proposal) !==
-            JSON.stringify(scores.validation.proposal)
-        ) {
-          throw new parse.EvaluationError(
-            'artifact: accepted proposal disagrees with the final grouping attempt.',
-          );
-        }
-      }
-
       return scores;
     },
   );

@@ -11,7 +11,6 @@ export type {
   IntentionsOptions,
   IntentionsValidationContext,
   IntentionsValidation,
-  IntentionHunkEvidence,
   IntentionToolRecord,
   IntentionTurn,
   IntentionEvidenceDelivery,

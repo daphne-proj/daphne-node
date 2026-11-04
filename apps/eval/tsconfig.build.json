@@ -12,16 +12,29 @@
   },
   "include": ["src/**/*.ts", "tests/smoke/**/*.ts"],
   "references": [
-    { "path": "../../packages/evaluator-optimizer/tsconfig.build.json" },
-    { "path": "../../packages/context-engine/tsconfig.build.json" },
-    { "path": "../../packages/intentions/tsconfig.build.json" },
-    { "path": "../cli/tsconfig.build.json" },
-    { "path": "../../packages/llm/tsconfig.build.json" },
+    {
+      "path": "../../packages/evaluator-optimizer/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/context-engine/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/intentions/tsconfig.build.json"
+    },
+    {
+      "path": "../cli/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/llm/tsconfig.build.json"
+    },
     {
       "path": "../../packages/semantic-split/tsconfig.build.json"
     },
     {
       "path": "../../packages/review-evidence/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/git-source/tsconfig.build.json"
     }
   ]
 }

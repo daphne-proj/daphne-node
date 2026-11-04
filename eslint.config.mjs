@@ -226,7 +226,10 @@ export default defineConfig(
     },
   },
   {
-    files: ['packages/review-evidence/src/contracts.ts'],
+    files: [
+      'packages/review-evidence/src/contracts.ts',
+      'packages/review-evidence/src/tool-definitions.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -303,6 +306,10 @@ export default defineConfig(
     ignores: [
       'packages/semantic-split/src/index.ts',
       'packages/semantic-split/src/workflow.ts',
+      'packages/semantic-split/src/context.ts',
+      'packages/semantic-split/src/conversation.ts',
+      'packages/semantic-split/src/runtime.ts',
+      'packages/semantic-split/src/tools.ts',
       'packages/semantic-split/src/contracts.ts',
     ],
     rules: {
@@ -370,6 +377,10 @@ export default defineConfig(
     files: [
       'packages/semantic-split/src/index.ts',
       'packages/semantic-split/src/workflow.ts',
+      'packages/semantic-split/src/context.ts',
+      'packages/semantic-split/src/conversation.ts',
+      'packages/semantic-split/src/runtime.ts',
+      'packages/semantic-split/src/tools.ts',
       'packages/intentions/src/**/*.ts',
     ],
     ignores: ['packages/intentions/src/contracts.ts'],
@@ -381,7 +392,7 @@ export default defineConfig(
             ...libraryImportRestrictions,
             {
               regex:
-                '^@daphne/(?!(?:context-engine|evaluator-optimizer|llm|review-evidence/contracts)$)',
+                '^@daphne/(?!(?:context-engine|evaluator-optimizer|llm|review-evidence/(?:contracts|tool-definitions))$)',
               message:
                 'Investigation workflows use supplied evidence, context assembly, the shared runner and model calls.',
             },

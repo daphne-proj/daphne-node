@@ -2,8 +2,12 @@ import { existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { defaultModels, parseModelProvider } from '@daphne/llm';
-import type { ModelProvider } from '@daphne/llm';
+import {
+  defaultModels,
+  parseModelProvider,
+  parseOpenAIReasoningEffort,
+} from '@daphne/llm';
+import type { ModelProvider, OpenAIReasoningEffort } from '@daphne/llm';
 import { parsePullRequestUrl } from '@daphne/pr-review';
 import { splitPullRequest } from '@daphne/pr-review/split';
 import { createRunBudget } from '@daphne/evaluator-optimizer';
@@ -11,13 +15,15 @@ import type { RunBudgetPolicy } from '@daphne/evaluator-optimizer';
 import { formatCommandOutput } from './command-output.js';
 import type { CommandOutputRow } from './command-output.js';
 import { CliInputError, describeFailure } from './errors.js';
-import { ArtifactError, createRunDirectory, writeArtifact } from './output.js';
+import { createRunDirectory, writeArtifact } from './output.js';
+import { serializeSplitInvestigation } from './split-pr-report.js';
 
 interface SplitOptions extends RunBudgetPolicy {
   pr: string;
   output: string;
   provider?: ModelProvider;
   model: string;
+  reasoningEffort?: OpenAIReasoningEffort;
   maxInputTokens: number;
 }
 
@@ -32,12 +38,20 @@ export function parseSplitArgs(args: string[]): SplitOptions {
         output: { type: 'string' },
         provider: { type: 'string', default: 'openai' },
         model: { type: 'string' },
-        'max-input-tokens': { type: 'string', default: '16384' },
+        'reasoning-effort': { type: 'string' },
+        'max-input-tokens': { type: 'string', default: '256000' },
         'max-candidates': { type: 'string' },
         'run-timeout-ms': { type: 'string' },
       },
     });
     const provider = parseModelProvider(values.provider);
+    const defaultEffort = provider === 'codex' ? 'high' : 'medium';
+    const reasoningEffort =
+      provider !== 'anthropic'
+        ? parseOpenAIReasoningEffort(
+            values['reasoning-effort'] ?? defaultEffort,
+          )
+        : undefined;
     const model = values.model ?? defaultModels[provider];
     const maxInputTokens = Number(values['max-input-tokens']);
 
@@ -46,6 +60,7 @@ export function parseSplitArgs(args: string[]): SplitOptions {
       !values.output?.trim() ||
       values.output.includes('\0') ||
       !model.trim() ||
+      (provider === 'anthropic' && values['reasoning-effort'] !== undefined) ||
       !Number.isSafeInteger(maxInputTokens) ||
       maxInputTokens < 1
     ) {
@@ -57,6 +72,7 @@ export function parseSplitArgs(args: string[]): SplitOptions {
       output: values.output,
       provider,
       model,
+      ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
       maxInputTokens,
       ...(values['max-candidates'] === undefined
         ? {}
@@ -67,7 +83,7 @@ export function parseSplitArgs(args: string[]): SplitOptions {
     };
   } catch {
     throw new CliInputError(
-      'Usage: split-pr --pr URL --output DIRECTORY [--provider openai|anthropic|codex] [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
+      'Usage: split-pr --pr URL --output DIRECTORY [--provider openai|anthropic|codex] [--model MODEL] [--reasoning-effort none|minimal|low|medium|high|xhigh|max (OpenAI/Codex; defaults medium/high)] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
@@ -98,6 +114,11 @@ export async function runSplitPr(
   }
 
   const provider = options.provider ?? 'openai';
+  const defaultEffort = provider === 'codex' ? 'high' : 'medium';
+  const reasoningEffort =
+    provider !== 'anthropic'
+      ? (options.reasoningEffort ?? defaultEffort)
+      : undefined;
   const apiKeyVariable = `${provider.toUpperCase()}_API_KEY`;
   const apiKey = provider === 'codex' ? '' : process.env[apiKeyVariable];
 
@@ -125,26 +146,28 @@ export async function runSplitPr(
     apiKey: apiKey ?? '',
     provider,
     model: options.model,
+    ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
     maxInputTokens: options.maxInputTokens,
     budget,
     ...(githubToken === undefined ? {} : { githubToken }),
-    onPage: (page, pageNumber) => {
-      process.stderr.write(
-        `  Page ${String(pageNumber)} ready · ${String(page.unitIds.length)} units\n`,
-      );
-    },
   });
-  const errors = result.errors.map((error) => describeFailure('split', error));
+  const errors = result.errors.map(({ stage, error }) =>
+    describeFailure(stage, error),
+  );
 
-  /* The command owns the versioned file format; the workflow returns typed results. */
+  /* Persist original evidence and the current investigation, with no legacy artifact branch. */
   const report = {
-    format: 'daphne-split-pr-v3',
     status: result.status,
     pr: ref.url,
     provider,
     model: options.model,
+    reasoningEffort: reasoningEffort ?? null,
     maxInputTokens: options.maxInputTokens,
-    budget: result.budget,
+    budget: {
+      maxCandidates: budget.maxCandidates,
+      deadlineAt: budget.deadlineAt,
+    },
+    metadata: result.metadata,
     identity: result.identity,
     changes: result.changes,
     hunks: result.hunks.map(({ change, hunkIndex, sources }) => ({
@@ -152,13 +175,14 @@ export async function runSplitPr(
       hunkIndex,
       sources,
     })),
-    pages: result.pages,
+    limitations: result.limitations,
+    investigation: serializeSplitInvestigation(result.investigation),
     proposal: result.proposal,
     response: result.response,
-    attempts: result.attempts,
-    calls: result.calls,
     errors,
   };
+
+  let output: string | null = join(directory, 'run.json');
 
   try {
     await writeArtifact(
@@ -169,25 +193,41 @@ export async function runSplitPr(
       { overwrite: true },
     );
   } catch (error) {
-    if (!(error instanceof ArtifactError) || error.code !== 'cancelled') {
-      throw error;
-    }
-
-    /* Preserve completed work in a failed report after cancelled publication. */
+    /* Preserve completed work without accepted output when publication fails or is cancelled. */
     report.status = 'failed';
     report.proposal = null;
     report.response = null;
-    errors.push(describeFailure('run_output', error));
-    await writeArtifact(directory, 'run.json', report, undefined, {
-      overwrite: true,
-    });
+    const failure = describeFailure('run_output', error);
+    errors.push(failure);
+
+    if (report.investigation !== null) {
+      report.investigation = {
+        ...report.investigation,
+        status: 'failed',
+        proposal: null,
+        response: null,
+        acceptedCandidate: null,
+        error: failure,
+      };
+    }
+
+    try {
+      await writeArtifact(directory, 'run.json', report, undefined, {
+        overwrite: true,
+      });
+    } catch (publicationError) {
+      errors.push(describeFailure('run_output', publicationError));
+      output = null;
+    }
   }
 
   const summary = {
     status: report.status,
-    pages: result.pages.length,
+    turns: result.investigation?.turns.length ?? 0,
+    tools: result.investigation?.tools.length ?? 0,
+    attempts: result.investigation?.attempts.length ?? 0,
     groups: report.proposal?.groups.length ?? 0,
-    output: join(directory, 'run.json'),
+    output,
     errors,
   };
 
@@ -198,9 +238,14 @@ export async function runSplitPr(
         value: summary.status,
         tone: summary.status === 'complete' ? 'success' : 'error',
       },
-      { label: 'Pages', value: String(summary.pages) },
+      { label: 'Turns', value: String(summary.turns) },
+      { label: 'Tools', value: String(summary.tools) },
+      { label: 'Attempts', value: String(summary.attempts) },
       { label: 'Groups', value: String(summary.groups) },
-      { label: 'Run artifact', value: summary.output },
+      {
+        label: 'Run artifact',
+        value: summary.output ?? 'Could not save run.json',
+      },
     ];
 
     for (const error of errors) {

@@ -11,6 +11,10 @@
     "./contracts": {
       "types": "./dist/contracts.d.ts",
       "import": "./dist/contracts.js"
+    },
+    "./tool-definitions": {
+      "types": "./dist/tool-definitions.d.ts",
+      "import": "./dist/tool-definitions.js"
     }
   },
   "scripts": {

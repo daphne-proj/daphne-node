@@ -43,16 +43,26 @@ test.each([
   async ({ status, exitCode }) => {
     const { options, controller } = await setupSplitPr();
     const complete = completedResult();
+    const failure = new ModelError('Provider unavailable.');
     const result: SplitPullRequestResult =
       status === 'complete'
         ? complete
         : {
             ...complete,
             status: 'failed',
-            attempts: complete.attempts.slice(0, 1),
+            investigation: {
+              ...complete.investigation,
+              status: 'failed',
+              proposal: null,
+              response: null,
+              acceptedCandidate: null,
+              error: failure,
+              attempts: complete.investigation.attempts.slice(0, 1),
+              turns: complete.investigation.turns.slice(0, 1),
+            },
             proposal: null,
             response: null,
-            errors: [new ModelError('Provider unavailable.')],
+            errors: [{ stage: 'investigation', error: failure }],
           };
     vi.mocked(splitPullRequest).mockResolvedValueOnce(result);
 
@@ -63,19 +73,29 @@ test.each([
 
     expect(code).toBe(exitCode);
     expect(artifact).toEqual({
-      format: 'daphne-split-pr-v3',
       status,
       pr: options.pr,
       provider: 'openai',
       model: options.model,
       maxInputTokens: 128,
-      budget: result.budget,
+      reasoningEffort: 'medium',
+      budget: complete.investigation.budget,
+      metadata: result.metadata,
       identity: result.identity,
       changes: result.changes,
       hunks: [{ changeId: 'a', hunkIndex: null, sources: [] }],
-      pages: result.pages,
-      attempts: result.attempts,
-      calls: result.calls,
+      limitations: result.limitations,
+      investigation:
+        result.investigation?.status === 'failed'
+          ? {
+              ...result.investigation,
+              error: {
+                stage: 'investigation',
+                code: 'model',
+                message: 'Provider unavailable.',
+              },
+            }
+          : result.investigation,
       proposal: result.proposal,
       response: result.response,
       errors:
@@ -83,7 +103,7 @@ test.each([
           ? []
           : [
               {
-                stage: 'split',
+                stage: 'investigation',
                 code: 'model',
                 message: 'Provider unavailable.',
               },
@@ -109,12 +129,18 @@ test('cancelled publication saves completed work as a failed run', async () => {
 
   expect(code).toBe(1);
   expect(artifact).toMatchObject({
-    format: 'daphne-split-pr-v3',
     status: 'failed',
-    budget: result.budget,
-    pages: result.pages,
-    attempts: result.attempts,
-    calls: result.calls,
+    budget: result.investigation.budget,
+    investigation: {
+      status: 'failed',
+      turns: result.investigation.turns,
+      attempts: result.investigation.attempts,
+      calls: result.investigation.calls,
+      proposal: null,
+      response: null,
+      acceptedCandidate: null,
+      error: { stage: 'run_output', code: 'cancelled' },
+    },
     proposal: null,
     response: null,
     errors: [{ stage: 'run_output', code: 'cancelled' }],

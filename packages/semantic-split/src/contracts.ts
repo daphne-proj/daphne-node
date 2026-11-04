@@ -1,72 +1,137 @@
-import type { DiffContextHunk, DiffContextPage } from '@daphne/context-engine';
-import type { Change, ReviewIdentity } from '@daphne/review-evidence/contracts';
 import type {
-  ModelReply,
+  DiffContextHunk,
+  DiffHunkEvidence,
+  EvidenceSnapshot,
+} from '@daphne/context-engine';
+import type {
   ModelCallObservation,
+  ModelFunctionCall,
   ModelProvider,
+  ModelReply,
+  OpenAIReasoningEffort,
 } from '@daphne/llm';
 import type { RunBudget, RunBudgetSnapshot } from '@daphne/evaluator-optimizer';
+import type {
+  Change,
+  ContextNotice,
+  ReviewIdentity,
+  ToolResult,
+} from '@daphne/review-evidence/contracts';
 import type { Proposal, ProposalValidation } from './proposal.js';
 
-/*
- * Keep each evidence page with its optional model analysis.
- * Example: a single-page run groups the original text directly, leaving analysis null.
- */
-export interface PageAnalysis extends DiffContextPage {
-  analysis: Pick<ModelReply, 'text' | 'response'> | null;
-}
-
-/*
- * Record a completed grouping reply and the result of validating it.
- * Example: attempt 1 may omit a unit ID; keep that draft even if attempt 2 fails.
- */
-export interface SplitAttempt {
-  number: number;
-  inputTokens: number;
-  text: string;
-  response: Record<string, unknown>;
-  validation: ProposalValidation;
-}
-
-/*
- * Supply the pinned review identity, change inventory and original hunk evidence.
- * Example: a file with two text hunks has one change entry and two hunk entries.
- */
+/* Supply the whole pinned diff; each original hunk or metadata entry is one assignable unit. */
 export interface SemanticSplitInput {
   identity: ReviewIdentity;
+  pr: { url: string; title: string; body: string | null };
   changes: readonly Change[];
   hunks: readonly DiffContextHunk[];
 }
 
-/*
- * Share the host's run budget across paging, analysis and grouping; input tokens limit each request.
- * Set provider to select the adapter for the supplied key and model; omission preserves OpenAI callers.
- */
+/* The host lends read-only tools bound to budget.signal and owns Git cleanup. */
 export interface SemanticSplitOptions {
   provider?: ModelProvider;
   apiKey: string;
   model: string;
+  reasoningEffort?: OpenAIReasoningEffort;
   maxInputTokens: number;
   budget: RunBudget;
-  onModelCall?: (event: ModelCallObservation) => void;
-  onPage?: (page: DiffContextPage, pageNumber: number) => void;
+  executeTool: (request: unknown) => Promise<ToolResult>;
+  onModelCall?: (event: SplitModelCallObservation) => void;
+}
+
+export type SplitModelCallObservation = ModelCallObservation & {
+  role: 'writer';
+  candidateNumber: number;
+  conversationId: string;
+};
+
+/* Retain a completed lookup or its failure; delivered requires a later completed model reply. */
+export type SplitToolRecord = {
+  number: number;
+  role: 'writer';
+  candidateNumber: number;
+  conversationId: string;
+  turnNumber: number;
+  call: ModelFunctionCall;
+  request: Record<string, unknown> | null;
+} & (
+  | {
+      status: 'complete';
+      result: ToolResult;
+      output: string;
+      includedEvidenceIds: readonly string[];
+      delivered: boolean;
+    }
+  | { status: 'failed'; result: ToolResult | null; error: unknown }
+);
+
+/* Source delivery is confirmed by a reply, never by counting or merely executing a tool. */
+export type SplitEvidenceDelivery =
+  | { kind: 'initial'; evidenceIds: readonly string[] }
+  | { kind: 'tool'; toolNumber: number };
+
+/* Store provider output once; attempts and tools refer to this one-based turn number. */
+export interface SplitTurn {
+  number: number;
+  role: 'writer';
+  candidateNumber: number;
+  conversationId: string;
+  generationNumber: number;
+  instructions: string;
+  deliveries: readonly SplitEvidenceDelivery[];
+  deliveredEvidenceIds: readonly string[];
+  inputTokens: number;
+  reply: ModelReply;
+}
+
+/* A terminal draft consumes one candidate; validation is null if cancellation prevents evaluation. */
+export interface SplitAttempt {
+  number: number;
+  writerTurnNumber: number;
+  validation: ProposalValidation | null;
+}
+
+/* The accepted draft must resolve to this candidate and its recorded terminal reply. */
+export interface AcceptedSplitCandidate {
+  candidateNumber: number;
+  writerTurnNumber: number;
 }
 
 /*
- * Preserve completed work on success or failure.
- * Example: if generation 2 fails, attempts still contains generation 1,
- * while proposal and response are null and error explains the failure.
+ * runSemanticSplit retains evidence, replies and tools on every exit. Consumers
+ * resolve group unit IDs through comparison + hunks + evidence, never model code.
+ * Failed or cancelled runs have no accepted output; empty input has no candidate.
  */
 export type SemanticSplitResult = {
+  comparison: Omit<SemanticSplitInput, 'hunks'> | null;
   budget: RunBudgetSnapshot;
-  pages: PageAnalysis[];
+  limits: {
+    maxInputTokens: number;
+    maxOutputTokens: number;
+    maxContextBytes: number;
+    maxRetainedBytes: number;
+    maxRequestBytes: number;
+  };
+  evidence: EvidenceSnapshot | null;
+  hunks: DiffHunkEvidence[];
   attempts: SplitAttempt[];
-  calls: { count: number; generate: number };
+  tools: SplitToolRecord[];
+  turns: SplitTurn[];
+  limitations: ContextNotice[];
+  diagnostics: string[];
+  calls: { count: number; generate: number; tools: number };
 } & (
   | {
       status: 'complete';
       proposal: Proposal;
       response: Record<string, unknown> | null;
+      acceptedCandidate: AcceptedSplitCandidate | null;
     }
-  | { status: 'failed'; proposal: null; response: null; error: unknown }
+  | {
+      status: 'failed';
+      proposal: null;
+      response: null;
+      acceptedCandidate: null;
+      error: unknown;
+    }
 );

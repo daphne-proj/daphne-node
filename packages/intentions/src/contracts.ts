@@ -1,5 +1,6 @@
 import type {
   DiffContextHunk,
+  DiffHunkEvidence,
   EvidenceSnapshot,
   RetainedSource,
 } from '@daphne/context-engine';
@@ -174,18 +175,6 @@ export type IntentionsValidation =
   | { status: 'invalid'; diagnostics: string[] };
 
 /*
- * Connects an input diff hunk to retained source IDs for the model and final
- * IntentionsResult. For example, { changeId: 'change-1', hunkIndex: 0,
- * evidenceIds: ['e-1'] } names the first text hunk. retainDiff uses null for a
- * change without a text hunk, which must not supply hunk source evidence.
- */
-export interface IntentionHunkEvidence {
-  changeId: string;
-  hunkIndex: number | null;
-  evidenceIds: string[];
-}
-
-/*
  * Preserves each model tool call and its outcome in IntentionsResult, including
  * failures that stop the run. For example, a failed record keeps error even if
  * request parsing produced null. executeIntentionTool records included evidence
@@ -277,7 +266,7 @@ export type IntentionsResult = {
     maxRequestBytes: number;
   };
   evidence: EvidenceSnapshot | null;
-  hunks: IntentionHunkEvidence[];
+  hunks: DiffHunkEvidence[];
   attempts: IntentionAttempt[];
   tools: IntentionToolRecord[];
   turns: IntentionTurn[];

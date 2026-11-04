@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { onTestFinished } from 'vitest';
 import type { SplitPullRequestResult } from '@daphne/pr-review/split';
+import type { SemanticSplitResult, SplitTurn } from '@daphne/semantic-split';
 
 export async function setupSplitPr() {
   const parent = await mkdtemp(join(tmpdir(), 'daphne-split-test-'));
@@ -22,7 +23,7 @@ export async function setupSplitPr() {
 export function completedResult(): Extract<
   SplitPullRequestResult,
   { status: 'complete' }
-> {
+> & { investigation: Extract<SemanticSplitResult, { status: 'complete' }> } {
   const proposal = {
     groups: [
       {
@@ -70,43 +71,84 @@ export function completedResult(): Extract<
     hunks: [],
   };
 
+  const identity = {
+    sessionId: 'session',
+    repositoryUrl: 'https://github.com/example/project.git',
+    targetCommit: 'a'.repeat(40),
+    baseCommit: 'a'.repeat(40),
+    headCommit: 'b'.repeat(40),
+  };
+  const pr = {
+    url: 'https://github.com/example/project/pull/1',
+    title: 'Update image',
+    body: null,
+  };
+  const turns = [draft, response].map<SplitTurn>((reply, index) => ({
+    number: index + 1,
+    role: 'writer',
+    candidateNumber: index + 1,
+    conversationId: 'writer',
+    generationNumber: index + 1,
+    instructions: 'Group original units.',
+    deliveries: index === 0 ? [{ kind: 'initial', evidenceIds: [] }] : [],
+    deliveredEvidenceIds: [],
+    inputTokens: index === 0 ? 16 : 32,
+    reply: {
+      text: index === 0 ? '{' : JSON.stringify(proposal),
+      output: reply.output,
+      response: reply,
+    },
+  }));
+
   return {
     status: 'complete',
-    identity: {
-      sessionId: 'session',
-      repositoryUrl: 'https://github.com/example/project.git',
-      targetCommit: 'a'.repeat(40),
-      baseCommit: 'a'.repeat(40),
-      headCommit: 'b'.repeat(40),
+    metadata: {
+      ref: { url: pr.url, owner: 'example', repository: 'project', number: 1 },
+      title: pr.title,
+      body: pr.body,
+      targetRepositoryUrl: identity.repositoryUrl,
+      headRepositoryUrl: identity.repositoryUrl,
+      targetCommit: identity.targetCommit,
+      headCommit: identity.headCommit,
     },
+    identity,
     changes: [change],
     hunks: [{ change, hunkIndex: null, sources: [] }],
-    pages: [
-      {
-        unitIds: ['a:metadata'],
-        context: 'Binary image change.',
-        inputTokens: 16,
-        analysis: null,
+    limitations: [],
+    investigation: {
+      status: 'complete',
+      comparison: { identity, changes: [change], pr },
+      budget: { maxCandidates: null, deadlineAt: null },
+      limits: {
+        maxInputTokens: 128,
+        maxOutputTokens: 16_384,
+        maxContextBytes: 8_388_608,
+        maxRetainedBytes: 33_554_432,
+        maxRequestBytes: 8_388_608,
       },
-    ],
-    budget: { maxCandidates: null, deadlineAt: null },
-    attempts: [
-      {
-        number: 1,
-        inputTokens: 16,
-        text: '{',
-        response: draft,
-        validation: { status: 'invalid_json', message: 'Invalid JSON.' },
-      },
-      {
-        number: 2,
-        inputTokens: 32,
-        text: JSON.stringify(proposal),
-        response,
-        validation: { status: 'valid', proposal },
-      },
-    ],
-    calls: { count: 2, generate: 2 },
+      evidence: { identity, sources: [], queries: [] },
+      hunks: [{ changeId: 'a', hunkIndex: null, evidenceIds: [] }],
+      turns,
+      tools: [],
+      attempts: [
+        {
+          number: 1,
+          writerTurnNumber: 1,
+          validation: { status: 'invalid_json', message: 'Invalid JSON.' },
+        },
+        {
+          number: 2,
+          writerTurnNumber: 2,
+          validation: { status: 'valid', proposal },
+        },
+      ],
+      calls: { count: 2, generate: 2, tools: 0 },
+      limitations: [],
+      diagnostics: [],
+      proposal,
+      response,
+      acceptedCandidate: { candidateNumber: 2, writerTurnNumber: 2 },
+    },
     proposal,
     response,
     errors: [],

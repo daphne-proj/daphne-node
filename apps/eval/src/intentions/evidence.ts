@@ -4,7 +4,7 @@ import type {
   SourceEvidence,
   ContextNotice,
 } from '@daphne/review-evidence/contracts';
-import { parseSplitEvidence } from '../split-pr/evidence.js';
+import { parseDiffEvidence } from '../diff-evidence.js';
 import * as parse from '../parse.js';
 
 /* Snapshot validation owns source shape and identity; eval additionally requires Git paths and SHA-1 blob IDs. */
@@ -64,7 +64,7 @@ export function parseIntentionEvidence(
   artifact: Record<string, unknown>,
   investigation: Record<string, unknown>,
 ) {
-  const original = parseSplitEvidence(artifact);
+  const original = parseDiffEvidence(artifact);
   const snapshot = parse.object(
     investigation.evidence,
     'investigation.evidence',

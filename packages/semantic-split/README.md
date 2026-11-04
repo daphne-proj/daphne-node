@@ -1,46 +1,49 @@
 # Semantic split
 
-`@daphne/semantic-split` groups a PR's changes into coherent, independently reviewable responsibilities, keeping required dependencies together across files and unrelated changes separate. It owns prompts, grouping history and proposal validation; `@daphne/evaluator-optimizer` owns iteration and the shared run budget. PR acquisition, Git cleanup and artifact persistence belong to its callers, including PR review and evaluation.
+`@daphne/semantic-split` groups a PR into independently reviewable intentions. It receives the complete supported diff, PR URL/title/body and original unit IDs in one context. Optional `list_changes`, `inspect_change`, `search_code` and `read_source_lines` tools inspect surrounding or unchanged code on the same pinned BASE/HEAD snapshot.
 
-## Main APIs
+## Flow
 
-| API                                       | Purpose                                                                                           |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `runSemanticSplit(input, options)`        | Turn supplied evidence into a validated proposal, retaining completed work on success or failure. |
-| `getExpectedUnitIds(changes)`             | Derive one unit per text hunk, or one metadata unit for a change without text hunks.              |
-| `validateProposal(text, expectedUnitIds)` | Check JSON, proposal shape and exactly-once coverage independently of model claims.               |
+```mermaid
+flowchart TD
+    A["Complete PR diff + metadata + unit IDs"] --> V{"Valid inventory + retained hunks?"}
+    V -->|"Yes"| B["Single split agent"]
+    V -->|"No"| G
+    B <-->|"Optional searches and reads"| C["Pinned BASE/HEAD repository tools"]
+    B --> D["Proposed intention groups"]
+    D --> E{"Valid schema + exactly-once coverage?"}
+    E -->|"Invalid: return diagnostics in the same conversation"| B
+    E -->|"Valid and not cancelled"| F["Validated candidate"]
+    B -->|"Failure, cancellation or capacity limit"| G["Retain completed work; no accepted output"]
+    E -->|"Invalid and candidate limit reached"| G
+    F --> H["Close Git and finalize result"]
+    G --> H
+```
 
-The package also exports its prompts and the generated plain `proposalSchema` so callers can inspect or fingerprint the exact request. The workflow has no fixed correction count.
+The model returns `groups: [{ title, reason, unitIds }]` and `warnings`. Group membership references original units; source code comes from retained Git evidence.
 
-## Main types
+Use intentions' capacities: **256,000 input tokens by default**, **16,384 output tokens**, **8 MiB** per complete context packet/request and **32 MiB** retained evidence. Count the actual request including tools, schema and conversation history. The shared run budget optionally limits candidate count and duration, without default caps. Capacity exhaustion fails explicitly; compression and oversized-PR handling are outside this change.
 
-- `SemanticSplitInput` / `SemanticSplitOptions`: pinned identity, inventory and hunk evidence, plus an optional `provider` (defaults to OpenAI), model credentials, a per-request token limit, a shared `RunBudget` and callbacks.
-- `Proposal` / `ProposalValidation`: intention groups with titles, reasons and unit IDs, or actionable validation diagnostics.
-- `PageAnalysis` / `SplitAttempt`: each page's optional model notes and each completed grouping reply with its validation result.
-- `SemanticSplitResult`: complete or failed output retaining the resolved budget snapshot, pages, attempts and call counts; failure carries an error and null accepted proposal/response.
+Only terminal proposals consume candidates; tool turns continue the same conversation. Corrections append diagnostics without dropping the original diff, tool results or provider replay output. Repository tools retain bounded cursor pagination.
 
-## How it works
+## Deterministic validation
 
-1. Ask context-engine to pack the exact diff into pages within request limits, then check their unit IDs against the original inventory.
-2. Group a single page's raw diff directly. For several pages, generate separate notes with unit IDs, then group from all notes. A single-page run has no page analysis.
-3. Produce and synchronously validate each proposal, retaining that reply even when cancellation arrives immediately afterward. The shared runner accepts a valid proposal or requests a complete replacement with diagnostics. Missing or duplicated known IDs also bring in every relevant original page/fragment not yet supplied as raw evidence, in page order. Unknown-only failures add no evidence pages. Complete provider output is replayed unchanged.
+1. **Original IDs:** derive `changeId:hunkIndex` from the pinned Git inventory. Require unique change IDs and valid hunk indices; changes without text hunks keep their metadata unit.
+2. **Retained entries:** every expected ID maps to exactly one original hunk/metadata entry. Reject missing, extra, duplicate or mismatched entries. A text hunk retains sources for each existing BASE/HEAD side; metadata entries have no source text.
+3. **Proposal shape:** require valid JSON with only the declared fields and types, nonblank titles and nonempty unit lists per group. Reasons and warning entries remain strings; they may be empty.
+4. **Proposal coverage:** every expected ID appears exactly once across all groups. Reject unknown IDs and duplicates within or across groups. An empty proposal is valid only for an empty inventory.
+5. **Code lookup:** resolve IDs through the same captured, immutable mapping and comparison. Preserve original source bytes and order. Retrieved evidence adds context, never new assignable units; model text never supplies source code.
 
-`context-engine` supplies `splitDiffIntoContextPages`; `llm` supplies `createModel` for complete-request token counts, generation and replayable output. Only the identical initial single-page grouping request reuses the pager's count; analysis and revision requests are counted separately. `review-evidence/contracts` supplies data types without repository I/O. The workflow performs no direct Git or filesystem operations.
+Input/mapping failures stop the run; invalid proposals receive diagnostics for repair in the same conversation. Acceptance also requires successful cleanup and no cancellation. These checks do not assess semantic grouping quality, apply patches or execute builds/tests.
 
-## Run policy
+## API and ownership
 
-Hosts create one budget with `createRunBudget(policy, callerSignal)` before preparation, then pass it as `options.budget` through acquisition, paging, analysis, grouping and accepted-output publication. The optional policy fields are `maxCandidates` and `timeoutMs`; neither has a default. Page analyses and token-count requests do not consume candidate slots, but they share the deadline. An explicitly configured final candidate is still evaluated. Cancellation, exhaustion and provider failures retain completed work without accepting a draft. Empty input completes without model calls unless cancelled.
+- `runSemanticSplit(input, options)` captures the comparison before asynchronous work. Options supply provider/model credentials, input limit, optional reasoning effort, one shared `RunBudget`, a borrowed `executeTool` and an optional model-call observer.
+- `SemanticSplitResult` retains the comparison, evidence ledger, original hunk mappings, turns, tools, attempts, limits, diagnostics and count/generate/tool counters. Replies live in `SplitTurn`; `SplitAttempt.writerTurnNumber` and `acceptedCandidate` reference them. Failed runs clear proposal, response and acceptance. Empty input succeeds without model calls unless cancelled.
+- `getExpectedUnitIds(changes)` and `validateProposal(text, expectedIds)` expose inventory and proposal checks. Prompts, `proposalSchema` and `splitLimits` are exported for inspection and evaluation fingerprints.
 
-The CLI's `split-pr` command and eval's `split-pr run` command expose `--max-candidates N` and `--run-timeout-ms N`. Each concurrent eval case resolves a fresh budget from the same experiment policy when its task begins. Results and artifacts record `{ maxCandidates, deadlineAt }`, using `null` for unset limits; the signal is never serialized. Current readers require this shape. Historical artifacts are unchanged research records and are not accepted as current inputs.
+`context-engine` owns shared diff/tool retention, evidence notices and complete packet assembly. The pure `review-evidence/tool-definitions` export describes repository tools; the host owns their executor and Git lifetime. `llm.runModelConversation` handles counting, generation and replay. `evaluator-optimizer` controls candidate iteration. Zod owns strict proposal shape; coverage remains deterministic application logic.
 
-Per-request token and conversation-byte limits remain independent capacity constraints. Completed page notes and attempts remain available to callers; the CLI stores them in `run.json` even when publication is cancelled.
+The PR host closes Git after investigation; cleanup or late cancellation clears acceptance while retaining completed work. CLI/eval own credentials, error serialization and publication. Split and intentions share the offline tool-packet and delivery readers; proposal checks remain separate. Frozen evaluation verifies captured repositories, commits, inventory and exact source bytes before enabling tools; labels never enter model context.
 
-## Proposal schema
-
-Zod **4.6.7** owns the strict root/group shape in `src/schema.ts`, the inferred `Proposal` type and the generated request schema. Titles must contain a non-whitespace character, each group's unit list must be nonempty, and unknown fields are rejected. Reasons and warnings may still be empty strings. Parsing does not trim, coerce or transform any text.
-
-`validateProposal` decodes JSON, parses that shape and then checks exactly-once coverage against the original inventory. Missing IDs retain inventory order; duplicate and unknown IDs retain first-seen order. A structurally valid empty proposal is valid for an empty inventory. Zod does not prove coverage or grouping quality, and this workflow does not establish Rust migration parity.
-
-Native [Zod JSON Schema generation](https://zod.dev/json-schema) exports the schema supplied to LLM for token counts and generation, and used for eval prompt hashing. Provider-specific schema handling belongs to the [LLM adapters](../llm/README.md#main-flow-and-limits): OpenAI receives the original schema, while Anthropic converts unsupported constraints at the transport boundary. Counting and generation use the same prepared schema for the selected provider. This workflow always validates the original Zod schema. Live provider acceptance remains unverified; no model calls are needed to build or inspect the schema. The common runner and CLI/eval packages have no direct Zod dependency.
-
-See the [workflow](src/workflow.ts), [contracts](src/contracts.ts), [proposal validator](src/proposal.ts) and [architecture](../../docs/architecture.md) for details.
+See [contracts](src/contracts.ts), [proposal validation](src/proposal.ts) and the [implementation plan](../../docs/superpowers/plans/2026-11-04-split-pr-intentions-flow.md).

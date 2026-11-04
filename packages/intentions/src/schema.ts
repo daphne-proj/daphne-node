@@ -1,15 +1,5 @@
 import * as z from 'zod';
 
-/* Keep the existing tool JSON schemas independent of writer-output validation. */
-export function strictObject(properties: Record<string, object>) {
-  return {
-    type: 'object',
-    additionalProperties: false,
-    required: Object.keys(properties),
-    properties,
-  };
-}
-
 /* Keep nonblank checks local; regex constraints make provider grammars too large. Preserve text exactly. */
 const text = z
   .string()

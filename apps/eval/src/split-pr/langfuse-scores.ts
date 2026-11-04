@@ -10,11 +10,12 @@ export const itemScoreNames = [
   'corrections',
   'count_calls',
   'generate_calls',
+  'tool_calls',
 ];
 
 export function toSplitEvaluations(
   scores: SplitScores,
-  calls: { count: number; generate: number },
+  calls: { count: number; generate: number; tools: number },
 ): Evaluation[] {
   return [
     { name: 'completed', value: Number(scores.completed) },
@@ -34,5 +35,6 @@ export function toSplitEvaluations(
     { name: 'corrections', value: scores.corrections },
     { name: 'count_calls', value: calls.count },
     { name: 'generate_calls', value: calls.generate },
+    { name: 'tool_calls', value: calls.tools },
   ];
 }

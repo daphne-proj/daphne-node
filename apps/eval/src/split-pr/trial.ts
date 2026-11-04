@@ -19,6 +19,7 @@ export function toSemanticSplitInput(
   );
 
   return {
+    pr: evidence.pr,
     identity: evidence.identity,
     changes: evidence.changes,
     hunks: evidence.hunks.map(({ changeId, hunkIndex, sources }) => {
@@ -40,6 +41,21 @@ export function toSplitTrial(
   modelConfig: SplitTrial['modelConfig'],
   modelCalls: RecordedModelCall[],
 ): SplitTrial {
+  const retained = {
+    ...result,
+    tools: result.tools.map((tool) =>
+      tool.status === 'complete'
+        ? tool
+        : {
+            ...tool,
+            error: {
+              name: 'SplitToolError',
+              message: 'Repository tool failed; inspect retained work locally.',
+            },
+          },
+    ),
+  };
+
   return {
     format: 'daphne-split-trial-v1',
     caseId: caseData.definition.id,
@@ -49,19 +65,23 @@ export function toSplitTrial(
     modelConfig,
     modelCalls,
     result:
-      result.status === 'complete'
-        ? result
+      retained.status === 'complete'
+        ? retained
         : {
-            ...result,
+            ...retained,
+            status: 'failed',
+            proposal: null,
+            response: null,
+            acceptedCandidate: null,
             error: {
               name:
-                result.error instanceof ModelError
+                retained.error instanceof ModelError
                   ? 'ModelError'
                   : 'SplitError',
               /* ModelError messages are adapter-owned; arbitrary errors may contain secrets. */
               message:
-                result.error instanceof ModelError
-                  ? result.error.message
+                retained.error instanceof ModelError
+                  ? retained.error.message
                   : 'Semantic split failed; inspect retained work locally.',
             },
           },

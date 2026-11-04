@@ -28,10 +28,12 @@ bun run eval -- split-pr validate --suite apps/eval/datasets/split-pr/suite.json
 
 Validation defaults to `outputs/split_<gold filename>/run.json`; pass `ARTIFACT=PATH` to validate another capture. Suite cases use the filename convention.
 
-The batch Make target uses that capture path to find each PR URL, then runs the model again for every gold JSON, including cases absent from the suite. It saves fresh runs under a unique `outputs/split-pr-eval-all.*` directory and compares them with the gold labels. If the PR commits differ from the reference capture, it refuses to score that result. It continues through missing or invalid captures and failed runs, exiting nonzero if any run or evaluation cannot complete. The batch makes paid model calls and never changes the gold files or reference captures.
+The batch Make target reopens each capture’s target/head repositories and commits, including fork heads. It verifies the exact inventory and source bytes before allowing model tools, and saves fresh runs under `outputs/split-pr-eval-all.*` for offline scoring. It never resolves a moving PR head, edits reference captures or changes labels. Missing captures, unavailable commits or mismatched evidence fail explicitly. Model calls are paid; uploading remains a separate command.
 
 Direct comparison reads the supplied artifact and gold file only. It checks evidence consistency, label IDs and exact predicted unit coverage, then scores explicit pairs equally. Choose the capture the labels describe: minimal gold files contain no independent commit fingerprint. Suite scoring compares against its configured reference capture and requires review. Draft direct comparisons stay provisional.
 
 Evaluation prints its result without creating files. To explicitly export a report, use `OUTPUT=NEW_FILE` outside both the capture folder and gold directory. Unlabeled pairs are unscored; zero support has no agreement rate. Neither validation nor comparison grants approval.
 
 `caseHash` covers the parsed reference and exact gold bytes, excluding predictions; `inputHash` covers the evidence projection. `datasetHash` covers suite bytes and ordered case IDs/hashes. Removing redundant labels can change partial scores, so do not compare old and new percentages as model improvements.
+
+Current captures require actual PR URL/title/body, acquisition repository URLs/commits and turn-based investigation records. Historical page-based captures are not accepted; regenerate from known pinned inputs and actual metadata. Session IDs alone are normalized during replay comparison.

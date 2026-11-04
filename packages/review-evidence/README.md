@@ -1,5 +1,7 @@
 # Review evidence
 
+The pure `@daphne/review-evidence/tool-definitions` export supplies the four model tool declarations and their call-envelope parser. The borrowing evidence session still validates domain arguments before repository I/O.
+
 `@daphne/review-evidence` turns pinned Git data into exact source excerpts and bounded repository-tool results. It supplies provenance for context building and semantic splitting. Sessions borrow a Git snapshot; the acquiring caller chooses retrieval policy and closes Git. Returned evidence remains usable after cleanup.
 
 ## Main APIs
@@ -34,3 +36,5 @@ Line reads select one-based source lines and return exact bytes with window meta
 Tool defaults are 16 KiB per JSON response and 100 items per entries/notices array. Direct source/hunk reads use Git's blob limits instead. Search previews are navigation, not exact evidence; a null cursor alone does not prove completeness. Input, source-availability and response-budget failures have distinct error types.
 
 See the [retrieval guide](docs/retrieval.md) for examples, cursor semantics and failure behavior, or the [contracts](src/contracts.ts) for data shapes.
+
+`readOriginalDiff(session, changes)` yields original text hunks or metadata entries in inventory order. PR hosts and frozen evaluation retain each yield so a later read failure preserves completed evidence. The helper borrows the session and never closes Git.

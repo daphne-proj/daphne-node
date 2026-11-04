@@ -16,7 +16,7 @@ import type {
 } from '@daphne/review-evidence/contracts';
 import { parseIntentionEvidence, parseNotices } from './evidence.js';
 import { parseIntentionTrace } from './artifact-trace.js';
-import type { IntentionSearchReceipt } from './artifact-tools.js';
+import type { WriterSearchReceipt } from '../artifact-tools.js';
 import { parseRunBudget } from '../run-budget.js';
 import type { IntentionRunSummary } from '@daphne/cli/intentions-summary';
 import { parseIntentionRunSummary } from '@daphne/cli/intentions-summary';
@@ -41,7 +41,7 @@ export interface IntentionJudgePacket {
   }[];
   sources: RetainedSource[];
   limitations: ContextNotice[];
-  searches: readonly IntentionSearchReceipt[];
+  searches: readonly WriterSearchReceipt[];
   proposal: IntentionsProposal;
 }
 

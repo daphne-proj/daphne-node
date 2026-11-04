@@ -9,6 +9,9 @@ import type {
   SplitTrial,
 } from './contracts.js';
 import { EvaluationError } from '../parse.js';
+import { parseSplitTrace } from './artifact-trace.js';
+import { validateAndCopySnapshot } from '@daphne/context-engine';
+import { splitLimits } from '@daphne/semantic-split';
 
 export const splitScorerVersion = 'split-pairs-v2';
 
@@ -25,16 +28,19 @@ export function scoreSplitTrial(
     );
   }
 
-  const attemptTexts = trial.result.attempts.map(({ text }) => text);
   return scoreSplitResult(
     caseData.definition,
-    trial.result.status === 'complete'
-      ? {
-          status: 'complete',
-          proposalText: JSON.stringify(trial.result.proposal),
-          attemptTexts,
-        }
-      : { status: 'failed', attemptTexts },
+    parseSplitTrace(
+      trial.result,
+      caseData.definition.evidence.changes,
+      trial.modelConfig.provider ?? 'openai',
+      trial.result.evidence === null
+        ? null
+        : validateAndCopySnapshot(
+            trial.result.evidence,
+            splitLimits.maxRetainedBytes,
+          ),
+    ),
   );
 }
 

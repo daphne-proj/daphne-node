@@ -26,7 +26,7 @@ help:
 		'                   Optional: OUTPUT=NEW_DIRECTORY overrides the default' \
 		'make split-pr PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Analyze diff pages with the selected provider and replace outputs/split_pr_<pr_number>/run.json' \
-		'                   Optional: OUTPUT=DIRECTORY PROVIDER=openai|anthropic|codex MAX_INPUT_TOKENS=16384' \
+		'                   Optional: OUTPUT=DIRECTORY PROVIDER=openai|anthropic|codex MAX_INPUT_TOKENS=256000' \
 		'make intentions PR=https://github.com/OWNER/REPO/pull/123' \
 		'                   Show intention tables, time and cost; save a new outputs/intentions-* run' \
 		'                   Optional: OUTPUT=NEW_DIRECTORY PROVIDER=openai|anthropic|codex MAX_INPUT_TOKENS=256000' \
@@ -76,9 +76,10 @@ inspect:
 	fi; \
 	bun run cli -- context inspect --pr "$$PR" --output "$$OUTPUT"
 
+split-pr: MAX_INPUT_TOKENS = 256000
 split-pr:
 	@test -n "$$PR" || { \
-		printf '%s\n' 'Usage: make split-pr PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=DIRECTORY] [PROVIDER=openai|anthropic|codex] [MAX_INPUT_TOKENS=16384]' >&2; \
+		printf '%s\n' 'Usage: make split-pr PR=https://github.com/OWNER/REPO/pull/123 [OUTPUT=DIRECTORY] [PROVIDER=openai|anthropic|codex] [MAX_INPUT_TOKENS=256000]' >&2; \
 		exit 1; \
 	}
 	bun run build
@@ -87,7 +88,11 @@ split-pr:
 		mkdir -p outputs || exit 1; \
 		OUTPUT="outputs/split_pr_$${pr_number}"; \
 	fi; \
-	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS"
+	set --; \
+	if test "$$PROVIDER" = openai || test "$$PROVIDER" = codex; then \
+		set -- --reasoning-effort "$$REASONING_EFFORT"; \
+	fi; \
+	bun run cli -- split-pr --pr "$$PR" --output "$$OUTPUT" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS" "$$@"
 
 intentions: MAX_INPUT_TOKENS = 256000
 intentions:
@@ -127,6 +132,7 @@ split-pr-eval:
 		bun run --silent eval -- split-pr eval --case "$$CASE" --artifact "$$ARTIFACT"; \
 	fi
 
+split-pr-eval-all: MAX_INPUT_TOKENS = 256000
 split-pr-eval-all:
 	@bun run --silent build
 	@set -- apps/eval/datasets/split-pr/cases/*.json; \
@@ -144,9 +150,10 @@ split-pr-eval-all:
 		reference="outputs/split_$${case_name}/run.json"; \
 		fresh="$$run_dir/$$case_name/run.json"; \
 		printf '\n%s\n' "$$case_name"; \
-		pr_url=$$(node -e 'const run = require(process.argv[1]); if (typeof run.pr !== "string") process.exit(1); process.stdout.write(run.pr)' "./$$reference") || { status=1; continue; }; \
-		bun run --silent cli -- split-pr --pr "$$pr_url" --output "$$run_dir/$$case_name" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS" || { status=1; continue; }; \
-		node -e 'const fs = require("node:fs"); const [reference, fresh] = process.argv.slice(1).map((path) => JSON.parse(fs.readFileSync(path, "utf8"))); const keys = ["repositoryUrl", "baseCommit", "targetCommit", "headCommit"]; if (keys.some((key) => !reference.identity?.[key] || reference.identity[key] !== fresh.identity?.[key])) { console.error("PR code changed since the gold capture; refusing to score."); process.exitCode = 1; }' "$$reference" "$$fresh" || { status=1; continue; }; \
+		set -- --case "$$case_file" --reference "$$reference" --output "$$run_dir/$$case_name" --provider "$$PROVIDER" --max-input-tokens "$$MAX_INPUT_TOKENS"; \
+		if test -n "$$MODEL"; then set -- "$$@" --model "$$MODEL"; fi; \
+		if test "$$PROVIDER" != anthropic && test -n "$$REASONING_EFFORT"; then set -- "$$@" --reasoning-effort "$$REASONING_EFFORT"; fi; \
+		bun run --silent eval -- split-pr run-case "$$@" || status=1; \
 		bun run --silent eval -- split-pr eval --case "$$case_file" --artifact "$$fresh" --reference "$$reference" --output "$$run_dir/$$case_name/eval.json" || status=1; \
 	done; \
 	exit "$$status"

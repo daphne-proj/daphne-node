@@ -21,3 +21,5 @@ export type {
 export { defaultEvidenceLimits, resolveEvidenceLimits } from './limits.js';
 export type { EvidenceLimits } from './limits.js';
 export { parseToolRequest } from './tools/validate.js';
+
+export { readOriginalDiff } from './diff.js';

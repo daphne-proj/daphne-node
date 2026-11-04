@@ -1,35 +1,26 @@
 # Context engine
 
-`@daphne/context-engine` turns supplied evidence into bounded, traceable context. It supports two independent paths: retaining excerpts for a selected JSON packet, and splitting a complete supplied diff into text pages. The CLI inspection command uses the first; semantic-split uses the second. Retrieval, Git cleanup, prompts and model generation belong to callers.
+`@daphne/context-engine` retains supplied evidence and assembles bounded, traceable JSON context. Intentions and semantic-split share its original-diff helpers; inspection uses explicit evidence selection. Retrieval, Git lifetime, prompts and model calls belong to callers.
 
 ## Main APIs
 
-| API                                                      | Purpose                                                                                                |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `createContextEngine(identity, limits)`                  | Create a ledger exposing `addSource`, `addToolResult`, `getEvidenceSnapshot` and `buildContextPacket`. |
-| `buildContextPacket(snapshot, input)`                    | Build a packet from a supplied evidence snapshot, including one restored from JSON.                    |
-| `validateAndCopySnapshot(value, maxRetainedBytes?)`      | Validate saved sources and complete query chains before an artifact reader trusts their provenance.    |
-| `splitDiffIntoContextPages({ identity, hunks, tokens })` | Yield diff pages within byte and token budgets, preserving supplied source text across fragments.      |
+| API                                                                | Purpose                                                                              |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `createContextEngine(identity, limits)`                            | Retain sources and tool results; expose a snapshot and packet assembly.              |
+| `validateDiffInput(input)` / `retainDiff(input, engine, mappings)` | Validate the inventory and retain each original hunk or metadata entry exactly once. |
+| `retainToolEvidence(engine, request, result, maxBytes)`            | Check request agreement, retain returned evidence and render its exact cursor page.  |
+| `assembleCompleteEvidence(engine, input)`                          | Build a packet and reject omitted evidence or observations.                          |
+| `buildContextPacket(snapshot, input)`                              | Assemble selected evidence, reporting any omissions.                                 |
+| `validateAndCopySnapshot(value, maxRetainedBytes?)`                | Validate saved source IDs, bytes and query chains.                                   |
 
-`defaultContextLimits` and `resolveContextLimits` configure retention and packet budgets. Paging does not use or mutate the ledger.
+`initialLimitations` and `retrievalLimitations` derive the shared evidence notices.
 
-## Main types
+`DiffContextHunk` contains original BASE/HEAD sources; `DiffHunkEvidence` maps the change/hunk pair to retained evidence IDs. `EvidenceSnapshot` holds the pinned identity, sources and query history. `AssembleInput` selects evidence and optional query pages; `ContextPacket` records included/omitted content and rendered bytes.
 
-- `EvidenceSnapshot` / `RetainedSource`: retained excerpts with evidence IDs, pinned identity and query history.
-- `AssembleInput` / `ContextPacket`: priority-ordered evidence selection and its rendered result, measurements, notices and omitted IDs.
-- `DiffContextHunk` / `DiffContextPage`: original hunk sources and pages that retain their original unit IDs.
-- `TokenBudget`: a limit and asynchronous callback for counting the caller's complete intended model request.
+## Flow and limits
 
-## How it works
+Validate and retain exact sources, reuse identical evidence, and reject conflicting provenance or bytes. Tool cursor pages retain navigation and completeness separately from source excerpts. Assembly selects whole sources in caller order; the complete-evidence helper fails if anything selected is omitted. Model workflows count their entire requests separately.
 
-Packet assembly is synchronous and byte-bounded; model workflows count complete requests separately. The v1 packet retains `tokenCount: null`, and assembly rejects a supplied token budget.
+Defaults allow 4 MiB retained data and 64 KiB rendered context; callers may raise these to 32 MiB and 8 MiB. Input, conflict and capacity failures have distinct errors. Consistency checks do not authenticate Git contents or establish semantic correctness.
 
-For packets, validate and retain supplied sources or tool results, reuse identical evidence, and reject conflicting provenance or bytes. Search previews and line-read window metadata remain navigation; only exact source fragments become citable evidence. Line-read continuations must agree on the selected window. Select evidence IDs in priority order, then render the largest fitting prefix of whole excerpts with explicit omissions and retrieval limitations. Git can already be closed.
-
-For diff pages, validate the supplied hunks, render them together, and recursively divide oversized groups, sides or source ranges. Splits preserve UTF-8 boundaries and original byte offsets. Consume the iterator completely to preserve all supplied text; page boundaries do not define semantic groups.
-
-The only workspace imports are types from `@daphne/review-evidence/contracts`, keeping context construction independent of retrieval. Node `Buffer` measures and splits UTF-8 bytes; `node:crypto` provides stable packet IDs and fingerprints. Callers supply token counting so this package needs no model SDK or tokenizer.
-
-Defaults cap serialized retention at 4 MiB and packet/page text at 64 KiB. Explicit limits allow packets up to 8 MiB and retention up to 32 MiB; diff pages keep their 64 KiB ceiling. `ContextInputError`, `ContextConflictError` and `ContextLimitError` distinguish malformed input, inconsistent evidence and exceeded budgets. Validation checks supplied evidence consistency; it does not authenticate repository contents or establish semantic correctness.
-
-See the [context and paging guide](docs/context-and-paging.md) for examples and budget behavior, the [contracts](src/contracts.ts) for data shapes, and the [boundary decision](../../docs/adr/0002-context-engine-boundary.md) for ownership.
+Only evidence contract types cross the workspace boundary. Node `Buffer` measures UTF-8 bytes and `node:crypto` supplies fingerprints. There is no repository or model I/O. See the [context guide](docs/context-and-paging.md) and [boundary decision](../../docs/adr/0002-context-engine-boundary.md).

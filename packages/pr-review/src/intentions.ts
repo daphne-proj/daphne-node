@@ -1,3 +1,4 @@
+import { initialLimitations } from '@daphne/context-engine';
 import {
   acquireSnapshot,
   defaultGitLimits,
@@ -12,6 +13,7 @@ import type {
 } from '@daphne/intentions';
 import {
   createEvidenceSession,
+  readOriginalDiff,
   defaultEvidenceLimits,
 } from '@daphne/review-evidence';
 import type {
@@ -137,13 +139,7 @@ export async function analyzePullRequestIntentions(
       limits: defaultGitLimits,
     });
 
-    evidence.limitations = evidence.changes
-      .filter((change) => change.kind !== 'text')
-      .map((change) => ({
-        code: 'unsupported_change',
-        message: `Change ${change.id} has ${change.kind} content; only its metadata is available.`,
-        path: change.afterPath ?? change.beforePath,
-      }));
+    evidence.limitations = initialLimitations(evidence.changes);
 
     const session = createEvidenceSession(snapshot, {
       signal,
@@ -151,20 +147,8 @@ export async function analyzePullRequestIntentions(
       limits: defaultEvidenceLimits,
     });
 
-    for (const change of evidence.changes) {
-      if (change.kind !== 'text' || change.hunks.length === 0) {
-        evidence.hunks.push({ change, hunkIndex: null, sources: [] });
-        continue;
-      }
-
-      for (const hunkIndex of change.hunks.keys()) {
-        const sources = await session.readHunk({
-          changeId: change.id,
-          hunkIndex,
-        });
-
-        evidence.hunks.push({ change, hunkIndex, sources });
-      }
+    for await (const hunk of readOriginalDiff(session, evidence.changes)) {
+      evidence.hunks.push(hunk);
     }
 
     stage = 'investigation';

@@ -3,7 +3,7 @@ import { createContextEngine } from '@daphne/context-engine';
 import type { EvidenceSnapshot, RecordedPage } from '@daphne/context-engine';
 import { parseToolRequest } from '@daphne/review-evidence';
 import type { ToolRequest } from '@daphne/review-evidence/contracts';
-import * as parse from '../parse.js';
+import * as parse from './parse.js';
 
 /*
  * The judge can verify a scoped search occurred without treating its previews
@@ -12,7 +12,7 @@ import * as parse from '../parse.js';
  * A complete empty page proves only no literal matches in that request's scope;
  * continuation cursors and limitations remain explicit.
  */
-export interface IntentionSearchReceipt {
+export interface WriterSearchReceipt {
   toolNumber: number;
   conversationId: string;
   role: 'writer';
@@ -32,7 +32,7 @@ export interface IntentionSearchReceipt {
  * query status that an earlier tool response showed. Conflicting results,
  * foreign sources, altered navigation and incomplete copies throw before judging.
  */
-export function parseIntentionToolEvidence(
+export function parseToolEvidence(
   tools: readonly Record<string, unknown>[],
   snapshot: EvidenceSnapshot,
 ) {

@@ -4,13 +4,13 @@ import type {
   IntentionsProposal,
   IntentionsValidationContext,
 } from '@daphne/intentions';
-import { parseDeliveredTurns } from './artifact-delivery.js';
-import type { IntentionDeliveryContext } from './artifact-delivery.js';
-import type { IntentionSearchReceipt } from './artifact-tools.js';
+import { parseDeliveredTurns } from '../artifact-delivery.js';
+import type { WriterDeliveryContext } from '../artifact-delivery.js';
+import type { WriterSearchReceipt } from '../artifact-tools.js';
 import { parseRunBudget } from '../run-budget.js';
 import * as parse from '../parse.js';
 
-export interface IntentionArtifactContext extends IntentionDeliveryContext {
+export interface IntentionArtifactContext extends WriterDeliveryContext {
   changes: IntentionsValidationContext['changes'];
   pr: IntentionsValidationContext['pr'];
 }
@@ -21,7 +21,7 @@ export interface ParsedIntentionTrace {
   proposal: IntentionsProposal;
   response: Record<string, unknown> | null;
   deliveredEvidenceIds: readonly string[];
-  searches: readonly IntentionSearchReceipt[];
+  searches: readonly WriterSearchReceipt[];
 }
 
 /*

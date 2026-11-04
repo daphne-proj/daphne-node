@@ -49,6 +49,11 @@ export function setupWorkflow(ids: string[] = ['a']) {
   }));
 
   const input: SemanticSplitInput = {
+    pr: {
+      url: 'https://github.com/example/project/pull/1',
+      title: 'Update parser',
+      body: null,
+    },
     identity: {
       sessionId: 'session',
       repositoryUrl: 'https://github.com/example/project.git',
@@ -63,6 +68,9 @@ export function setupWorkflow(ids: string[] = ['a']) {
   const controller = new AbortController();
 
   const options: SemanticSplitOptions = {
+    executeTool: vi
+      .fn()
+      .mockRejectedValue(new Error('Unexpected repository lookup.')),
     apiKey: 'test-key',
     model: 'test-model',
     maxInputTokens: 128,
@@ -109,19 +117,4 @@ export function setupWorkflow(ids: string[] = ['a']) {
     generatedRequests,
     countedBeforeGeneration,
   };
-}
-
-/* Force the real pager to deliver one unit per page; summaries and repairs still fit. */
-export function countOneUnitPerPage(request: ModelRequest): Promise<number> {
-  if (typeof request.input !== 'string' && request.input.length === 1) {
-    const content = request.input[0]?.content;
-
-    if (typeof content === 'string' && content.startsWith('unitId:')) {
-      const units = content.match(/^unitId: /gm)?.length ?? 0;
-
-      return Promise.resolve(units === 1 ? 16 : 129);
-    }
-  }
-
-  return Promise.resolve(16);
 }

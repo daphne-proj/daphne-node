@@ -17,7 +17,7 @@ import { evaluateSplitCaseArtifact } from './evaluate.js';
 import { itemScoreNames, toSplitEvaluations } from './langfuse-scores.js';
 import * as parse from '../parse.js';
 import { writeJsonArtifact } from '../artifacts.js';
-import { parseRunBudget } from '../run-budget.js';
+import { parseSplitArtifact } from './artifact.js';
 
 type SavedCase = {
   prepared: PreparedSplitCase;
@@ -26,7 +26,7 @@ type SavedCase = {
   model: string;
   maxInputTokens: number;
   budget: RunBudgetSnapshot;
-  calls: { count: number; generate: number };
+  calls: { count: number; generate: number; tools: number };
   output: {
     status: 'complete' | 'failed_run' | 'invalid_output';
     groups: string[][];
@@ -116,50 +116,32 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
       );
     }
 
-    const artifact = await parse.readJson(artifactPath, (value) =>
-      parse.object(value, 'artifact'),
+    const { value: artifact } = await parse.readJson(
+      artifactPath,
+      parseSplitArtifact,
     );
-    const model = parse.text(artifact.value.model, 'artifact.model');
-    const maxInputTokens = parse.integer(
-      artifact.value.maxInputTokens,
-      'artifact.maxInputTokens',
-    );
-    const calls = parse.object(artifact.value.calls, 'artifact.calls');
     const groups =
-      report.status === 'complete'
+      artifact.result.status === 'complete'
         ? parse
             .array(
-              parse.object(artifact.value.proposal, 'artifact.proposal').groups,
-              'artifact.proposal.groups',
+              parse.object(artifact.input.proposal, 'proposal').groups,
+              'groups',
             )
-            .map((group, index) =>
+            .map((group) =>
               parse
-                .array(
-                  parse.object(
-                    group,
-                    `artifact.proposal.groups[${String(index)}]`,
-                  ).unitIds,
-                  'group.unitIds',
-                )
-                .map((unitId) => parse.text(unitId, 'group.unitIds[]')),
+                .array(parse.object(group, 'group').unitIds, 'unitIds')
+                .map((id) => parse.text(id, 'unitId')),
             )
         : [];
 
     items.set(caseId, {
       prepared,
       report,
-      provider: parse.choice(
-        artifact.value.provider ?? 'openai',
-        ['openai', 'anthropic', 'codex'],
-        'artifact.provider',
-      ),
-      model,
-      maxInputTokens,
-      budget: parseRunBudget(artifact.value.budget),
-      calls: {
-        count: parse.integer(calls.count, 'artifact.calls.count'),
-        generate: parse.integer(calls.generate, 'artifact.calls.generate'),
-      },
+      provider: artifact.provider,
+      model: artifact.model,
+      maxInputTokens: artifact.maxInputTokens,
+      budget: artifact.budget,
+      calls: artifact.calls,
       output: { status: report.status, groups },
     });
   }

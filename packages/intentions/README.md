@@ -1,5 +1,7 @@
 # Intentions
 
+Diff retention and complete-packet validation come from `context-engine`; model tool declarations come from the pure `review-evidence/tool-definitions` export shared with semantic split.
+
 `@daphne/intentions` explains a complete PR comparison as ordered intention cards: actual behavior before and after, the desired outcome, its motivation, and potential issues. Cards may share evidence; they do not consume or modify semantic-split groups.
 
 ## Pattern: validation and repair

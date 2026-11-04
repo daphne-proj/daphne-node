@@ -6,16 +6,17 @@
 
 From the repository root, run `bun run build`, then `bun run eval -- <command>`.
 
-| Command             | Purpose                                                                  | External calls                       |
-| ------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| `split-pr validate` | Check case/suite contracts, evidence and labels.                         | None                                 |
-| `split-pr eval`     | Compare a saved run with one case; draft comparisons remain provisional. | None                                 |
-| `split-pr score`    | Score a saved run against a reviewed suite case.                         | None                                 |
-| `split-pr run`      | Run reviewed frozen cases through the splitter and report experiments.   | Selected model provider and Langfuse |
-| `split-pr upload`   | Revalidate and upload saved batch scores.                                | Langfuse                             |
-| `langfuse-smoke`    | Verify experiment reporting with two synthetic cases.                    | Langfuse                             |
-| `intentions eval`   | Grade saved cards against a frozen gold case; drafts remain provisional. | Codex CLI                            |
-| `intentions judge`  | Judge a saved run using its original prompt, evidence and output.        | Codex CLI                            |
+| Command             | Purpose                                                                  | External calls                            |
+| ------------------- | ------------------------------------------------------------------------ | ----------------------------------------- |
+| `split-pr validate` | Check case/suite contracts, evidence and labels.                         | None                                      |
+| `split-pr eval`     | Compare a saved run with one case; draft comparisons remain provisional. | None                                      |
+| `split-pr score`    | Score a saved run against a reviewed suite case.                         | None                                      |
+| `split-pr run-case` | Replay one frozen case with verified repository tools; save locally.     | Git and selected model provider           |
+| `split-pr run`      | Run reviewed frozen cases through the splitter and report experiments.   | Git, selected model provider and Langfuse |
+| `split-pr upload`   | Revalidate and upload saved batch scores.                                | Langfuse                                  |
+| `langfuse-smoke`    | Verify experiment reporting with two synthetic cases.                    | Langfuse                                  |
+| `intentions eval`   | Grade saved cards against a frozen gold case; drafts remain provisional. | Codex CLI                                 |
+| `intentions judge`  | Judge a saved run using its original prompt, evidence and output.        | Codex CLI                                 |
 
 This app has no public library exports. Internally, `runSplitCommand` dispatches evaluation commands, `withLangfuse` owns the telemetry lifecycle, and `createModelCallRecorder` captures provider timing and usage.
 
@@ -29,10 +30,10 @@ This app has no public library exports. Internally, `runSplitCommand` dispatches
 ## How it works
 
 1. Load and validate frozen evidence and labels. Saved-run comparisons revalidate the proposal and check evidence consistency rather than trusting recorded validation.
-2. Score known pair relationships offline, or run reviewed cases with bounded concurrency through `runSemanticSplit`, withholding labels from model input.
+2. Score known pair relationships offline, or run reviewed cases with bounded concurrency through `runSplitCase`, verifying captured repositories, commits and exact bytes before `runSemanticSplit`; labels stay out of model input.
 3. Preserve complete local trial artifacts. Live commands export experiment results and check case, score and model-call accounting before finalizing telemetry and reporting completion.
 
-`semantic-split` provides generation and proposal validation; evidence contracts describe inputs, and `@daphne/llm` provides call observations and usage parsing. Eval retains Langfuse token-bucket mapping and reporting issues. Langfuse client/tracing APIs and OpenTelemetry provide experiments, scores and export lifecycle. CLI public subpaths share terminal formatting and gold-output protection. Node filesystem and crypto APIs provide safe JSON publication and input fingerprints.
+`git-source` and `review-evidence` reopen pinned comparisons and supply read-only tools; `semantic-split` provides generation and proposal validation; evidence contracts describe inputs, and `@daphne/llm` provides call observations and usage parsing. Eval retains Langfuse token-bucket mapping and reporting issues. Langfuse client/tracing APIs and OpenTelemetry provide experiments, scores and export lifecycle. CLI public subpaths share terminal formatting and gold-output protection. Node filesystem and crypto APIs provide safe JSON publication and input fingerprints.
 
 Commands never edit gold cases or approve labels. A completed evaluation is distinct from good model quality; unknown/unlabeled pairs do not count toward agreement. Live benchmarks require reviewed cases and explicit credentials. Normal repository checks stay offline.
 
@@ -55,3 +56,5 @@ The initial draft labels use one PR: a conditional tenant/key collision and two 
 Fresh model runs accept `--provider openai|anthropic`; Make uses `PROVIDER`. `intentions-eval` selects the generation provider, while its independent Codex judge always uses the OpenAI default. Model defaults are maintained in `packages/llm/src/providers.ts`.
 
 Intentions output uses wrapping score tables with status colors and includes the saved generation summary: elapsed time, estimated USD cost, and token totals. Evaluation time is shown separately. Unknown usage or rates remain explicit; generation estimates exclude Codex judge billing. See [generation accounting](../cli/docs/intentions.md#time-tokens-and-cost).
+
+Split and intentions reuse app-local `diff-evidence.ts`, `artifact-delivery.ts` and `artifact-tools.ts` to verify provider replies, tool packets and evidence delivery. Proposal validation remains domain-specific. Failed split artifacts may retain an uninitialized comparison or partial evidence without accepted output; frozen case preparation still requires a complete usable original diff.
