@@ -24,7 +24,7 @@ bun run cli -- intentions \
   --max-input-tokens 256000
 ```
 
-OpenAI generation defaults to `medium` reasoning effort. Set `REASONING_EFFORT=high` on `make intentions` or `make intentions-eval`, or pass `--reasoning-effort high` to the compiled intentions CLI. Accepted values are `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`; the selected model must support the value. The setting applies to every tool continuation and repair. Make ignores it for Anthropic; the CLI rejects an explicit effort flag with Anthropic. `intentions-eval` applies it only to fresh generation, leaving the independent judge unchanged. See [OpenAI reasoning controls](https://developers.openai.com/api/docs/guides/reasoning).
+OpenAI generation defaults to `medium` reasoning effort; Codex generation defaults to `high` with model `gpt-6.1-sol`. Set `REASONING_EFFORT=high` on `make intentions` or `make intentions-eval`, or pass `--reasoning-effort high` to the compiled intentions CLI. Accepted values are `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`; the selected model must support the value. The setting applies to every tool continuation and repair. Make ignores it for Anthropic; the CLI rejects an explicit effort flag with Anthropic. `intentions-eval` applies it only to fresh generation, leaving the independent judge unchanged. See [OpenAI reasoning controls](https://developers.openai.com/api/docs/guides/reasoning).
 
 Optional `GITHUB_TOKEN` authenticates PR metadata requests only; the Git adapter supports public repositories. Running this command makes paid model calls. Normal repository checks do not.
 

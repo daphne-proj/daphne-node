@@ -423,6 +423,7 @@ export default defineConfig(
   },
   {
     files: ['packages/llm/src/**/*.ts'],
+    ignores: ['packages/llm/src/codex-runner.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -443,6 +444,24 @@ export default defineConfig(
         },
       ],
       'no-restricted-globals': ['error', 'process', 'console'],
+    },
+  },
+  {
+    files: ['packages/llm/src/codex-runner.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...libraryImportRestrictions,
+            {
+              group: ['@daphne/**'],
+              message:
+                'The Codex subprocess must remain independent of Daphne workflows.',
+            },
+          ],
+        },
+      ],
     },
   },
 );

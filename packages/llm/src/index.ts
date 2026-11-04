@@ -1,5 +1,7 @@
 export { createOpenAI, ModelError } from './openai.js';
 export { createModel, decodeModelReply } from './model.js';
+export { runCodex, CodexError } from './codex-runner.js';
+export type { CodexDiagnostics } from './codex-runner.js';
 export {
   defaultModels,
   parseModelProvider,

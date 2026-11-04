@@ -150,7 +150,7 @@ async function loadSavedCases(runDirectory: string, signal: AbortSignal) {
       report,
       provider: parse.choice(
         artifact.value.provider ?? 'openai',
-        ['openai', 'anthropic'],
+        ['openai', 'anthropic', 'codex'],
         'artifact.provider',
       ),
       model,

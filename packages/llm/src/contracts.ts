@@ -1,5 +1,5 @@
 /* The provider selects transport and replay rules; workflows keep the same request. */
-export type ModelProvider = 'openai' | 'anthropic';
+export type ModelProvider = 'openai' | 'anthropic' | 'codex';
 
 /* OpenAI request values; the selected model determines which levels it supports. */
 export type OpenAIReasoningEffort =
@@ -22,7 +22,7 @@ export interface ModelFunctionCall {
 
 /* Adapters translate these existing field names without changing workflow schemas. */
 export interface ModelRequest {
-  /* OpenAI only, for example { effort: 'medium' }; omit for other providers. */
+  /* OpenAI and Codex, for example { effort: 'high' }; omit for Anthropic. */
   reasoning?: { effort: OpenAIReasoningEffort };
   tools?: readonly ModelFunctionTool[];
   parallel_tool_calls?: boolean;
@@ -58,8 +58,8 @@ export interface ModelCallObservation {
 
 /*
  * Conversation runners borrow this client, for example model.count(request)
- * before model.generate(request). Requests fail without retry; the factory's
- * signal and per-request deadline bound HTTP. Counters include failed attempts
+ * before model.generate(request). Codex counts are visible-input byte estimates.
+ * Requests fail without retry; the factory's signal and deadlines bound I/O. Counters include failed attempts
  * and are caller-readable only. Reply output belongs to this provider's history.
  */
 export interface ModelClient {

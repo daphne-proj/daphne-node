@@ -5,12 +5,15 @@ import { ModelError } from './response.js';
 export const defaultModels = {
   openai: 'gpt-6.1-sol',
   anthropic: 'claude-opus-5-5',
+  codex: 'gpt-6.1-sol',
 } as const satisfies Record<ModelProvider, string>;
 
 /* Validate CLI/environment provider names once before selecting credentials or HTTP. */
 export function parseModelProvider(value = 'openai'): ModelProvider {
-  if (value !== 'openai' && value !== 'anthropic') {
-    throw new ModelError('Model provider must be "openai" or "anthropic".');
+  if (value !== 'openai' && value !== 'anthropic' && value !== 'codex') {
+    throw new ModelError(
+      'Model provider must be "openai", "anthropic" or "codex".',
+    );
   }
 
   return value;

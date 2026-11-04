@@ -366,9 +366,9 @@ typechecking, and success on these known PRs does not establish generalization.
 
 Use `make intentions-eval CASE=apps/eval/datasets/intentions/cases/pr_1.json`
 to build, validate the case, generate fresh intentions for its PR and evaluate them.
-The Make target uses `PROVIDER=openai|anthropic` for generation and
-`MAX_INPUT_TOKENS=256000`. OpenAI generation accepts `REASONING_EFFORT` (default
-`medium`), forwarded as the CLI `--reasoning-effort` flag. This has no effect when
+The Make target uses `PROVIDER=openai|anthropic|codex` for generation and
+`MAX_INPUT_TOKENS=256000`. OpenAI and Codex generation accept `REASONING_EFFORT`
+(default `medium` for OpenAI and `high` for Codex), forwarded as the CLI `--reasoning-effort` flag. This has no effect when
 regrading `ARTIFACT` or generating with Anthropic. Its Codex judge always uses the OpenAI default model;
 changing the generation provider does not change the judge. Both default model
 strings are maintained in `packages/llm/src/providers.ts`. It creates a dedicated

@@ -64,6 +64,17 @@ Exhausted candidate ceilings, input-capacity failures, provider errors, refusals
 
 ## Explain a PR's intentions
 
+For temporary experiments using your ChatGPT Codex allowance, sign in with `codex login` and select `PROVIDER=codex`:
+
+```sh
+make intentions PR=https://github.com/daphne-proj/pr-review-test/pull/2 PROVIDER=codex
+make split-pr PR=https://github.com/daphne-proj/pr-review-test/pull/2 PROVIDER=codex
+```
+
+Codex generation defaults to `gpt-6.1-sol` with `high` reasoning effort. Set `REASONING_EFFORT` on `make intentions` or `make intentions-eval` to override it; the independent judge keeps its own settings. This requires Codex CLI on `PATH` (verified with 0.166.0), not an API key. Each generation starts a fresh process in a temporary directory, tells Codex to act as an API using only the supplied request, and disables local tools, project instructions, skills, memory and plugins. Daphne executes its own requested evidence functions as usual. This is context separation, not filesystem isolation. There is no API fallback. Subscription limits and any account credit billing still apply.
+
+Codex input counts are conservative UTF-8 byte estimates of the visible request, not exact token counts; hidden CLI context is additional. Output-token limits are instructions rather than an API-enforced cap. Existing workflow validation still checks the final proposal. Artifacts identify `codex`, retain CLI usage, and leave USD cost unavailable. Switch back with `PROVIDER=openai` or `PROVIDER=anthropic`; use those providers for API-equivalent measurements.
+
 With the selected provider's API key configured, run:
 
 ```sh

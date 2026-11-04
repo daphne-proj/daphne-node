@@ -132,7 +132,7 @@ export interface IntentionsInput {
  */
 export interface IntentionsOptions {
   provider?: ModelProvider;
-  /* OpenAI uses medium when omitted; do not supply this for Anthropic. */
+  /* Defaults to medium for OpenAI and high for Codex; do not supply this for Anthropic. */
   reasoningEffort?: OpenAIReasoningEffort;
   apiKey: string;
   model: string;

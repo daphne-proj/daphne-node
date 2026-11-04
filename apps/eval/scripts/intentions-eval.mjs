@@ -60,9 +60,10 @@ try {
     GENERATION_PROMPT,
   } = process.env;
   const provider = parseModelProvider(PROVIDER);
+  const defaultEffort = provider === 'codex' ? 'high' : 'medium';
   const reasoningEffort =
-    !ARTIFACT && provider === 'openai'
-      ? parseOpenAIReasoningEffort(REASONING_EFFORT)
+    !ARTIFACT && provider !== 'anthropic'
+      ? parseOpenAIReasoningEffort(REASONING_EFFORT ?? defaultEffort)
       : undefined;
   const stamp = new Date().toISOString().replaceAll(':', '-');
   const output = resolve(

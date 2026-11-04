@@ -153,9 +153,10 @@ export async function runSplitEvaluation(
     }
 
     const apiKeyVariable = `${(options.provider ?? 'openai').toUpperCase()}_API_KEY`;
-    const apiKey = process.env[apiKeyVariable]?.trim();
+    const apiKey =
+      options.provider === 'codex' ? '' : process.env[apiKeyVariable]?.trim();
 
-    if (!apiKey) {
+    if (options.provider !== 'codex' && !apiKey) {
       throw new LangfuseConfigurationError(
         `${apiKeyVariable} is required for split-pr run.`,
       );
@@ -176,7 +177,7 @@ export async function runSplitEvaluation(
           manifest,
           trialNumber,
           outputDirectory,
-          apiKey,
+          apiKey ?? '',
           signal,
         );
       }

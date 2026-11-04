@@ -1,4 +1,5 @@
 import { createAnthropic } from './anthropic.js';
+import { createCodex } from './codex.js';
 import { decodeAnthropicResponse } from './anthropic-response.js';
 import type {
   ModelCallObservation,
@@ -12,8 +13,9 @@ import { decodeResponse } from './response.js';
 
 /*
  * Select a provider synchronously, for example createModel('anthropic', key,
- * modelName, signal). The returned client owns HTTP deadlines and decoding;
- * callers own credentials, conversation lifetime and schema/domain validation.
+ * modelName, signal). The returned client owns provider deadlines and decoding;
+ * Codex uses CLI sign-in and ignores apiKey. Callers own conversation lifetime
+ * and schema/domain validation; API callers also supply their credentials.
  */
 export function createModel(
   provider: ModelProvider,
@@ -27,6 +29,8 @@ export function createModel(
       return createOpenAI(apiKey, model, signal, onModelCall);
     case 'anthropic':
       return createAnthropic(apiKey, model, signal, onModelCall);
+    case 'codex':
+      return createCodex(model, signal, onModelCall);
   }
 }
 
@@ -38,6 +42,7 @@ export function decodeModelReply(
 ): ModelReply {
   switch (provider) {
     case 'openai':
+    case 'codex':
       return decodeResponse(response, tools);
     case 'anthropic':
       return decodeAnthropicResponse(response, tools);

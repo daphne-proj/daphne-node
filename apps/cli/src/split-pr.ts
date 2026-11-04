@@ -67,7 +67,7 @@ export function parseSplitArgs(args: string[]): SplitOptions {
     };
   } catch {
     throw new CliInputError(
-      'Usage: split-pr --pr URL --output DIRECTORY [--provider openai|anthropic] [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
+      'Usage: split-pr --pr URL --output DIRECTORY [--provider openai|anthropic|codex] [--model MODEL] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
@@ -99,9 +99,9 @@ export async function runSplitPr(
 
   const provider = options.provider ?? 'openai';
   const apiKeyVariable = `${provider.toUpperCase()}_API_KEY`;
-  const apiKey = process.env[apiKeyVariable];
+  const apiKey = provider === 'codex' ? '' : process.env[apiKeyVariable];
 
-  if (!apiKey?.trim()) {
+  if (provider !== 'codex' && !apiKey?.trim()) {
     throw new CliInputError(
       `Set ${apiKeyVariable} in .env or the environment.`,
     );
@@ -122,7 +122,7 @@ export async function runSplitPr(
   }
 
   const result = await splitPullRequest(ref, {
-    apiKey,
+    apiKey: apiKey ?? '',
     provider,
     model: options.model,
     maxInputTokens: options.maxInputTokens,

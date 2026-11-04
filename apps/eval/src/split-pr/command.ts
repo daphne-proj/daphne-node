@@ -15,7 +15,7 @@ import { runSplitEvaluation } from './run.js';
 import { uploadSplitEvaluation } from './upload.js';
 
 const usage =
-  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--provider openai|anthropic] [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
+  'Usage: eval split-pr validate --case PATH [--artifact PATH] | --suite PATH\n       eval split-pr eval --case PATH --artifact PATH [--reference PATH] [--output NEW_FILE]\n       eval split-pr score --suite PATH --case-id ID --artifact PATH --output NEW_FILE\n       eval split-pr upload --run-dir PATH\n       eval split-pr run --suite PATH --partition development|holdout --output NEW_DIRECTORY [--provider openai|anthropic|codex] [--model NAME] [--max-input-tokens N] [--trials N] [--concurrency N] [--max-candidates N] [--run-timeout-ms N]';
 
 function options(
   args: string[],
@@ -184,7 +184,7 @@ export async function runSplitCommand(
 
       const provider = choice(
         values.provider,
-        ['openai', 'anthropic'],
+        ['openai', 'anthropic', 'codex'],
         '--provider',
       );
 

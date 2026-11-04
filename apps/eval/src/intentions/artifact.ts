@@ -76,7 +76,7 @@ function decodeArtifact(
   const artifact = parse.object(value, 'artifact');
   const provider = parse.choice(
     artifact.provider ?? 'openai',
-    ['openai', 'anthropic'],
+    ['openai', 'anthropic', 'codex'],
     'artifact.provider',
   );
   const status = parse.choice(

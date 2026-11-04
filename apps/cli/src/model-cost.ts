@@ -9,6 +9,7 @@ export const modelPricing = {
   asOf: '2026-11-01',
   openai: 'https://developers.openai.com/api/docs/models/gpt-6.1-sol',
   anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
+  codex: 'https://learn.chatgpt.com/docs/pricing',
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -35,6 +36,10 @@ export function estimateModelCost(
   model: string,
   usage: TokenUsage,
 ): number | null {
+  if (provider === 'codex') {
+    return null;
+  }
+
   const native = record(call.response?.usage);
   const details = record(native?.input_tokens_details);
   const reads = usage.cachedInputTokens;

@@ -27,7 +27,7 @@ const usageSchema = z.object({
   apiElapsedMs: amount,
 });
 const summarySchema = z.object({
-  provider: z.enum(['openai', 'anthropic']),
+  provider: z.enum(['openai', 'anthropic', 'codex']),
   model: text,
   elapsedMs: amount,
   pricingAsOf: text,
@@ -176,7 +176,9 @@ export function formatIntentionRunSummary(
   }
 
   sections.push(
-    `List-price estimate, rates checked ${summary.pricingAsOf}; excludes independent judge billing, taxes and account discounts.`,
+    summary.provider === 'codex'
+      ? 'Codex uses your ChatGPT allowance; API dollar rates do not apply.'
+      : `List-price estimate, rates checked ${summary.pricingAsOf}; excludes independent judge billing, taxes and account discounts.`,
     '',
   );
   return sections.join('\n');

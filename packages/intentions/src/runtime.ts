@@ -10,7 +10,7 @@ import { executeIntentionTool } from './tools.js';
 /*
  * Bind one writer to its model, retained evidence and the host's original budget.
  * runIntentions reuses this runtime across repairs, so observed calls retain the
- * current candidate number and OpenAI reasoning effort stays fixed (medium by default).
+ * current candidate number and reasoning effort stays fixed (medium for OpenAI, high for Codex).
  * runModelConversation already executes tools in order;
  * each tool checks cancellation before host I/O and retains its outcome on failure.
  */
@@ -22,9 +22,12 @@ export function createIntentionRunRuntime(
 ): IntentionConversationRuntime {
   const { signal } = options.budget;
   const provider = options.provider ?? 'openai';
+  const defaultEffort = provider === 'codex' ? 'high' : 'medium';
 
-  if (provider !== 'openai' && options.reasoningEffort !== undefined) {
-    throw new ModelError('Reasoning effort is only supported for OpenAI.');
+  if (provider === 'anthropic' && options.reasoningEffort !== undefined) {
+    throw new ModelError(
+      'Reasoning effort is only supported for OpenAI and Codex.',
+    );
   }
 
   const model = createModel(
@@ -46,8 +49,8 @@ export function createIntentionRunRuntime(
   return {
     model,
     reasoning:
-      provider === 'openai'
-        ? { effort: options.reasoningEffort ?? 'medium' }
+      provider !== 'anthropic'
+        ? { effort: options.reasoningEffort ?? defaultEffort }
         : undefined,
     progress,
     budget: options.budget,

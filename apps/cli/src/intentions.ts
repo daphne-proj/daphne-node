@@ -50,9 +50,12 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
       },
     });
     const provider = parseModelProvider(values.provider);
+    const defaultEffort = provider === 'codex' ? 'high' : 'medium';
     const reasoningEffort =
-      provider === 'openai'
-        ? parseOpenAIReasoningEffort(values['reasoning-effort'])
+      provider !== 'anthropic'
+        ? parseOpenAIReasoningEffort(
+            values['reasoning-effort'] ?? defaultEffort,
+          )
         : undefined;
     const model = values.model ?? defaultModels[provider];
     const maxInputTokens = Number(values['max-input-tokens']);
@@ -62,7 +65,7 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
       !values.output?.trim() ||
       values.output.includes('\0') ||
       !model.trim() ||
-      (provider !== 'openai' && values['reasoning-effort'] !== undefined) ||
+      (provider === 'anthropic' && values['reasoning-effort'] !== undefined) ||
       !Number.isSafeInteger(maxInputTokens) ||
       maxInputTokens < 1
     ) {
@@ -85,7 +88,7 @@ export function parseIntentionsArgs(args: string[]): IntentionsOptions {
     };
   } catch {
     throw new CliInputError(
-      'Usage: intentions --pr URL --output NEW_DIRECTORY [--provider openai|anthropic] [--model MODEL] [--reasoning-effort none|minimal|low|medium|high|xhigh|max (OpenAI only; default medium)] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
+      'Usage: intentions --pr URL --output NEW_DIRECTORY [--provider openai|anthropic|codex] [--model MODEL] [--reasoning-effort none|minimal|low|medium|high|xhigh|max (OpenAI/Codex; defaults medium/high)] [--max-input-tokens NUMBER] [--max-candidates NUMBER] [--run-timeout-ms NUMBER]',
     );
   }
 }
@@ -123,12 +126,15 @@ export async function runIntentionsPr(
   }
 
   const provider = options.provider ?? 'openai';
+  const defaultEffort = provider === 'codex' ? 'high' : 'medium';
   const reasoningEffort =
-    provider === 'openai' ? (options.reasoningEffort ?? 'medium') : undefined;
+    provider !== 'anthropic'
+      ? (options.reasoningEffort ?? defaultEffort)
+      : undefined;
   const apiKeyVariable = `${provider.toUpperCase()}_API_KEY`;
-  const apiKey = process.env[apiKeyVariable];
+  const apiKey = provider === 'codex' ? '' : process.env[apiKeyVariable];
 
-  if (!apiKey?.trim()) {
+  if (provider !== 'codex' && !apiKey?.trim()) {
     throw new CliInputError(
       `Set ${apiKeyVariable} in .env or the environment.`,
     );
@@ -156,7 +162,7 @@ export async function runIntentionsPr(
   }
 
   const result = await analyzePullRequestIntentions(ref, {
-    apiKey,
+    apiKey: apiKey ?? '',
     provider,
     model: options.model,
     ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
@@ -215,6 +221,9 @@ export async function runIntentionsPr(
       elapsedMs: call.elapsedMs,
       usage: call.response?.usage ?? null,
       inputTokens: call.response?.input_tokens ?? null,
+      ...(call.status === 'failed' && call.response?.codex !== undefined
+        ? { codex: call.response.codex }
+        : {}),
     })),
     timing: {
       startedAt,

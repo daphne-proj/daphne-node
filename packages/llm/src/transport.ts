@@ -4,7 +4,7 @@ import { ModelError, isObject, object } from './response.js';
 
 /* Share deadlines, observations and failure accounting across both HTTP adapters. */
 export function createTransport(
-  provider: ModelProvider,
+  provider: Exclude<ModelProvider, 'codex'>,
   apiKey: string,
   model: string,
   signal: AbortSignal,
