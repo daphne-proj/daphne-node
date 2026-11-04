@@ -17,7 +17,7 @@ export function createTransport(
       ? 'https://api.openai.com/v1/responses'
       : 'https://api.anthropic.com/v1/messages';
 
-  async function post(path: string, body: object) {
+  async function post(path: string, body: object, timeoutMs: number) {
     try {
       const response = await fetch(baseUrl + path, {
         method: 'POST',
@@ -29,7 +29,7 @@ export function createTransport(
             : {}),
         },
         body: JSON.stringify({ model, ...body }),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
         redirect: 'error',
       });
 
@@ -94,7 +94,9 @@ export function createTransport(
     let status: ModelCallObservation['status'] = 'failed';
 
     try {
-      response = await post(path, body);
+      /* Reasoning can take minutes; counting keeps its shorter request deadline. */
+      const timeoutMs = kind === 'generate' ? 600_000 : 120_000;
+      response = await post(path, body, timeoutMs);
       const result = decode(response);
       status = 'complete';
       return result;
