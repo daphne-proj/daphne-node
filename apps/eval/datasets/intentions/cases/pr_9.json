@@ -7,32 +7,40 @@
     "reviewer": null,
     "reviewedAt": null
   },
-  "evidenceFile": "../evidence/pr_9.json",
-  "evidenceHash": "e1614e834ed78a5da8e52ef19257c63bf6bb9197cad389177f9560a18cc95b81",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/9",
+  "identity": {
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "d4eb7b5cc2900535f75ff3fa69be14a5bcea07e6"
+  },
+  "metadata": {
+    "title": "Add background bulk order cancellation",
+    "body": "Add authenticated submission and progress queries for batches of up to 20 selected orders, with a worker entry point that processes a submitted batch separately from the API request. Commerce composition exposes the shared batch service and a dedicated in-memory queue; the existing single-order cancellation remains available.\n\nThe documented contract captures the submitted selection, preserves cancellation semantics, skips already-cancelled orders without another refund, and reports partial progress and item failures. API requests derive tenant and operator identity from the authenticated principal, and status responses return detached data. The fixture remains synchronous within each worker invocation and makes no durability, distributed coordination or exactly-once guarantee.\n\nValidation: clean TypeScript build, formatting and diff checks, and 15 external control scenarios covering authentication, tenant boundaries, selection limits, deferred side effects, repeated execution, status ownership and existing single-order cancellation. Scenario verification and reference material remain outside the analyzed repository. No Daphne model evaluation has been run for this change.\n"
+  },
+  "changeIds": [
+    "change-1",
+    "change-2",
+    "change-3",
+    "change-4",
+    "change-5",
+    "change-6",
+    "change-7",
+    "change-8",
+    "change-9",
+    "change-10"
+  ],
   "behaviors": [
     {
       "id": "deferred-batch-submission",
       "required": true,
       "before": {
         "meaning": "The existing CancellationService handles one tenant-qualified order immediately, performing cancellation work during the call. JobQueue and FulfillmentService already support queued fulfillment work, but the cancellation batch service, payload validator and batch types are absent at their added paths, and createCommerceSystem exposes no cancellationBatches service.",
-        "changeIds": ["change-6", "change-7", "change-8", "change-10"],
-        "sourceIds": [
-          "evidence-26",
-          "evidence-33",
-          "evidence-36",
-          "evidence-37"
-        ]
+        "changeIds": ["change-6", "change-7", "change-8", "change-10"]
       },
       "after": {
         "meaning": "Batch submission requires nonblank tenant and requesting-user strings and validates an array of 1 through 20 distinct, nonblank string order IDs. IDs are compared as supplied rather than normalized. It checks every selected order belongs to the tenant before allocating a batch ID, enqueuing work or saving progress. A valid submission records the operator and clock time, initializes empty cancelled/skipped lists and a null failure, queues the selection and returns its initial status without refunding or cancelling orders. The same selection validator is used when reading the queue's untyped payload.",
-        "changeIds": ["change-6", "change-7", "change-8"],
-        "sourceIds": [
-          "evidence-9",
-          "evidence-10",
-          "evidence-11",
-          "evidence-49",
-          "evidence-56"
-        ]
+        "changeIds": ["change-6", "change-7", "change-8"]
       }
     },
     {
@@ -40,13 +48,11 @@
       "required": true,
       "before": {
         "meaning": "The existing JobQueue shallow-copies the job on enqueue, claim and get, retaining nested payload references. Single-order cancellation consumes an order ID directly without retaining a caller-owned selection array. The cancellation-specific selection validator and batch service paths are absent.",
-        "changeIds": ["change-6", "change-7"],
-        "sourceIds": ["evidence-37", "evidence-26"]
+        "changeIds": ["change-6", "change-7"]
       },
       "after": {
         "meaning": "readCancellationOrderIds returns the validated array itself. Submission places that same array in the queued payload, whose nested references JobQueue retains. Processing and status read the current queued selection; status copies the array only when returning it. A caller that mutates the original array after submission can therefore change which IDs are processed, provided the resulting selection passes processing-time validation and tenant lookup. Scope note: this describes actual reference ownership; the separate submitted-selection-remains-mutable issue requires explaining its conflict with the promised captured selection.",
-        "changeIds": ["change-6", "change-7"],
-        "sourceIds": ["evidence-9", "evidence-10", "evidence-56", "evidence-49"]
+        "changeIds": ["change-6", "change-7"]
       }
     },
     {
@@ -54,13 +60,11 @@
       "required": true,
       "before": {
         "meaning": "CancelHandler already requires a supplied principal and passes that principal's tenant to immediate single-order cancellation. The cancellation-batch-handler.ts path is absent; principal binding is an existing API pattern, not a new authentication mechanism.",
-        "changeIds": ["change-2"],
-        "sourceIds": ["evidence-21", "evidence-22", "evidence-26"]
+        "changeIds": ["change-2"]
       },
       "after": {
         "meaning": "The new handler requires a principal for both submission and status. It explicitly takes tenantId and requestedBy from that principal, and only orderIds from submission input. Status uses the principal's tenant; the service rejects a missing batch or one belonging to a different tenant before reading its queued payload. Scope note: ownership is tenant-based, not restricted to the original requesting user; principal authenticity is supplied by the host, and the worker service is a trusted internal entry point.",
-        "changeIds": ["change-2", "change-7"],
-        "sourceIds": ["evidence-3", "evidence-40", "evidence-10", "evidence-39"]
+        "changeIds": ["change-2", "change-7"]
       }
     },
     {
@@ -68,13 +72,11 @@
       "required": true,
       "before": {
         "meaning": "createCommerceSystem constructs checkout and immediate single-order cancellation over shared orders, payments and inventory, plus an outbox. It does not construct a cancellation batch service or dedicated cancellation queue, and cancellation-batch-runner.ts is absent. Generic queued fulfillment already exists separately.",
-        "changeIds": ["change-4", "change-10"],
-        "sourceIds": ["evidence-33", "evidence-36", "evidence-37"]
+        "changeIds": ["change-4", "change-10"]
       },
       "after": {
         "meaning": "Each commerce instance now creates a dedicated in-memory JobQueue and exposes cancellationBatches using its orders, payments, clock and ID source, while retaining the existing single-order service. CancellationBatchRunner delegates one batch ID and its configured owner to that shared service's process method. Processing requires an existing batch and nonblank owner. The host supplies the same commerce state to API and worker and invokes the runner separately; the runner itself adds no scheduler, timer or asynchronous execution, and each invocation processes sequentially.",
-        "changeIds": ["change-4", "change-7", "change-10"],
-        "sourceIds": ["evidence-6", "evidence-10", "evidence-52", "evidence-39"]
+        "changeIds": ["change-4", "change-7", "change-10"]
       }
     },
     {
@@ -82,19 +84,11 @@
       "required": true,
       "before": {
         "meaning": "For an existing, not-yet-cancelled order, CancellationService refunds its total, releases its committed inventory reservation and then marks the order cancelled. Checkout creates that committed reservation when placing an order; releasing it restores available stock.",
-        "changeIds": ["change-7"],
-        "sourceIds": ["evidence-26", "evidence-27", "evidence-25"]
+        "changeIds": ["change-7"]
       },
       "after": {
         "meaning": "The bulk loop looks up each selected order using the batch's stored tenant, refunds a non-cancelled order's total, marks it cancelled and adds its ID to cancelled progress. It implements this directly instead of delegating to CancellationService and never releases the committed reservation. The existing single-order service remains available with its stock-restoration behavior. Scope note: do not describe bulk cancellation as preserving all single-order semantics merely because that is the documented intention; the separate bulk-cancellation-omits-stock-release issue assesses the material consequence.",
-        "changeIds": ["change-7", "change-10"],
-        "sourceIds": [
-          "evidence-10",
-          "evidence-49",
-          "evidence-45",
-          "evidence-44",
-          "evidence-52"
-        ]
+        "changeIds": ["change-7", "change-10"]
       }
     },
     {
@@ -102,18 +96,11 @@
       "required": true,
       "before": {
         "meaning": "Single-order cancellation already returns cancelled: false for an order whose state is cancelled, before refund or inventory release. It has no batch skipped-order progress list.",
-        "changeIds": ["change-7", "change-8"],
-        "sourceIds": ["evidence-26"]
+        "changeIds": ["change-7", "change-8"]
       },
       "after": {
         "meaning": "The bulk loop also checks cancelled state before refunding. It adds an already-cancelled order's ID to skipped progress only if absent, then continues to the next item. This covers an order cancelled before submission or through the single-order path before worker execution. Scope note: skipping cancelled orders does not establish that a completed batch can be executed again; JobQueue rejects completed jobs at claim.",
-        "changeIds": ["change-7", "change-8"],
-        "sourceIds": [
-          "evidence-10",
-          "evidence-11",
-          "evidence-45",
-          "evidence-56"
-        ]
+        "changeIds": ["change-7", "change-8"]
       }
     },
     {
@@ -121,13 +108,11 @@
       "required": true,
       "before": {
         "meaning": "The generic JobQueue already supports pending, leased and complete states. Claim refuses completed jobs and leases that have not expired; an expired lease can be claimed again, and complete requires the current lease owner. Immediate single-order cancellation does not use this queue, and the batch service path is absent.",
-        "changeIds": ["change-7"],
-        "sourceIds": ["evidence-37", "evidence-38", "evidence-26"]
+        "changeIds": ["change-7"]
       },
       "after": {
         "meaning": "Batch processing claims a 60-second lease, validates the queued payload, clears the prior item failure and completes the job before entering the order loop. The unchanged queue rejects any later claim of that completed job, even after the lease time has passed. Queue completion therefore precedes actual item processing, and it stays complete if an item later fails. Scope note: the documented intention that completion means all selected orders were processed is not the implemented behavior; the separate batch-completes-before-processing issue assesses failed retry and misleading status.",
-        "changeIds": ["change-7"],
-        "sourceIds": ["evidence-10", "evidence-9", "evidence-56", "evidence-39"]
+        "changeIds": ["change-7"]
       }
     },
     {
@@ -135,19 +120,11 @@
       "required": true,
       "before": {
         "meaning": "The existing single-order cancellation directly returns a cancelled flag or propagates an order lookup or payment error. It does not aggregate per-order results into a batch progress record; cancellation-batch.ts and cancellation-batch-service.ts are absent.",
-        "changeIds": ["change-7", "change-8"],
-        "sourceIds": ["evidence-26", "evidence-28"]
+        "changeIds": ["change-7", "change-8"]
       },
       "after": {
         "meaning": "Processing walks the queued selection in order and accumulates cancelled and skipped IDs. On the first exception inside an item, it records that order ID and an error reason, then rethrows and stops before later items. Earlier progress and side effects remain; there is no rollback. Claim and payload-validation failures occur before the item try/catch and do not create an item failure record. Scope note: retained partial progress is intentional, but the prematurely completed queue prevents the documented retry of unfinished items.",
-        "changeIds": ["change-7", "change-8"],
-        "sourceIds": [
-          "evidence-10",
-          "evidence-11",
-          "evidence-9",
-          "evidence-56",
-          "evidence-39"
-        ]
+        "changeIds": ["change-7", "change-8"]
       }
     },
     {
@@ -155,13 +132,11 @@
       "required": true,
       "before": {
         "meaning": "JobQueue.get already exposes a shallow copy containing queue state and its payload reference. Single-order cancellation returns only its cancelled flag; the new batch status and progress-record types and batch-specific status method are absent.",
-        "changeIds": ["change-7", "change-8"],
-        "sourceIds": ["evidence-37", "evidence-38", "evidence-26"]
+        "changeIds": ["change-7", "change-8"]
       },
       "after": {
         "meaning": "Tenant-checked status returns the batch ID, requesting user, submission time, current queue status, selected order IDs, cancelled/skipped IDs and latest item failure. It creates new arrays for all three ID lists and copies a non-null failure object, so modifying those returned fields does not modify stored batch progress or the queued selection. Scope note: returned selection is a copy of the current queued payload, not a preserved snapshot of the original submission, and queue status may say complete despite unfinished items.",
-        "changeIds": ["change-7", "change-8"],
-        "sourceIds": ["evidence-10", "evidence-11", "evidence-9", "evidence-56"]
+        "changeIds": ["change-7", "change-8"]
       }
     }
   ],
@@ -175,67 +150,39 @@
     {
       "id": "submitted-selection-remains-mutable",
       "meaning": "Report that the new deferred batch workflow does not capture an owned selection at submission. readCancellationOrderIds returns the caller's array, submit queues that reference, and JobQueue only copies the outer job. If a caller retains and mutates the original array between submit and process, the worker can cancel a different valid selection: for example, submit [A], then replace A with another paid order B in the same tenant before running the batch. This violates the documented promise that callers may reuse request objects after submission. Identify the shared-reference mechanism and changed cancellation target, not just a generic preference for immutable data. Processing-time validation and tenant lookup still apply, so do not claim that arbitrary invalid or cross-tenant IDs are successfully cancelled. Copies returned by status do not protect the separate submission reference. This concerns a caller able to mutate the in-process array; it does not establish remote mutation of a serialized HTTP request.",
-      "changeIds": ["change-6", "change-7"],
-      "sourceIds": [
-        "evidence-9",
-        "evidence-10",
-        "evidence-56",
-        "evidence-49",
-        "evidence-39",
-        "evidence-3"
-      ]
+      "changeIds": ["change-6", "change-7"]
     },
     {
       "id": "batch-completes-before-processing",
       "meaning": "Report that the new batch processor completes the queue job before doing its item work. If a later order lookup or refund throws, the catch records the item failure and propagates it, but the job remains complete with some or all selected work unfinished. JobQueue.claim rejects complete jobs before considering lease expiry, so another execution cannot resume the batch even after 60 seconds. Explain both the misleading completion state and the stranded work, tying them to the documented completion and retry contract. Keep the failure trigger explicit; do not claim every successful batch loses work. This is a local queue-lifecycle error and needs no restart, distributed worker or exactly-once premise. Merely objecting to partial progress or the absence of rollback does not identify it.",
-      "changeIds": ["change-7"],
-      "sourceIds": [
-        "evidence-10",
-        "evidence-56",
-        "evidence-47",
-        "evidence-49",
-        "evidence-39"
-      ]
+      "changeIds": ["change-7"]
     },
     {
       "id": "bulk-cancellation-omits-stock-release",
       "meaning": "Report that the new bulk path implements a second cancellation sequence using orders and payments directly, omitting the inventory release performed by CancellationService. For a paid order with its normal committed reservation, bulk processing refunds the payment and marks the order cancelled while its reserved quantity remains unavailable. A later call to the existing single-order cancellation returns early on cancelled state, so it does not repair that stock loss. Explain the divergence in domain behavior and its concrete inventory consequence, not merely duplicated code or a preferred dependency structure. The PR explicitly promises to preserve single-order refund and stock-restoration semantics. The existing cancellation operation is unchanged; this defect is introduced by the new bulk path and requires a still-committed reservation.",
-      "changeIds": ["change-7", "change-10"],
-      "sourceIds": [
-        "evidence-10",
-        "evidence-52",
-        "evidence-26",
-        "evidence-45",
-        "evidence-46",
-        "evidence-44",
-        "evidence-39"
-      ]
+      "changeIds": ["change-7", "change-10"]
     }
   ],
   "falseAlarmControls": [
     {
       "id": "returned-status-mutates-progress",
       "meaning": "Reject a reported issue claiming that editing the selected/cancelled/skipped ID arrays or failure object's declared string fields returned by status mutates internal progress or changes the queued selection. status constructs new arrays and a copied failure object. This applies to returned snapshots only: it does not refute the distinct shared reference retained from the original submission input, nor guarantee that the snapshot describes the originally submitted selection or a truthfully complete job.",
-      "changeIds": ["change-7", "change-8"],
-      "sourceIds": ["evidence-10", "evidence-11"]
+      "changeIds": ["change-7", "change-8"]
     },
     {
       "id": "already-cancelled-order-refunded-again",
       "meaning": "Reject a reported issue claiming that merely including an order already marked cancelled causes bulk processing to refund it again. The worker checks that state before the refund, adds the ID to skipped progress and continues. The existing single-order service also returns early for cancelled orders. This control concerns those shown sequential state checks; it does not establish exactly-once effects, repair the missing stock release, or claim completed batches can be rerun successfully.",
-      "changeIds": ["change-7"],
-      "sourceIds": ["evidence-10", "evidence-45", "evidence-56"]
+      "changeIds": ["change-7"]
     },
     {
       "id": "request-fields-override-principal",
       "meaning": "Reject a reported issue claiming that extra tenantId or requestedBy fields in batch submission input override the supplied principal, or that the handler accepts a missing principal. The handler explicitly constructs tenantId and requestedBy from actor.tenantId and actor.userId, reads only input.orderIds, and invokes requirePrincipal before either submission or status. Status uses the principal's tenant and rejects another tenant's batch. This control assumes the host supplies a trusted principal; it does not claim requirePrincipal verifies credentials or that direct service and worker calls provide authentication.",
-      "changeIds": ["change-2", "change-7"],
-      "sourceIds": ["evidence-3", "evidence-40", "evidence-10", "evidence-39"]
+      "changeIds": ["change-2", "change-7"]
     },
     {
       "id": "partial-progress-requires-rollback",
       "meaning": "Reject a reported issue whose sole premise is that a later item failure must roll back already completed cancellations to satisfy an all-or-nothing batch contract. README explicitly permits sequential partial progress and disclaims an all-or-nothing transaction; the implementation retains progress and reports the failed item. This control does not excuse prematurely completing the queue, losing the promised retry of unfinished work, skipping stock restoration, or any separately supported consequence of a partial external effect.",
-      "changeIds": ["change-1", "change-7"],
-      "sourceIds": ["evidence-39", "evidence-10", "evidence-56"]
+      "changeIds": ["change-1", "change-7"]
     }
   ]
 }

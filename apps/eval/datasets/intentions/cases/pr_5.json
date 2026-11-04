@@ -7,27 +7,43 @@
     "reviewer": null,
     "reviewedAt": null
   },
-  "evidenceFile": "../evidence/pr_5.json",
-  "evidenceHash": "7731f3b1021e2e70797e7d7b4036ee421579e15da287ce94dacdcac5563154d7",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/5",
+  "identity": {
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "120de9bccd977c6aa3d7f2043fcb62fcaef0759f"
+  },
+  "metadata": {
+    "title": "Replace low-stock reporting and add exact cart quotations",
+    "body": "Replace the primitive low-stock SKU list with a validated availability report and an authenticated query/download handler. Reports include filtered availability states, replenishment recommendations, deterministic pages and all-match summaries; CSV downloads escape product text safely.\n\nAlso add a separate authenticated cart quotation operation that validates parsed input, prices each line with exact discounts and applies shipping once without reserving stock or charging payments. Existing single-item pricing and checkout placement keep their contracts; fractional prices and unsafe monetary totals reject.\n\nValidation: Node 22.23.3 offline install and clean TypeScript build; 29 external scenarios; exact-base defect reproductions; independent full builds and relevant suites for report-only (16 scenarios) and quote-only (13 scenarios); Prettier and diff checks. No committed tests or dependencies added.\n"
+  },
+  "changeIds": [
+    "change-1",
+    "change-2",
+    "change-3",
+    "change-4",
+    "change-5",
+    "change-6",
+    "change-7",
+    "change-8",
+    "change-9",
+    "change-10",
+    "change-11",
+    "change-12",
+    "change-13"
+  ],
   "behaviors": [
     {
       "id": "catalog-availability-report",
       "required": true,
       "before": {
         "meaning": "Catalog exports lowStock, which filters the supplied SKU array by available stock <= the supplied threshold. It returns SKU strings in caller order, preserves duplicates, does not require catalog membership and supplies no structured statuses or replenishment quantities; Inventory.available returns zero for an absent stock entry.",
-        "changeIds": ["change-4", "change-6", "change-7", "change-8"],
-        "sourceIds": ["evidence-46", "evidence-17", "evidence-47"]
+        "changeIds": ["change-4", "change-6", "change-7", "change-8"]
       },
       "after": {
         "meaning": "The old lowStock implementation/export is removed and replaced by a catalog-backed report over catalog products. Each row contains SKU, name, available quantity, status and recommended order quantity. Zero stock is out_of_stock, positive stock at or below the threshold is low_stock, and greater stock is available. Available products recommend zero replenishment; the other statuses recommend target minus available quantity. Defaults are threshold 5 and target 20. This report reads stock without reserving or modifying it; the public lowStock API is intentionally replaced.",
-        "changeIds": ["change-4", "change-6", "change-7", "change-8"],
-        "sourceIds": [
-          "evidence-58",
-          "evidence-15",
-          "evidence-16",
-          "evidence-57",
-          "evidence-59"
-        ]
+        "changeIds": ["change-4", "change-6", "change-7", "change-8"]
       }
     },
     {
@@ -35,13 +51,11 @@
       "required": true,
       "before": {
         "meaning": "lowStock accepts a supplied SKU list and numeric threshold without validating membership or numeric bounds. It has no status filter, target quantity, offset or page-size input.",
-        "changeIds": ["change-6", "change-7", "change-8"],
-        "sourceIds": ["evidence-17"]
+        "changeIds": ["change-6", "change-7", "change-8"]
       },
       "after": {
         "meaning": "The report validates threshold, target, offset and limit as nonnegative safe integers, requires target > threshold and a limit from 1 through 200, and validates every explicitly requested SKU as nonblank and present in the catalog plus every status as a supported value. Optional SKU and status filters combine; omission means no filter, while an explicitly empty array matches nothing. Sets remove repeated filter values, so repeated SKUs do not duplicate rows. Stock quantities inspected for SKU-selected products must be nonnegative safe integers. Validation occurs before pagination, and an invalid requested SKU is not silently hidden by another filter.",
-        "changeIds": ["change-6", "change-7", "change-8"],
-        "sourceIds": ["evidence-15", "evidence-16", "evidence-57"]
+        "changeIds": ["change-6", "change-7", "change-8"]
       }
     },
     {
@@ -49,13 +63,11 @@
       "required": true,
       "before": {
         "meaning": "lowStock returns a filtered caller-ordered array, with no sort, page metadata, next cursor or summary.",
-        "changeIds": ["change-6", "change-7", "change-8"],
-        "sourceIds": ["evidence-17"]
+        "changeIds": ["change-6", "change-7", "change-8"]
       },
       "after": {
         "meaning": "Matching report rows are sorted by SKU using lexical string comparison and then sliced by offset/limit, defaulting to 0/50. The result returns the resolved bounds and nextOffset when further matches remain, otherwise null; an offset past the end yields an empty page. Summary counts products by availability state and sums available/recommended units across all matches after filtering but before paging. Unit sums must remain safe integers, so even an off-page matching row can make summary computation reject. Changing page size or offset does not change the summary for the same filters.",
-        "changeIds": ["change-6", "change-7", "change-8"],
-        "sourceIds": ["evidence-15", "evidence-16"]
+        "changeIds": ["change-6", "change-7", "change-8"]
       }
     },
     {
@@ -63,13 +75,11 @@
       "required": true,
       "before": {
         "meaning": "inventory-report-handler.ts is absent; it offers no authenticated report or CSV-download entry point. Existing API authentication is supplied by requirePrincipal, which rejects a missing principal.",
-        "changeIds": ["change-3"],
-        "sourceIds": ["evidence-42"]
+        "changeIds": ["change-3"]
       },
       "after": {
         "meaning": "The new handler requires a principal before querying a report. Repeated sku and status query parameters become filters; threshold, target, offset and limit each accept exactly one digits-only safe integer when present and are otherwise left to domain defaults. Malformed or repeated numeric parameters and unknown statuses are rejected, then domain validation handles bounds and SKU membership. download calls the same authenticated, validated report path. Unknown URL parameter names are ignored, not categorically rejected. This uses the existing host-supplied principal mechanism and global catalog/inventory; it does not introduce credential verification or tenant-specific inventory.",
-        "changeIds": ["change-3"],
-        "sourceIds": ["evidence-11", "evidence-54", "evidence-15"]
+        "changeIds": ["change-3"]
       }
     },
     {
@@ -77,13 +87,11 @@
       "required": true,
       "before": {
         "meaning": "The report-handler and report-export paths are absent, so there is no report-specific CSV download with a header, filename, spreadsheet-text handling or page export at these paths.",
-        "changeIds": ["change-3", "change-5"],
-        "sourceIds": []
+        "changeIds": ["change-3", "change-5"]
       },
       "after": {
         "meaning": "CSV export serializes the current report page in row order with SKU, Product, Available units, Availability and Recommended order units columns, CRLF separators and a final CRLF. It returns text/csv; charset=utf-8 and inventory-report-<offset>.csv; an empty page still has a header. Cells containing commas, quotes or line breaks are quoted and embedded quotes doubled. String cells whose trimmed start is =, +, - or @, or whose raw first character is tab/CR/LF, receive a leading apostrophe before CSV escaping. The download uses the same filters/pagination as the report and exports page rows, not all matches or the aggregate summary. This specifies the implemented text guard rather than promising safety in every spreadsheet application.",
-        "changeIds": ["change-3", "change-5"],
-        "sourceIds": ["evidence-11", "evidence-14"]
+        "changeIds": ["change-3", "change-5"]
       }
     },
     {
@@ -91,18 +99,11 @@
       "required": true,
       "before": {
         "meaning": "price computes one merchandise subtotal and promotion discount, then charges shipping based on that single discounted subtotal. It returns subtotal, discount, shipping and total. The cart quote module and cart line/aggregate types are absent.",
-        "changeIds": ["change-9", "change-10", "change-12"],
-        "sourceIds": ["evidence-52", "evidence-53"]
+        "changeIds": ["change-9", "change-10", "change-12"]
       },
       "after": {
         "meaning": "quoteCart accepts 1 through 100 lines with nonblank SKU, nonnegative integer unit cents, positive integer quantity and optional promotion defaulting to zero. It computes each line separately, preserves input order and duplicate SKUs, returns per-line subtotal/discount/discounted totals and aggregates quantity and money with safe-integer checks. Promotions are rounded down per line before aggregation. Shipping is applied once to the aggregate discounted merchandise: free at 5000 cents or more, otherwise 1000 cents. The final sum must also be safe. The quote uses caller-supplied prices and does not resolve a catalog price, reserve stock, create an order or charge a payment.",
-        "changeIds": ["change-9", "change-10", "change-12"],
-        "sourceIds": [
-          "evidence-19",
-          "evidence-18",
-          "evidence-64",
-          "evidence-65"
-        ]
+        "changeIds": ["change-9", "change-10", "change-12"]
       }
     },
     {
@@ -110,18 +111,11 @@
       "required": true,
       "before": {
         "meaning": "CheckoutHandler exposes handle only, requiring a principal and passing its tenant to CheckoutService.place. Placing an order performs inventory/payment/order work; the handler offers no separate quote operation.",
-        "changeIds": ["change-1"],
-        "sourceIds": ["evidence-43", "evidence-42", "evidence-49"]
+        "changeIds": ["change-1"]
       },
       "after": {
         "meaning": "CheckoutHandler adds quote while keeping handle and its principal-derived tenant binding. quote requires a principal first, accepts unknown input, rejects null/array/non-object requests and rows, requires a lines array with the supported count and numeric/string field types, and projects the known fields into quoteCart. Domain validation then rejects blank SKUs, invalid money/quantity/promotions and unsafe totals. Extra object fields are ignored. The quote never delegates to CheckoutService.place and has no checkout side effects; authentication alone does not turn this caller-priced estimate into an authoritative purchase price.",
-        "changeIds": ["change-1"],
-        "sourceIds": [
-          "evidence-55",
-          "evidence-54",
-          "evidence-19",
-          "evidence-61"
-        ]
+        "changeIds": ["change-1"]
       }
     },
     {
@@ -129,13 +123,11 @@
       "required": true,
       "before": {
         "meaning": "multiplyCents validates quantity and the resulting product but not unit price independently, so a fractional unit price such as 0.5 with quantity 2 can pass. discountCents validates integral basis points in 0..10000, then floors a floating-point product/division without independently checking subtotal. price uses these helpers and the existing 5000-cent discounted shipping threshold.",
-        "changeIds": ["change-12", "change-13"],
-        "sourceIds": ["evidence-53", "evidence-52"]
+        "changeIds": ["change-12", "change-13"]
       },
       "after": {
         "meaning": "multiplyCents now validates unit price itself as nonnegative safe integer cents before multiplication, and discountCents validates subtotal likewise. Discount uses BigInt multiplication and integer division by 10000, then converts the bounded result to number, avoiding an unsafe intermediate numeric product while preserving round-down semantics for valid nonnegative inputs. Promotions still require an integer from 0 through 10000. price is factored through priceMerchandise and shippingFor but keeps its existing result fields and discounted-subtotal shipping boundary. Existing checkout uses the updated money rules, so formerly accepted fractional cents are rejected and large valid discounts can be corrected; this is not universal byte-for-byte preservation of previous results.",
-        "changeIds": ["change-12", "change-13"],
-        "sourceIds": ["evidence-65", "evidence-64", "evidence-61"]
+        "changeIds": ["change-12", "change-13"]
       }
     }
   ],
@@ -150,26 +142,22 @@
     {
       "id": "summary-only-counts-current-page",
       "meaning": "Reject a concern that pagination causes the inventory summary to count only the returned page or that an empty out-of-range page must have zero summary totals. The implementation filters and sorts all matches, computes summary over those rows, and only then slices pageRows. Summary is intentionally for all filtered matches. This does not imply that CSV exports all matches; CSV deliberately uses report.rows.",
-      "changeIds": ["change-6"],
-      "sourceIds": ["evidence-15", "evidence-14"]
+      "changeIds": ["change-6"]
     },
     {
       "id": "cart-charges-shipping-for-each-line",
       "meaning": "Reject a concern that reusing pricing for each cart line adds a shipping fee per line or tests free shipping against each line separately. The loop calls priceMerchandise, which excludes shipping; shippingFor runs once after summing discounted merchandise. The 5000-cent boundary is inclusive, and discounts are applied before that comparison. This control does not claim promotions are rounded once across the whole cart: rounding is deliberately per line.",
-      "changeIds": ["change-10", "change-12"],
-      "sourceIds": ["evidence-19", "evidence-64"]
+      "changeIds": ["change-10", "change-12"]
     },
     {
       "id": "quote-reserves-or-charges",
       "meaning": "Reject a concern that calling the new quote operation consumes inventory, persists an order or captures payment merely because it is a CheckoutHandler method. Its path is requirePrincipal, input parsing and quoteCart arithmetic; it never calls the injected CheckoutService. Existing handle remains the operation that places an order. This control applies to the new estimate path, not security or validation of purchases through the unchanged caller-priced checkout API.",
-      "changeIds": ["change-1", "change-10"],
-      "sourceIds": ["evidence-55", "evidence-19", "evidence-61"]
+      "changeIds": ["change-1", "change-10"]
     },
     {
       "id": "csv-special-text-is-unescaped",
       "meaning": "Reject a concern that the exporter leaves commas, quotes, CR/LF or strings beginning with the explicitly guarded spreadsheet formula prefixes unhandled. It adds an apostrophe for the specified string prefixes, quotes cells containing CSV delimiters/line breaks and doubles quotes, preserving cell boundaries. Keep the claim restricted to those implemented cases; this does not establish universal spreadsheet security or cover behavior after a consumer deliberately strips the guard.",
-      "changeIds": ["change-5"],
-      "sourceIds": ["evidence-14"]
+      "changeIds": ["change-5"]
     }
   ]
 }

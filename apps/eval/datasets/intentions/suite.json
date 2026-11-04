@@ -32,6 +32,16 @@
       "partition": "development"
     },
     {
+      "id": "pr_7",
+      "file": "cases/pr_7.json",
+      "partition": "development"
+    },
+    {
+      "id": "pr_8",
+      "file": "cases/pr_8.json",
+      "partition": "development"
+    },
+    {
       "id": "pr_9",
       "file": "cases/pr_9.json",
       "partition": "development"

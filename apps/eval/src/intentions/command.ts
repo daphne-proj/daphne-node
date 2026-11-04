@@ -10,7 +10,7 @@ import { loadIntentionArtifact } from './artifact.js';
 import { judgmentSchema, parseJudgment } from './judgment.js';
 import { summarizeIntentionQuality } from './quality.js';
 import { formatIntentionEvaluation } from './presentation.js';
-import { loadIntentionGoldCase, prepareGoldPacket } from './gold-case.js';
+import { loadIntentionGoldCase, validateGoldComparison } from './gold-case.js';
 import { goldJudgmentSchema, parseGoldJudgment } from './gold-judgment.js';
 import { toIntentionJudgeInput } from './judge-input.js';
 
@@ -59,7 +59,7 @@ function options(args: string[]) {
 }
 
 /*
- * Grade a saved accepted run; eval additionally loads and matches a frozen gold case.
+ * Grade a saved accepted run; eval additionally loads labels and matches their pinned PR identity.
  * For example, intentions eval --case cases/pr_1.json adds semantic behavior coverage.
  * Gold annotations are never sent to the investigating writer.
  * For example, use `intentions judge --artifact run.json --output new-dir --model MODEL`.
@@ -78,10 +78,12 @@ export async function runIntentionsCommand(
         ? null
         : await loadIntentionGoldCase(input.casePath);
     const candidate = await loadIntentionArtifact(input.artifact);
-    const packet =
-      gold !== null && candidate.status === 'complete'
-        ? prepareGoldPacket(gold, candidate.packet)
-        : candidate.packet;
+    const packet = candidate.packet;
+
+    if (gold !== null && packet !== null) {
+      validateGoldComparison(gold, packet);
+    }
+
     const schema = gold === null ? judgmentSchema : goldJudgmentSchema;
     const goldProvenance =
       gold === null
@@ -89,7 +91,6 @@ export async function runIntentionsCommand(
         : {
             caseId: gold.id,
             caseHash: gold.caseHash,
-            evidenceHash: gold.evidenceHash,
             partition: gold.partition,
             review: gold.review,
             provisional: gold.review.status !== 'reviewed',

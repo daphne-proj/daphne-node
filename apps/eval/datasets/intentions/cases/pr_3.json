@@ -7,21 +7,46 @@
     "reviewer": null,
     "reviewedAt": null
   },
-  "evidenceFile": "../evidence/pr_3.json",
-  "evidenceHash": "d3deda3aca4cd8bf5e860310d4758ae4741afbeeafc5d5c7ba170b0ca7f761e7",
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/3",
+  "identity": {
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "7c19811d7825902925c6e98ef13ea903bc3fe42d"
+  },
+  "metadata": {
+    "title": "Fix tenant isolation and add independent audit logging",
+    "body": "Orders with the same ID previously overwrote each other across tenants, and outbox delivery selected and deduplicated events globally. Scope order storage by `(tenantId, orderId)` and delivery by `(tenantId, eventId)`, rejecting missing or blank tenant context before side effects. Keep API operations bound to the authenticated principal.\n\nAdd a separate `DeliveryAuditLog` that retains successful delivery observations per tenant, returns copied records, and does not participate in deduplication. Update the event producer, worker, runner, exports, and README for the required tenant context and audit dependency. Audit storage remains in memory; delivery has no durability, concurrency, or exactly-once guarantee.\n\nValidation: `npm test` builds the workspace and passes 37 regression tests covering colliding IDs, exact tenant keys, forged request context, cross-tenant cancellation, missing tenant context, delivery selection, retry after a failed send, and independent audit history. `git diff --check` passes.\n\nThis branch starts directly from `main` and is independent of PRs #1 and #2. Daphne analysis, `ask-pr`, and evals are deferred to the later evaluation run.\n\nFresh whole-branch review found no issues. Existing payment/reservation IDs remain globally unique, and internal order/outbox/delivery-bookkeeping objects retain their reference semantics. Storage and diagnostic APIs require trusted callers; the API handlers provide the authenticated tenant boundary.\n"
+  },
+  "changeIds": [
+    "change-1",
+    "change-2",
+    "change-3",
+    "change-4",
+    "change-5",
+    "change-6",
+    "change-7",
+    "change-8",
+    "change-9",
+    "change-10",
+    "change-11",
+    "change-12",
+    "change-13",
+    "change-14",
+    "change-15",
+    "change-16"
+  ],
   "behaviors": [
     {
       "id": "tenant-order-identity",
       "required": true,
       "before": {
         "meaning": "OrderRepository stores orders by order ID alone. Saving the same ID for another tenant overwrites the earlier order. findForTenant checks the retrieved order's tenant, so it does not return that other tenant's order, but the overwritten tenant's order is no longer available to lookup or cancellation.",
-        "changeIds": ["change-7"],
-        "sourceIds": ["evidence-68", "evidence-65"]
+        "changeIds": ["change-7"]
       },
       "after": {
         "meaning": "OrderRepository stores and retrieves orders by the JSON-encoded pair of tenant ID and order ID. Different tenants can retain the same local order ID, while saving the same pair updates that order. Lookup still verifies exact tenant equality. The existing cancellation path therefore finds the requested tenant's retained order when local order IDs collide. Scope note: this does not change payment or reservation identity, and internal order objects retain their existing reference semantics.",
-        "changeIds": ["change-7"],
-        "sourceIds": ["evidence-91", "evidence-88", "evidence-92"]
+        "changeIds": ["change-7"]
       }
     },
     {
@@ -36,14 +61,6 @@
           "change-12",
           "change-13",
           "change-15"
-        ],
-        "sourceIds": [
-          "evidence-66",
-          "evidence-68",
-          "evidence-75",
-          "evidence-76",
-          "evidence-77",
-          "evidence-80"
         ]
       },
       "after": {
@@ -56,16 +73,6 @@
           "change-12",
           "change-13",
           "change-15"
-        ],
-        "sourceIds": [
-          "evidence-89",
-          "evidence-91",
-          "evidence-98",
-          "evidence-28",
-          "evidence-99",
-          "evidence-100",
-          "evidence-103",
-          "evidence-81"
         ]
       }
     },
@@ -74,13 +81,11 @@
       "required": true,
       "before": {
         "meaning": "DomainEvent has no tenantId field, and successful checkout appends an order.placed event containing its event ID, occurrence time and order ID payload without the order's tenant.",
-        "changeIds": ["change-6", "change-9"],
-        "sourceIds": ["evidence-66", "evidence-72"]
+        "changeIds": ["change-6", "change-9"]
       },
       "after": {
         "meaning": "DomainEvent requires tenantId, and successful checkout supplies the same tenant ID used for its order when appending order.placed. The event retains its existing event ID, occurrence time and order ID payload so tenant-aware outbox and delivery selection can use the added context.",
-        "changeIds": ["change-6", "change-9", "change-15"],
-        "sourceIds": ["evidence-89", "evidence-95", "evidence-103"]
+        "changeIds": ["change-6", "change-9", "change-15"]
       }
     },
     {
@@ -88,13 +93,11 @@
       "required": true,
       "before": {
         "meaning": "Outbox.append suppresses a repeated event ID globally, markDelivered finds an event by ID alone, and pending returns all undelivered events without a tenant selector.",
-        "changeIds": ["change-15"],
-        "sourceIds": ["evidence-80"]
+        "changeIds": ["change-15"]
       },
       "after": {
         "meaning": "Outbox.append suppresses only a repeated tenant/event-ID pair. markDelivered requires both values, changes only that matching record, and throws when no such record exists, leaving another tenant's equal event ID pending. pendingEventsForTenant selects exact tenant matches from pending events. The existing pending method remains a global internal diagnostic.",
-        "changeIds": ["change-15"],
-        "sourceIds": ["evidence-103", "evidence-81"]
+        "changeIds": ["change-15"]
       }
     },
     {
@@ -102,13 +105,11 @@
       "required": true,
       "before": {
         "meaning": "DeliveryLog records event ID and result, keeps at most one record for each event ID globally, and answers has using the event ID alone.",
-        "changeIds": ["change-12"],
-        "sourceIds": ["evidence-76"]
+        "changeIds": ["change-12"]
       },
       "after": {
         "meaning": "Delivery records include tenantId. DeliveryLog.record and has identify a delivery by exact tenant ID plus event ID, preserving separate records when tenants reuse an event ID while still deduplicating the same pair. This log remains the worker's delivery bookkeeping, separate from audit history.",
-        "changeIds": ["change-12", "change-13"],
-        "sourceIds": ["evidence-99", "evidence-100"]
+        "changeIds": ["change-12", "change-13"]
       }
     },
     {
@@ -116,23 +117,11 @@
       "required": true,
       "before": {
         "meaning": "DeliveryRunner.run forwards only a send callback. DeliveryWorker scans global pending events and picks the first event whose ID is absent from global delivery bookkeeping, with no tenant argument or filtering; it returns undefined when no eligible event exists.",
-        "changeIds": ["change-3", "change-13"],
-        "sourceIds": [
-          "evidence-62",
-          "evidence-77",
-          "evidence-76",
-          "evidence-80"
-        ]
+        "changeIds": ["change-3", "change-13"]
       },
       "after": {
         "meaning": "DeliveryRunner.run and DeliveryWorker.deliverNext require a tenant ID, and the runner forwards it with the send callback. The worker picks the first pending event for that tenant whose tenant/event-ID pair is not already in DeliveryLog. It returns undefined without sending or adding an audit when there is no eligible event, including when only other tenants have pending events or existing bookkeeping already covers that tenant's event. Callers also supply the worker's new DeliveryAuditLog dependency.",
-        "changeIds": ["change-3", "change-13", "change-12", "change-15"],
-        "sourceIds": [
-          "evidence-85",
-          "evidence-100",
-          "evidence-99",
-          "evidence-103"
-        ]
+        "changeIds": ["change-3", "change-13", "change-12", "change-15"]
       }
     },
     {
@@ -140,18 +129,11 @@
       "required": true,
       "before": {
         "meaning": "The delivery-audit-log.ts module is absent. The nearest existing delivery history is DeliveryLog: it stores event IDs and results for deduplication, suppresses repeated IDs, and exposes its stored record objects through a copied array.",
-        "changeIds": ["change-11", "change-12"],
-        "sourceIds": ["evidence-76"]
+        "changeIds": ["change-11", "change-12"]
       },
       "after": {
         "meaning": "DeliveryAuditLog separately appends tenant ID, event ID and result observations in memory, retaining repeated observations for the same pair instead of deduplicating them. forTenant returns only exact tenant matches. record copies its input and forTenant copies each returned record, so mutations to those declared string fields or the returned array do not rewrite stored history. The worker's eligibility check continues to use DeliveryLog, not audit entries. Scope note: this is an in-memory observation history, not durable storage or an exactly-once delivery guarantee.",
-        "changeIds": ["change-11", "change-12", "change-13"],
-        "sourceIds": [
-          "evidence-28",
-          "evidence-99",
-          "evidence-100",
-          "evidence-81"
-        ]
+        "changeIds": ["change-11", "change-12", "change-13"]
       }
     },
     {
@@ -159,19 +141,11 @@
       "required": true,
       "before": {
         "meaning": "After send returns, the BASE worker records its result in DeliveryLog, marks the outbox event delivered and returns the result; it does not append a separate audit observation.",
-        "changeIds": ["change-13"],
-        "sourceIds": ["evidence-77"]
+        "changeIds": ["change-13"]
       },
       "after": {
         "meaning": "For a selected event, the worker calls send synchronously, records its returned result in tenant-scoped delivery bookkeeping, marks that tenant's event delivered, then appends the audit observation with tenant ID, event ID and result before returning the result. Audit is therefore appended only after send returns and both bookkeeping operations complete. Scope note: these sequential operations are not an atomic transaction.",
-        "changeIds": ["change-13", "change-11", "change-12", "change-15"],
-        "sourceIds": [
-          "evidence-100",
-          "evidence-28",
-          "evidence-99",
-          "evidence-103",
-          "evidence-81"
-        ]
+        "changeIds": ["change-13", "change-11", "change-12", "change-15"]
       }
     },
     {
@@ -179,18 +153,11 @@
       "required": true,
       "before": {
         "meaning": "A thrown send exits the BASE worker before it records a delivery or marks the event delivered, leaving that event eligible for a later call.",
-        "changeIds": ["change-13"],
-        "sourceIds": ["evidence-77", "evidence-76", "evidence-80"]
+        "changeIds": ["change-13"]
       },
       "after": {
         "meaning": "A thrown send still propagates before the worker writes delivery bookkeeping or changes the outbox, and now also produces no success audit. A later call for the same tenant can retry the pending event; if send then returns and bookkeeping completes, that successful call adds its audit. Scope note: retryability describes this in-memory worker path and does not establish whether an external receiver performed a side effect before send threw.",
-        "changeIds": ["change-13", "change-11", "change-12", "change-15"],
-        "sourceIds": [
-          "evidence-100",
-          "evidence-28",
-          "evidence-99",
-          "evidence-103"
-        ]
+        "changeIds": ["change-13", "change-11", "change-12", "change-15"]
       }
     }
   ],
@@ -209,57 +176,32 @@
     {
       "id": "order-key-delimiter-collision",
       "meaning": "Reject a reported issue claiming that delimiter-containing string tenant/order pairs such as (a:b, c) and (a, b:c) collide in the new order repository key. The key uses JSON.stringify on a two-element array, preserving the two string values and escaping, rather than joining them with a delimiter. Tenant validation returns accepted strings unchanged. This control applies to the declared string-key contract; it does not certify arbitrary malformed order objects or mutations of trusted stored objects.",
-      "changeIds": ["change-7", "change-10"],
-      "sourceIds": ["evidence-91", "evidence-92", "evidence-98", "evidence-23"]
+      "changeIds": ["change-7", "change-10"]
     },
     {
       "id": "request-tenant-overrides-principal",
       "meaning": "Reject a reported issue claiming that a tenantId property forged into checkout request input overrides the supplied principal's tenant. The unchanged handler spreads input first and assigns actor.tenantId afterward, then checkout validates and uses that final tenant. Both API handlers require a principal; cancellation derives its tenant from that principal and performs tenant-checked order lookup before refund or inventory release. This control concerns the shown handlers and does not claim that assertTenantId authenticates callers or that storage and worker APIs authorize an arbitrary tenant argument.",
-      "changeIds": ["change-2", "change-6", "change-7"],
-      "sourceIds": [
-        "evidence-82",
-        "evidence-83",
-        "evidence-84",
-        "evidence-89",
-        "evidence-88",
-        "evidence-91",
-        "evidence-81"
-      ]
+      "changeIds": ["change-2", "change-6", "change-7"]
     },
     {
       "id": "global-pending-leaks-through-worker",
       "meaning": "Reject a reported issue claiming that DeliveryWorker sends another tenant's pending event merely because Outbox.pending is global or because the other tenant's equal event ID appears first. pendingEventsForTenant filters by exact tenant equality before the worker selects an event, and DeliveryLog.has is checked with that tenant and event ID. The runner forwards the tenant. This control assumes the trusted tenant context required by the documented internal API; it does not make global diagnostic methods tenant-authorized endpoints or dismiss callback mutation or concurrency mechanisms.",
-      "changeIds": ["change-3", "change-12", "change-13", "change-15"],
-      "sourceIds": [
-        "evidence-85",
-        "evidence-99",
-        "evidence-100",
-        "evidence-103",
-        "evidence-81"
-      ]
+      "changeIds": ["change-3", "change-12", "change-13", "change-15"]
     },
     {
       "id": "audit-history-suppresses-delivery",
       "meaning": "Reject a reported issue claiming that merely recording an audit observation suppresses a future send, or that duplicate audit observations cause duplicate sends. The audit log only appends and queries observations; the worker selects using DeliveryLog and outbox state and never reads audit history for deduplication. Audit entries and delivery bookkeeping are separate stores. This does not rule out duplicate sends through restarts, external failures, reentrancy or other mechanisms.",
-      "changeIds": ["change-11", "change-12", "change-13"],
-      "sourceIds": ["evidence-28", "evidence-99", "evidence-100"]
+      "changeIds": ["change-11", "change-12", "change-13"]
     },
     {
       "id": "audit-record-mutation-rewrites-history",
       "meaning": "Reject a reported issue claiming that editing an audit input record after record returns, editing the declared tenantId/eventId/result string fields of a forTenant result, or changing the returned array rewrites the stored audit history. record stores a copied record, and forTenant builds a new array of copied records after tenant filtering. This control covers the declared flat string record shape; it does not extend copy guarantees to the separate order, outbox or DeliveryLog objects.",
-      "changeIds": ["change-11"],
-      "sourceIds": ["evidence-28"]
+      "changeIds": ["change-11"]
     },
     {
       "id": "thrown-send-recorded-as-success",
       "meaning": "Reject a reported issue claiming that when send itself throws, the worker nevertheless records a successful delivery, marks the event delivered or appends a success audit before retry. Those operations occur only after send returns, with no catch or finally that executes them on this failure path. The control concerns worker-owned writes after a thrown send, not external side effects inside send or failures after send has already returned.",
-      "changeIds": ["change-13", "change-11", "change-12", "change-15"],
-      "sourceIds": [
-        "evidence-100",
-        "evidence-28",
-        "evidence-99",
-        "evidence-103"
-      ]
+      "changeIds": ["change-13", "change-11", "change-12", "change-15"]
     }
   ]
 }

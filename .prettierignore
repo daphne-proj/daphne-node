@@ -5,7 +5,6 @@ coverage/
 bun.lock
 apps/eval/datasets/split-pr/cases/
 apps/eval/datasets/intentions/cases/
-apps/eval/datasets/intentions/evidence/
 **/fixtures/**
 .agents/skills/vitest/
 .agents/skills/shape/

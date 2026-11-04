@@ -1,8 +1,5 @@
-import { dirname, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import type { IntentionJudgePacket } from './artifact.js';
-import { parseGoldEvidence } from './gold-evidence.js';
-import { validateSourceConsistency } from '../split-pr/source-consistency.js';
 import * as parse from '../parse.js';
 
 function ids(value: unknown, known: ReadonlySet<string>, field: string) {
@@ -21,10 +18,10 @@ function ids(value: unknown, known: ReadonlySet<string>, field: string) {
 }
 
 /*
- * Load a case and its independently preserved evidence before any judge request.
- * For example, cases/pr_1.json resolves its evidence file relative to itself.
- * Hashes bind labels to exact source bytes; reference validation does not approve
- * their meaning. Draft cases remain provisional, and malformed data throws.
+ * Load labels and pinned PR identity before judging a saved run. For example,
+ * cases/pr_1.json contains expectations without a separate source snapshot.
+ * Every change must be accounted for; malformed references throw. Source code
+ * comes only from the validated run, and draft labels remain provisional.
  */
 export async function loadIntentionGoldCase(path: string) {
   const file = await parse.readJson(path, (value) =>
@@ -59,70 +56,52 @@ export async function loadIntentionGoldCase(path: string) {
     );
   }
 
-  const evidencePath = resolve(
-    dirname(path),
-    parse.text(input.evidenceFile, 'case.evidenceFile'),
-  );
-  const frozen = await parse.readJson(evidencePath, (value) =>
-    parse.object(value, 'evidence'),
-  );
+  const revision = parse.object(input.identity, 'case.identity');
 
-  if (
-    parse.sha256(frozen.bytes) !==
-    parse.text(input.evidenceHash, 'case.evidenceHash')
-  ) {
-    throw new parse.EvaluationError('Gold evidence hash mismatch.');
+  function commit(field: string) {
+    const value = parse.text(revision[field], `identity.${field}`);
+
+    if (!/^[0-9a-f]{40}$/.test(value)) {
+      throw new parse.EvaluationError(
+        `identity.${field}: expected a full Git commit ID.`,
+      );
+    }
+
+    return value;
   }
 
-  parse.choice(
-    frozen.value.format,
-    ['daphne-intentions-gold-evidence-v1'],
-    'evidence.format',
-  );
-  const evidence = parseGoldEvidence(frozen.value);
-  const metadata = parse.object(frozen.value.metadata, 'evidence.metadata');
-  const pr = parse.text(frozen.value.pr, 'evidence.pr');
+  const identity = {
+    repositoryUrl: parse.text(revision.repositoryUrl, 'identity.repositoryUrl'),
+    targetCommit: commit('targetCommit'),
+    baseCommit: commit('baseCommit'),
+    headCommit: commit('headCommit'),
+  };
+  const metadata = parse.object(input.metadata, 'case.metadata');
+  const pr = parse.text(input.pr, 'case.pr');
   const title = parse.text(metadata.title, 'metadata.title', true);
   const body =
     metadata.body === null
       ? null
       : parse.text(metadata.body, 'metadata.body', true);
-  const changes = new Set(evidence.changes.map((change) => change.id));
-  const sources = new Map(
-    evidence.sources.map((source) => [source.evidenceId, source.source]),
-  );
+  const changeIds = parse
+    .array(input.changeIds, 'case.changeIds')
+    .map((id) => parse.text(id, 'case.changeIds'));
+  const changes = new Set(changeIds);
+
+  if (changes.size === 0 || changes.size !== changeIds.length) {
+    throw new parse.EvaluationError(
+      'Gold requires distinct, nonempty change IDs.',
+    );
+  }
+
   const accounted = new Set<string>();
 
-  function expectation(value: unknown, side: 'base' | 'head') {
-    const field = parse.object(value, `behavior.${side}`);
+  function expectation(value: unknown) {
+    const field = parse.object(value, 'behavior');
     const changeIds = ids(field.changeIds, changes, 'behavior.changeIds');
-    const sourceIds = ids(
-      field.sourceIds,
-      new Set(sources.keys()),
-      'behavior.sourceIds',
-    );
 
-    if (
-      changeIds.length === 0 ||
-      sourceIds.some((id) => sources.get(id)?.ref.side !== side)
-    ) {
-      throw new parse.EvaluationError(
-        'Behavior references require known changes and the correct source revision.',
-      );
-    }
-
-    if (
-      sourceIds.length === 0 &&
-      !changeIds.every((id) => {
-        const change = evidence.changes.find((entry) => entry.id === id);
-        return side === 'base'
-          ? change?.beforePath === null
-          : change?.afterPath === null;
-      })
-    ) {
-      throw new parse.EvaluationError(
-        'A behavior needs source support unless its paths are absent on that side.',
-      );
+    if (changeIds.length === 0) {
+      throw new parse.EvaluationError('A behavior requires change references.');
     }
 
     for (const id of changeIds) {
@@ -132,7 +111,6 @@ export async function loadIntentionGoldCase(path: string) {
     return {
       meaning: parse.text(field.meaning, 'behavior.meaning'),
       changeIds,
-      sourceIds,
     };
   }
 
@@ -150,8 +128,8 @@ export async function loadIntentionGoldCase(path: string) {
       return {
         id: parse.text(behavior.id, 'behavior.id'),
         required: behavior.required,
-        before: expectation(behavior.before, 'base'),
-        after: expectation(behavior.after, 'head'),
+        before: expectation(behavior.before),
+        after: expectation(behavior.after),
       };
     });
 
@@ -192,20 +170,15 @@ export async function loadIntentionGoldCase(path: string) {
     );
   }
 
-  /* Issue labels may combine revisions, but must cite frozen evidence and affected changes. */
+  /* Issue labels identify affected changes; the run supplies any source used to assess them. */
   function issueLabels(value: unknown, field: string) {
     const labels = parse.array(value, field).map((value) => {
       const label = parse.object(value, field);
       const changeIds = ids(label.changeIds, changes, `${field}.changeIds`);
-      const sourceIds = ids(
-        label.sourceIds,
-        new Set(sources.keys()),
-        `${field}.sourceIds`,
-      );
 
-      if (changeIds.length === 0 || sourceIds.length === 0) {
+      if (changeIds.length === 0) {
         throw new parse.EvaluationError(
-          `${field}: labels need changes and source support.`,
+          `${field}: labels need change references.`,
         );
       }
 
@@ -213,7 +186,6 @@ export async function loadIntentionGoldCase(path: string) {
         id: parse.text(label.id, `${field}.id`),
         meaning: parse.text(label.meaning, `${field}.meaning`),
         changeIds,
-        sourceIds,
       };
     });
 
@@ -249,10 +221,10 @@ export async function loadIntentionGoldCase(path: string) {
     expectedIssues,
     falseAlarmControls,
     caseHash: parse.sha256(file.bytes),
-    evidenceHash: parse.sha256(frozen.bytes),
     pr,
     metadata: { title, body },
-    evidence,
+    identity,
+    changeIds,
   };
 }
 
@@ -261,77 +233,32 @@ export type IntentionGoldCase = Awaited<
 >;
 
 /*
- * Match a validated accepted artifact to its gold comparison, ignoring only the
- * acquisition session ID. Check original hunks and all overlapping source bytes;
- * unrelated revisions, metadata or inventories must fail before model execution.
- * Gold sources get separate IDs for factual checks, never new candidate citations.
+ * Reject a run from a different pinned PR comparison before invoking the judge.
+ * For example, changing HEAD or PR metadata requires relabeling the case. Only
+ * acquisition session IDs may differ; the artifact reader validates source bytes.
+ * This check never adds sources or changes the candidate's citation context.
  */
-export function prepareGoldPacket(
+export function validateGoldComparison(
   gold: IntentionGoldCase,
   packet: IntentionJudgePacket,
-): IntentionJudgePacket {
-  const expected = { ...gold.evidence.identity, sessionId: '' };
-  const actual = { ...packet.identity, sessionId: '' };
+): void {
+  const actual = {
+    repositoryUrl: packet.identity.repositoryUrl,
+    targetCommit: packet.identity.targetCommit,
+    baseCommit: packet.identity.baseCommit,
+    headCommit: packet.identity.headCommit,
+  };
 
   if (
-    !isDeepStrictEqual(expected, actual) ||
+    !isDeepStrictEqual(gold.identity, actual) ||
     !isDeepStrictEqual(gold.metadata, packet.metadata) ||
-    !isDeepStrictEqual(gold.evidence.changes, packet.changes)
+    !isDeepStrictEqual(
+      gold.changeIds,
+      packet.changes.map((change) => change.id),
+    )
   ) {
     throw new parse.EvaluationError(
-      'Artifact revisions, metadata or inventory differ from the gold case.',
+      'Artifact revisions, metadata or change IDs differ from the gold case.',
     );
   }
-
-  const frozen = gold.evidence.sources.map(({ source }) => source);
-  const delivered = packet.sources.map(({ source }) => source);
-  validateSourceConsistency([...frozen, ...delivered]);
-
-  for (const hunk of packet.hunks) {
-    const reference = gold.evidence.hunks.find(
-      (entry) =>
-        entry.changeId === hunk.changeId && entry.hunkIndex === hunk.hunkIndex,
-    );
-    const expectedSources = reference?.evidenceIds.map(
-      (id) =>
-        gold.evidence.sources.find((source) => source.evidenceId === id)
-          ?.source,
-    );
-    const actualSources = hunk.evidenceIds.map(
-      (id) => packet.sources.find((source) => source.evidenceId === id)?.source,
-    );
-    const comparable = (sources: typeof expectedSources) =>
-      sources?.map((source) => {
-        if (!source) {
-          throw new parse.EvaluationError('Missing original hunk source.');
-        }
-
-        return { ...source, ref: { ...source.ref, sessionId: '' } };
-      });
-
-    if (
-      !isDeepStrictEqual(comparable(expectedSources), comparable(actualSources))
-    ) {
-      throw new parse.EvaluationError(
-        'Artifact original hunks differ from the frozen gold evidence.',
-      );
-    }
-  }
-
-  if (packet.hunks.length !== gold.evidence.hunks.length) {
-    throw new parse.EvaluationError(
-      'Artifact original hunk count differs from gold.',
-    );
-  }
-
-  return {
-    ...packet,
-    sources: [
-      ...packet.sources,
-      ...gold.evidence.sources.map((source) => ({
-        ...source,
-        evidenceId: `gold:${source.evidenceId}`,
-      })),
-    ],
-  };
 }

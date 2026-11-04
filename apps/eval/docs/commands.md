@@ -378,7 +378,7 @@ and console logs in `generation.log` and `evaluation.log`. The terminal prints
 a grouped 0–100 scorecard, supporting counts and a final overall summary index.
 Failures exit unsuccessfully and identify the error or saved log.
 Generation requires the selected provider's `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`; judging uses Codex CLI authentication. New saved turns retain the actual generation instructions even when the provider does not echo them.
-PR revisions and evidence must still match the frozen case before judging.
+PR revisions, metadata and ordered change IDs must match the case before judging.
 
 Optional `ARTIFACT=PATH` skips generation and regrades a saved run. `OUTPUT` and
 `GENERATION_PROMPT` work as for ordinary judging. With `ARTIFACT` but no `CASE`,
@@ -395,11 +395,11 @@ bun run eval -- intentions eval \
   --model YOUR_JUDGE_MODEL
 ```
 
-It checks the frozen case and accepted v3 artifact before invoking the existing
-Codex runner. Case/evidence hashes, source consistency, revisions, PR text,
-inventory and original hunks must match. Gold sources are additional evidence
-for truth assessment only, never replacements for the candidate's attached
-citations. `--case` is required for `eval` and rejected by `judge`.
+It validates the labels and accepted artifact before invoking the existing Codex
+runner. The run's revisions, PR text and ordered change IDs must match the case.
+The judge receives the run's source evidence plus gold labels; no separate gold
+source file is read or appended. Artifact validation still checks source consistency,
+original hunks and citation delivery. `--case` is required for `eval` and rejected by `judge`.
 
 A fresh output directory receives `daphne-intentions-gold-input-v3` input and a
 `daphne-intentions-gold-report-v3` report. Reports separate primary quality and required
@@ -412,10 +412,10 @@ Gold matches include cardIndex, field and an exact quote. Before/after matches
 must select the assessed side; issue matches add issueIndex and quote that
 observation's narrative, which must explain behavior on the assessed revision.
 Intended outcomes and motivation never establish actual behavior coverage.
-Gold case v2 adds expected material issues and false-alarm controls. Evidence v1
-and its frozen bytes remain unchanged. Old v1 cases need deliberate issue annotation;
-relabeling them is not migration. Gold-only sources cannot retroactively repair
-candidate citations.
+Gold cases contain expected material issues and false-alarm controls alongside
+behavior labels and pinned PR metadata. Source code comes only from the saved run;
+labels cannot retroactively repair candidate citations. Unavailable source for
+additional factual checks remains unassessed.
 
 The full report's `issueEvaluation` contains explicit assessments of every reported
 issue and exact issue-text matches for every expected issue and control. Its `metrics`
@@ -429,8 +429,8 @@ over assessed controls. These are judge estimates over an incomplete draft refer
 not total issue recall. Supported observations absent from gold can still pass.
 See [issue metric definitions](../datasets/intentions/README.md#read-the-issue-metrics).
 
-See the [dataset guide](../datasets/intentions/README.md) for annotation, evidence
-storage, output fields and limitations. The suite file is a catalog, not another
+See the [dataset guide](../datasets/intentions/README.md) for annotation, source
+provenance, output fields and limitations. The suite file is a catalog, not another
 CLI mode. Paid calibration and unseen evaluation are not implied by setup checks.
 
 ### Intention scorecard scale and overall score

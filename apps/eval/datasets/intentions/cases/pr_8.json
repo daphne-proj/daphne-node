@@ -1,0 +1,208 @@
+{
+  "format": "daphne-intentions-gold-v2",
+  "id": "pr_8",
+  "partition": "development",
+  "review": {
+    "status": "draft",
+    "reviewer": null,
+    "reviewedAt": null
+  },
+  "pr": "https://github.com/daphne-proj/pr-review-test/pull/8",
+  "identity": {
+    "repositoryUrl": "https://github.com/daphne-proj/pr-review-test.git",
+    "targetCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "baseCommit": "3f0d15e8834c098d26b428bad1b325e6f33d9755",
+    "headCommit": "9ad332be6f8c4df572e8ec16e7714976720e28af"
+  },
+  "metadata": {
+    "title": "Execute leased fulfillment jobs with fenced retries",
+    "body": "Fulfillment jobs previously offered only owner-based completion and no executable retry lifecycle. A stale worker could complete a later claim by the same owner, and scheduling/claiming were not connected to a worker in commerce composition.\n\nThis change adds generation-fenced claim, renewal, completion, and failure; deterministic ready selection; bounded attempts and capped retry backoff; expired-lease recovery; terminal exhaustion; and detached payload snapshots. The existing scheduling service validates paid orders and delayed availability, commerce composition exposes its queue/service/worker with injected IDs/time, and the worker application provides bounded asynchronous batches. Sender failures schedule retries; stale lease and clock errors propagate without changing newer attempts.\n\nValidation: clean TypeScript build, 28 original fencing scenarios, 132 expanded lifecycle scenarios, 15 payload ownership scenarios, strict public-consumer compilation, and baseline reproductions passed on Node 22.23.3 / TypeScript 5.6.3. Evaluation scripts remain outside the analyzed repository. Independent expanded review found a shared-memory ownership gap; the correction rejects shared memory and opaque payload objects before enqueue writes, and targeted independent rereview passes.\n\nThe fixture remains in memory and requires trustworthy millisecond time. Fencing does not guarantee exactly-once external effects, persistence, automatic renewal, or cross-process coordination.\n"
+  },
+  "changeIds": [
+    "change-1",
+    "change-2",
+    "change-3",
+    "change-4",
+    "change-5",
+    "change-6",
+    "change-7",
+    "change-8",
+    "change-9",
+    "change-10",
+    "change-11",
+    "change-12",
+    "change-13"
+  ],
+  "behaviors": [
+    {
+      "id": "validated-enqueue-and-availability",
+      "required": true,
+      "before": {
+        "meaning": "JobQueue.enqueue stores a new ID as pending without validating IDs or payloads, and ignores every repeated ID regardless of event identity. Jobs have no creation time, availability deadline, attempt count or lease generation.",
+        "changeIds": ["change-9", "change-13"]
+      },
+      "after": {
+        "meaning": "Enqueue requires nonblank job/event IDs and finite creation/availability times, defaults creation time to zero and omitted availability to creation time, and rejects availability before creation. New jobs start pending with attempts and leaseGeneration zero. An existing ID with the same event is an unchanged no-op after identifier/time validation; a different event rejects rather than silently reusing the ID. The duplicate path does not replace or clone its supplied payload. IDs retain their supplied spelling; distinct job IDs may still reference the same event.",
+        "changeIds": ["change-9", "change-11", "change-13"]
+      }
+    },
+    {
+      "id": "generation-fenced-claims-and-completion",
+      "required": true,
+      "before": {
+        "meaning": "Claim rejects a completed job or an unexpired lease, then sets owner and deadline and returns a shallow copy. There is no generation or attempt counter and no duration/time validation. Completion checks only leased status and owner, with no expiry check, so an expired attempt can complete a later claim by the same owner.",
+        "changeIds": ["change-9", "change-13"]
+      },
+      "after": {
+        "meaning": "Claim requires a nonblank owner and finite time/positive finite duration producing a strictly later finite deadline. It rejects terminal jobs, future pending jobs, still-active leases and exhausted attempt budgets, then increments both attempts and the safe-integer generation and records claimedAt. Completion requires the current leased owner and positive safe-integer generation, with claimedAt <= now < leaseUntil; it returns a detached complete record with completedAt and no active lease fields. Old credentials cannot complete a reacquired job even when the owner string is reused. Claim is allowed at exact expiry, while completion there rejects. Time need only be finite; direct claim duration is not constrained to integer milliseconds or the policy duration.",
+        "changeIds": ["change-9", "change-11", "change-13"]
+      }
+    },
+    {
+      "id": "lease-renewal-without-new-attempt",
+      "required": true,
+      "before": {
+        "meaning": "The queue has claim and owner-only complete operations but no lease renewal. An active lease prevents another claim until its deadline.",
+        "changeIds": ["change-9"]
+      },
+      "after": {
+        "meaning": "Renew requires the current unexpired owner/generation and a time no earlier than claimedAt. Its duration defaults to the queue policy, must produce a valid deadline, and must extend the existing deadline strictly. Success updates only leaseUntil and returns a detached claim, preserving generation, attempt count and claimedAt. Invalid credentials, expiry, nonextending renewal or invalid arithmetic throw before that transition changes the queue; renewal is explicitly driven by callers, not automatic in JobWorker.",
+        "changeIds": ["change-9", "change-11"]
+      }
+    },
+    {
+      "id": "bounded-retries-and-terminal-exhaustion",
+      "required": true,
+      "before": {
+        "meaning": "Jobs support pending, leased and complete states only. The queue has no failure transition, retry schedule, maximum-attempt policy or exhausted terminal state; expired leases can be claimed repeatedly.",
+        "changeIds": ["change-8", "change-9", "change-13"]
+      },
+      "after": {
+        "meaning": "The queue resolves a frozen policy with defaults of a 30,000ms lease, three attempts, 1,000ms initial retry delay and 60,000ms cap. All policy values must be positive safe integers and the cap must be at least the initial delay. Fail requires a nonblank reason and current unexpired lease credentials. Before the final attempt it records lastError and returns the job to pending at now + min(cap, initialDelay * 2^(attempts - 1)), with exponent growth bounded and a finite strictly later deadline required. The final failure instead records exhaustedAt and becomes exhausted, without scheduling another retry. Completion and exhaustion retain attempt/generation history but no live lease fields and cannot be claimed again. Validation and deadline failures leave the attempted transition uncommitted.",
+        "changeIds": ["change-8", "change-9", "change-11", "change-13"]
+      }
+    },
+    {
+      "id": "expired-lease-recovery-and-ready-selection",
+      "required": true,
+      "before": {
+        "meaning": "A caller must know a job ID to claim it. An expired lease can be overwritten directly by claim, but the queue provides no automatic ready selection, expiry sweep, attempt budget or terminal recovery state.",
+        "changeIds": ["change-9"]
+      },
+      "after": {
+        "meaning": "expireLeases recovers every leased job with leaseUntil <= now, records lastError as lease expired, and returns detached recovered records. An expired attempt with budget remaining becomes pending immediately at now, without the sender-failure backoff; an expired final attempt becomes exhausted. Recovery does not itself consume another attempt. claimNext validates owner/time/deadline before recovery, then claims the first ready pending job in Map insertion order, skipping future and terminal jobs; it returns undefined if none is eligible. An older eligible insertion wins even if a later insertion has an earlier deadline. Direct claim may reacquire an expired lease with budget left, while explicit recovery or claimNext is needed to mark an expired final attempt exhausted. These methods are caller-driven; no background timer is installed.",
+        "changeIds": ["change-9"]
+      }
+    },
+    {
+      "id": "detached-payload-ownership",
+      "required": true,
+      "before": {
+        "meaning": "Enqueue, claim and get copy only the outer job record. Nested payload objects remain shared with the enqueue input and returned records, so caller mutations can change retained payload data. There is no supported-payload validation.",
+        "changeIds": ["change-9", "change-10"]
+      },
+      "after": {
+        "meaning": "New enqueue clones payloads before storing them, and claim, renew, complete, fail, recovery, get and list return payload clones. Mutating a caller input or a sender/inspection result therefore does not change retained nested payload data. The implementation first structured-clones and then validates the clone, preventing a getter from replacing a previously inspected value on a second read. It accepts cloneable primitives and supported record/array, Map/Set, Date/RegExp, ArrayBuffer and typed-view structures, including cycles. SharedArrayBuffer and its views are rejected even when nested in supported containers; remaining opaque clone results and values that structuredClone cannot clone also reject. New enqueue failures occur before insertion. This describes ownership of the resulting clone, not preservation of custom prototypes or support for every structured-cloneable native object.",
+        "changeIds": ["change-9", "change-10"]
+      }
+    },
+    {
+      "id": "queue-inspection-and-wake-deadline",
+      "required": true,
+      "before": {
+        "meaning": "The queue provides only get(id), which returns a shallow copy of the named job or throws if missing. It has no list or aggregate inspection API.",
+        "changeIds": ["change-7", "change-9"]
+      },
+      "after": {
+        "meaning": "Get returns a detached named record, and list returns detached records in insertion order, including completed and exhausted jobs. Summary reports total plus pending/leased/complete/exhausted counts, with zero buckets retained, and nextWakeAt as the minimum pending availability or leased deadline; terminal jobs do not contribute, and no active deadline leaves it absent. Inspection does not recover expired leases or consume jobs, so a summary can still include an overdue leased deadline until recovery is called.",
+        "changeIds": ["change-7", "change-9"]
+      }
+    },
+    {
+      "id": "validated-paid-order-scheduling",
+      "required": true,
+      "before": {
+        "meaning": "FulfillmentService.schedule already allocates a job ID and enqueues the order event ID with an orderId payload, but it accepts the supplied order without checking identity or paid state, has no delay argument and needs no clock.",
+        "changeIds": ["change-5"]
+      },
+      "after": {
+        "meaning": "Schedule retains the existing order-linked job operation and adds injected time plus an optional delay defaulting to zero. It requires nonblank order/event IDs, paid state and a nonnegative safe-integer delay, validates both now and now + delay as finite, and requires a positive delay to advance the deadline. These checks happen before consuming a job ID. It then enqueues at the captured now with the calculated availableAt and orderId-only payload and returns the ID. The service validates the supplied Order object; it does not load an authoritative order, add tenant authorization, automatically schedule checkout, or deduplicate distinct job IDs for an event.",
+        "changeIds": ["change-5", "change-11"]
+      }
+    },
+    {
+      "id": "asynchronous-job-execution-and-failure-boundary",
+      "required": true,
+      "before": {
+        "meaning": "The JobWorker path is absent. Existing DeliveryWorker delivers an outbox event synchronously, records its event ID in DeliveryLog and marks the outbox delivered. JobQueue exposes manual claim/complete methods without an executable sender/retry workflow; the existing outbox worker is a separate mechanism.",
+        "changeIds": ["change-12"]
+      },
+      "after": {
+        "meaning": "JobWorker.runNext rejects a nonfunction sender before claiming, uses the injected clock to claim the next ready job, returns undefined without sending if none is ready, and awaits the sender with the detached claim. It captures ID and generation before the sender runs, then reads the clock again to complete on success or fail on sender rejection. Nonblank Error messages and strings become lastError; other failures use delivery failed. Only the sender call is caught: clock, stale-generation, expired-lease or queue transition errors propagate rather than being turned into failures of a newer attempt. A valid sender failure returns the retry/exhausted record instead of rethrowing the transport error. The worker does not renew automatically or use DeliveryLog/outbox deduplication, and a successful external send followed by an expired completion can still be retried; fencing protects queue transitions rather than promising exactly-once effects.",
+        "changeIds": ["change-12"]
+      }
+    },
+    {
+      "id": "bounded-sequential-worker-batches",
+      "required": true,
+      "before": {
+        "meaning": "The JobRunner path is absent. The existing DeliveryRunner only delegates one synchronous outbox delivery; it offers no bounded asynchronous batch of leased jobs.",
+        "changeIds": ["change-3"]
+      },
+      "after": {
+        "meaning": "JobRunner.run delegates to JobWorker in a sequential awaited loop, with a default limit of one and a required safe-integer limit from one through 100. Invalid limits reject before any worker call. It stops early when runNext returns undefined and returns each processed job record, including pending retries or exhausted results, in processing order. The bound counts attempts processed during this run rather than only successful completions. A worker error rejects the batch and stops later work; prior per-job transitions are not rolled back. It does not create a background loop or parallel execution.",
+        "changeIds": ["change-3"]
+      }
+    },
+    {
+      "id": "shared-commerce-job-composition",
+      "required": true,
+      "before": {
+        "meaning": "createCommerceSystem constructs inventory, payments, orders, outbox, checkout and cancellation with injected time and IDs, but exposes no job queue, fulfillment scheduler or job worker. Checkout already writes order.placed events to the outbox.",
+        "changeIds": ["change-4"]
+      },
+      "after": {
+        "meaning": "Commerce composition adds an optional partial jobPolicy, creates one JobQueue, and exposes jobs plus FulfillmentService and JobWorker sharing that queue. The scheduler uses the existing injected ID source and both job components share the injected clock. Existing checkout/cancellation/outbox wiring remains, and checkout still only appends its outbox event: callers explicitly schedule a paid order and drive the job worker or runner. Queue state remains synchronous and in memory; this wiring adds no persistence or cross-process coordination.",
+        "changeIds": ["change-4"]
+      }
+    }
+  ],
+  "incidentalChanges": [
+    {
+      "changeIds": ["change-1"],
+      "reason": "README documents the job lifecycle, supported payload ownership, caller-driven execution and operational limits covered by the behavior expectations; documentation is not independent proof of those guarantees."
+    },
+    {
+      "changeIds": ["change-2", "change-6"],
+      "reason": "Worker and fulfillment barrel exports expose JobRunner, JobWorker, policy and summary contracts for the workflows covered above."
+    }
+  ],
+  "expectedIssues": [],
+  "falseAlarmControls": [
+    {
+      "id": "same-owner-stale-attempt-changes-current-lease",
+      "meaning": "Reject a concern that reusing the same owner lets an older attempt renew, complete or fail a newer claim. Every acquisition advances leaseGeneration, and all three transitions require the current owner and generation. JobWorker captures the claimed ID/generation before awaiting the sender, so mutating the returned record does not substitute a newer generation. This control concerns queue-state transitions only; it does not claim to prevent an already-started external send from taking effect or to guarantee exactly-once delivery.",
+      "changeIds": ["change-9", "change-12"]
+    },
+    {
+      "id": "exact-expiry-allows-stale-completion-or-blocks-recovery",
+      "meaning": "Reject a concern that a lease remains valid for completion, renewal or failure at now equal to leaseUntil, or that reacquisition/recovery must wait until later. currentLease rejects leaseUntil <= now; direct claim only blocks leaseUntil > now, and expireLeases recovers at equality. Reacquisition still requires attempt budget and normal validation, and an expired final attempt becomes exhausted on recovery.",
+      "changeIds": ["change-9"]
+    },
+    {
+      "id": "nested-or-shared-payload-mutates-retained-queue",
+      "meaning": "Reject a concern that editing a normal nested enqueue input, claim, sender argument or get/list result mutates the retained queue payload, or that SharedArrayBuffer-backed data silently preserves shared-memory aliases. New insertion and returned snapshots clone payloads; validation walks the clone through supported containers and rejects shared buffers and their views. Validating the already-produced clone also prevents an input getter changing value between prevalidation and cloning. This does not promise acceptance of every native object, preservation of prototypes or isolation of external sender effects.",
+      "changeIds": ["change-9", "change-10", "change-12"]
+    },
+    {
+      "id": "clock-or-stale-transition-reschedules-newer-attempt",
+      "meaning": "Reject a concern that JobWorker catches completion errors or clock errors as sender failures and then retries or exhausts a newer attempt. Only await send is within the try block. Completion is outside it, and exceptions from the failure handler or its clock call escape; queue.fail also checks the captured generation and current unexpired lease before writing. A sender rejection after lease expiry can therefore propagate a lease error rather than produce a retry record, leaving later recovery to the queue lifecycle.",
+      "changeIds": ["change-12", "change-9"]
+    },
+    {
+      "id": "invalid-scheduling-input-consumes-job-id",
+      "meaning": "Reject a concern that an invalid order ID/event ID, unpaid order, invalid delay or invalid clock/deadline consumes the injected job ID before rejection. FulfillmentService performs all those checks before ids.next. Keep the scope precise: an invalid ID returned by the ID source, an existing queue ID belonging to another event or another enqueue failure can still occur after ID allocation.",
+      "changeIds": ["change-5", "change-11"]
+    }
+  ]
+}
